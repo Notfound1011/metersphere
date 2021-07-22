@@ -52,7 +52,7 @@ export default {
     operating: '操作',
     input_limit: '長度在 {0} 到 {1} 個字符',
     login: '登錄',
-    welcome: '一站式開源持續測試平臺',
+    welcome: 'Phemex測試管理平臺',
     username: '姓名',
     password: '密碼',
     input_username: '請輸入用戶姓名',

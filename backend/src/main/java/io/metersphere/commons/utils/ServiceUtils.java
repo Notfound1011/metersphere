@@ -29,18 +29,6 @@ public class ServiceUtils {
         return orders;
     }
 
-    public static List<OrderRequest> getByCreateTime(List<OrderRequest> orders) {
-        if (orders == null || orders.size() < 1) {
-            OrderRequest orderRequest = new OrderRequest();
-            orderRequest.setName("create_time");
-            orderRequest.setType("asc");
-            orders = new ArrayList<>();
-            orders.add(orderRequest);
-            return orders;
-        }
-        return orders;
-    }
-
     /**
      * 获取前端全选的id列表
      *

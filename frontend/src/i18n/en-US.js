@@ -51,7 +51,7 @@ export default {
     operating: 'Operating',
     input_limit: 'Within {0} and {1} characters',
     login: 'Sign In',
-    welcome: 'One-stop open source continuous testing platform',
+    welcome: 'Phemex testing platform',
     username: 'Username',
     password: 'Password',
     input_username: 'Please enter username',
