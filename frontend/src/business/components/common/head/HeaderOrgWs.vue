@@ -6,7 +6,7 @@
            default-active="1"
            text-color="#fff">
     <el-menu-item index="1" v-show="false">Placeholder</el-menu-item>
-    <el-submenu index="1" popper-class="org-ws-submenu"
+    <el-submenu index="1" popper-class="org-ws-menu"
                 v-permission="['PROJECT_TRACK_CASE:READ','PROJECT_TRACK_PLAN:READ','PROJECT_TRACK_REVIEW:READ',
                 'PROJECT_API_DEFINITION:READ','PROJECT_API_SCENARIO:READ','PROJECT_API_REPORT:READ',
                 'PROJECT_PERFORMANCE_TEST:READ','PROJECT_PERFORMANCE_REPORT:READ', 'ORGANIZATION_USER:READ',
@@ -38,16 +38,16 @@
     </el-submenu>
 
     <!-- 一级菜单：工作空间   -->
-    <el-submenu index="2" popper-class="submenu"
+    <el-submenu index="2" popper-class="org-ws-menu"
                 :popper-append-to-body="true"
                 v-permission="['PROJECT_TRACK_CASE:READ','PROJECT_TRACK_PLAN:READ','PROJECT_TRACK_REVIEW:READ',
                 'PROJECT_API_DEFINITION:READ','PROJECT_API_SCENARIO:READ','PROJECT_API_REPORT:READ',
                 'PROJECT_PERFORMANCE_TEST:READ','PROJECT_PERFORMANCE_REPORT:READ', 'ORGANIZATION_USER:READ',
                 'WORKSPACE_USER:READ']">
-      <template v-slot:title>
-        <div class="submenu" :title="currentWorkspaceName + '-' + currentProjectName">
-          <div>{{ currentProjectName || currentWorkspaceName }}</div>
-        </div>
+      <template v-slot:title>{{ $t('commons.project') }}:
+        <span class="project-name" :title="currentProjectName">
+          {{ currentProjectName }}
+        </span>
       </template>
       <el-input :placeholder="$t('project.search_by_name')"
                 prefix-icon="el-icon-search"
@@ -66,7 +66,7 @@
             </div>
           </template>
 
-          <!--三级菜单-->
+          <!--二级菜单：项目-->
 <!--          <el-input :placeholder="$t('project.search_by_name')"-->
 <!--                    prefix-icon="el-icon-search"-->
 <!--                    v-model="searchProj"-->
@@ -340,7 +340,7 @@ export default {
 }
 
 .org-ws-menu {
-  height: 180px;
+  height: 250px;
   overflow: auto;
 }
 
@@ -368,8 +368,17 @@ export default {
 
 .org-ws-name {
   display: inline-block;
-  padding-left: 15px;
+  padding-left: 5px;
   max-width: 110px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-name {
+  display: inline-block;
+  padding-left: 5px;
+  width: 150px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

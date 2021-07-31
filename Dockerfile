@@ -9,7 +9,7 @@ FROM metersphere/fabric8-java-alpine-openjdk8-jre
 
 LABEL maintainer="FIT2CLOUD <support@fit2cloud.com>"
 
-ARG MS_VERSION=dev
+ARG MS_VERSION=v1.11.0
 ARG DEPENDENCY=/workspace/app/dependency
 
 COPY --from=build ${DEPENDENCY}/BOOT-INF/lib /app/lib
