@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.metersphere.base.mapper.ext.ExtYamlCaseMapper">
+    <resultMap id="BaseResultMap" type="io.metersphere.api.caseRecord.request.YamlCaseRequest">
+        <id  column="id" javaType="long" jdbcType="NUMERIC" property="id"/>
+        <result column="name" javaType="string" jdbcType="VARCHAR" property="name"/>
+        <result column="test_case" javaType="string" jdbcType="LONGVARCHAR" property="testCase"/>
+        <result column="remarks" javaType="string" jdbcType="VARCHAR" property="remarks"/>
+        <result column="create_time" javaType="long" jdbcType="BIGINT" property="createTime"/>
+        <result column="update_time" javaType="long" jdbcType="BIGINT" property="updateTime"/>
+    </resultMap>
+    <select id="queryTestCaseList" resultType="io.metersphere.api.caseRecord.dto.YamlCaseDTO" resultMap="BaseResultMap">
+        select * from yaml_case_record
+        <if test="query != null">
+            where name like concat('%', #{query}, '%')
+        </if>
+    </select>
+    <select id="queryTestCaseListByName" resultType="io.metersphere.api.caseRecord.dto.YamlCaseDTO" resultMap="BaseResultMap">
+        select * from yaml_case_record where name = #{name}
+    </select>
+    <insert id="addTestCase" parameterType="io.metersphere.api.caseRecord.request.YamlCaseRequest" useGeneratedKeys="true" keyProperty="id">
+        insert into yaml_case_record (`name`, test_case, remarks, create_time, update_time)
+        values (#{request.name,jdbcType=VARCHAR}, #{request.testCase,jdbcType=LONGVARCHAR},
+                #{request.remarks,jdbcType=VARCHAR}, #{request.createTime,jdbcType=BIGINT},
+                #{request.updateTime,jdbcType=BIGINT}
+                )
+    </insert>
+    <update id="updateTestCase" parameterType="io.metersphere.api.caseRecord.request.YamlCaseRequest">
+        update yaml_case_record
+        set `name` = #{request.name,jdbcType=VARCHAR},
+            test_case = #{request.testCase,jdbcType=LONGVARCHAR},
+            remarks = #{request.remarks,jdbcType=VARCHAR},
+            update_time = #{request.updateTime,jdbcType=BIGINT}
+        where id = #{request.id,jdbcType=NUMERIC}
+    </update>
+    <delete id="deleteTestCase" parameterType="io.metersphere.api.caseRecord.request.YamlCaseRequest">
+        delete from yaml_case_record
+        where id = #{id,jdbcType=NUMERIC}
+    </delete>
+</mapper>

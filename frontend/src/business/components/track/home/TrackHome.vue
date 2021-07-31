@@ -1,6 +1,14 @@
 <template>
   <ms-container>
     <ms-main-container v-loading="result.loading">
+      <div class="top">
+        <el-alert
+          title="公告：新功能上线啦😁"
+          type="info"
+          show-icon
+          description="新增二级导航菜单，点击右上角寻找自己的项目吧！；修复浏览器首次登录不能跳转指定链接的bug；新增接口测试用例录入功能；优化思维导图用例排序；用例导入时放开层级限制">
+        </el-alert>
+      </div>
       <el-row :gutter="10">
         <el-col :span="6">
           <div class="square">
