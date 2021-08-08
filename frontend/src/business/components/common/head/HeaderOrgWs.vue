@@ -5,19 +5,14 @@
            active-text-color="#fff"
            default-active="1"
            text-color="#fff">
-    <el-menu-item index="1" v-show="false">Placeholder</el-menu-item>
-    <el-submenu index="1" popper-class="org-ws-menu"
-                v-permission="['PROJECT_TRACK_CASE:READ','PROJECT_TRACK_PLAN:READ','PROJECT_TRACK_REVIEW:READ',
-                'PROJECT_API_DEFINITION:READ','PROJECT_API_SCENARIO:READ','PROJECT_API_REPORT:READ',
-                'PROJECT_PERFORMANCE_TEST:READ','PROJECT_PERFORMANCE_REPORT:READ', 'ORGANIZATION_USER:READ',
-                'WORKSPACE_USER:READ']">
+    <el-submenu index="1" popper-class="org-ws-menu">
       <!--组织菜单-->
       <template v-slot:title>{{ $t('commons.organization') }}:
         <span class="org-ws-name" :title="currentOrganizationName">
           {{ currentOrganizationName }}
         </span>
       </template>
-      <el-input :placeholder="$t('project.search_by_name')"
+      <el-input :placeholder="$t('project.search_by_name')+'组织'"
                 prefix-icon="el-icon-search"
                 v-model="searchOrg"
                 clearable
@@ -33,23 +28,52 @@
               <i class="el-icon-check" v-if="item.id === getCurrentOrganizationId()"></i>
             </div>
           </template>
-          </el-menu-item>
+        </el-menu-item>
       </div>
     </el-submenu>
 
+    <!-- 工作空间   -->
+<!--    <el-submenu index="2" popper-class="org-ws-menu"-->
+<!--                :popper-append-to-body="true"-->
+<!--                v-permission="['PROJECT_TRACK_CASE:READ','PROJECT_TRACK_PLAN:READ','PROJECT_TRACK_REVIEW:READ',-->
+<!--                'PROJECT_API_DEFINITION:READ','PROJECT_API_SCENARIO:READ','PROJECT_API_REPORT:READ',-->
+<!--                'PROJECT_PERFORMANCE_TEST:READ','PROJECT_PERFORMANCE_REPORT:READ', 'ORGANIZATION_USER:READ',-->
+<!--                'WORKSPACE_USER:READ']">-->
+<!--      <template v-slot:title>{{ $t('commons.workspace') }}:-->
+<!--        <span class="org-ws-name" :title="currentWorkspaceName">-->
+<!--          {{ currentWorkspaceName }}-->
+<!--        </span>-->
+<!--      </template>-->
+<!--      <el-input :placeholder="$t('project.search_by_name')"-->
+<!--                prefix-icon="el-icon-search"-->
+<!--                v-model="searchWs"-->
+<!--                clearable-->
+<!--                class="search-input"-->
+<!--                size="small"/>-->
+<!--      <div class="org-ws-menu">-->
+<!--        <el-menu-item :index="1+'-'+index" v-for="(ws,index) in workspaceList"-->
+<!--                    :popper-append-to-body="true"-->
+<!--                    :key="index">-->
+<!--          <template v-slot:title>-->
+<!--            <div @click="changeWs(ws)">-->
+<!--              {{ ws.name }}-->
+<!--              <i class="el-icon-check" v-if="ws.id === getCurrentWorkspaceId()"></i>-->
+<!--            </div>-->
+<!--          </template>-->
+<!--        </el-menu-item>-->
+<!--      </div>-->
+<!--    </el-submenu>-->
+
     <!-- 一级菜单：工作空间   -->
-    <el-submenu index="2" popper-class="org-ws-menu"
-                :popper-append-to-body="true"
-                v-permission="['PROJECT_TRACK_CASE:READ','PROJECT_TRACK_PLAN:READ','PROJECT_TRACK_REVIEW:READ',
-                'PROJECT_API_DEFINITION:READ','PROJECT_API_SCENARIO:READ','PROJECT_API_REPORT:READ',
-                'PROJECT_PERFORMANCE_TEST:READ','PROJECT_PERFORMANCE_REPORT:READ', 'ORGANIZATION_USER:READ',
-                'WORKSPACE_USER:READ']">
+    <el-submenu index="3" popper-class="org-ws-menu"
+                :popper-append-to-body="true">
       <template v-slot:title>{{ $t('commons.project') }}:
-        <span class="project-name" :title="currentProjectName">
+        <span class="project-name" :title="currentProjectName" v-if="currentProjectName.length === 0">无项目/无权限</span>
+        <span class="project-name" :title="currentProjectName" v-else-if= "currentProjectName.length !== 0">
           {{ currentProjectName }}
         </span>
       </template>
-      <el-input :placeholder="$t('project.search_by_name')"
+      <el-input :placeholder="$t('project.search_by_name')+'工作空间'"
                 prefix-icon="el-icon-search"
                 v-model="searchWs"
                 clearable
@@ -73,9 +97,10 @@
 <!--                    clearable-->
 <!--                    class="search-input"-->
 <!--                    size="small"/>-->
-          <div class="org-ws-menu">
+          <div class="org-proj-menu">
+            <el-menu-item v-if="ws.wsProjectList.length === 0">无项目/无权限</el-menu-item>
             <el-menu-item :index="1+'-'+index+'-'+index2" v-for="(proj,index2) in ws.wsProjectList"
-                          :popper-append-to-body="true"
+                          :popper-append-to-body="false"
                           :key="index2">
               <template v-slot:title>
                 <div @click="changeProj(proj)">
@@ -281,7 +306,7 @@ export default {
           sessionStorage.setItem(WORKSPACE_ID, workspaceId);
           this.$post("/user/switch/source/ws/" + workspaceId, {}, response => {
             saveLocalStorage(response);
-            this.$router.push('/').then(() => {
+            this.$router.push('/track/case/all').then(() => {
               this.reloadTopMenus();
             }).catch(err => err);
           });
@@ -344,6 +369,11 @@ export default {
   overflow: auto;
 }
 
+.org-proj-menu {
+  height: 200px;
+  overflow: auto;
+}
+
 .search-input {
   padding: 0;
   margin-top: -4px;
@@ -369,7 +399,7 @@ export default {
 .org-ws-name {
   display: inline-block;
   padding-left: 5px;
-  max-width: 110px;
+  max-width: 50px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -378,7 +408,7 @@ export default {
 .project-name {
   display: inline-block;
   padding-left: 5px;
-  width: 150px;
+  width: 100px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

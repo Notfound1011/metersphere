@@ -159,7 +159,7 @@ export default {
         "<html lang=\"en\">\n" +
         "<head>\n" +
         "    <meta charset=\"UTF-8\">\n" +
-        "    <title>MeterSphere</title>\n" +
+        "    <title>Phemex</title>\n" +
         "</head>\n" +
         "<body>\n" +
         "<div>\n" +
