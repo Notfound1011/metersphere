@@ -121,23 +121,23 @@ public class TestCaseNodeService extends NodeTreeService<TestCaseNodeDTO> {
 
     public List<TestCaseNodeDTO> getNodeTreeByProjectId(String projectId) {
         // 判断当前项目下是否有默认模块，没有添加默认模块
-        TestCaseNodeExample example = new TestCaseNodeExample();
-        example.createCriteria().andProjectIdEqualTo(projectId).andNameEqualTo("默认模块");
-        long count = testCaseNodeMapper.countByExample(example);
-        if (count <= 0) {
-            NodeNumDTO record = new NodeNumDTO();
-            //TestCaseNode record = new TestCaseNode();
-            record.setId(UUID.randomUUID().toString());
-            record.setCreateUser(SessionUtils.getUserId());
-            record.setName("默认模块");
-            record.setPos(1.0);
-            record.setLevel(1);
-            record.setCreateTime(System.currentTimeMillis());
-            record.setUpdateTime(System.currentTimeMillis());
-            record.setProjectId(projectId);
-            testCaseNodeMapper.insert(record);
-            record.setCaseNum(0);
-        }
+//        TestCaseNodeExample example = new TestCaseNodeExample();
+//        example.createCriteria().andProjectIdEqualTo(projectId).andNameEqualTo("默认模块");
+//        long count = testCaseNodeMapper.countByExample(example);
+//        if (count <= 0) {
+//            NodeNumDTO record = new NodeNumDTO();
+//            //TestCaseNode record = new TestCaseNode();
+//            record.setId(UUID.randomUUID().toString());
+//            record.setCreateUser(SessionUtils.getUserId());
+//            record.setName("默认模块");
+//            record.setPos(1.0);
+//            record.setLevel(1);
+//            record.setCreateTime(System.currentTimeMillis());
+//            record.setUpdateTime(System.currentTimeMillis());
+//            record.setProjectId(projectId);
+//            testCaseNodeMapper.insert(record);
+//            record.setCaseNum(0);
+//        }
         List<TestCaseNodeDTO> testCaseNodes = extTestCaseNodeMapper.getNodeTreeByProjectId(projectId);
         QueryTestCaseRequest request = new QueryTestCaseRequest();
         request.setUserId(SessionUtils.getUserId());
@@ -704,5 +704,26 @@ public class TestCaseNodeService extends NodeTreeService<TestCaseNodeDTO> {
             return JSON.toJSONString(details);
         }
         return null;
+    }
+
+    public long countById(String nodeId) {
+        TestCaseNodeExample example = new TestCaseNodeExample();
+        example.createCriteria().andIdEqualTo(nodeId);
+        return testCaseNodeMapper.countByExample(example);
+    }
+
+    public LinkedList<TestCaseNode> getPathNodeById(String moduleId) {
+        TestCaseNode testCaseNode = testCaseNodeMapper.selectByPrimaryKey(moduleId);
+        LinkedList<TestCaseNode> returnList = new LinkedList<>();
+
+        while (testCaseNode != null){
+            returnList.addFirst(testCaseNode);
+            if(testCaseNode.getParentId() == null){
+                testCaseNode = null;
+            }else {
+                testCaseNode = testCaseNodeMapper.selectByPrimaryKey(testCaseNode.getParentId());
+            }
+        }
+        return returnList;
     }
 }
