@@ -1440,7 +1440,13 @@ public class TestCaseService {
     }
 
     public List<TestCaseWithBLOBs> listTestCaseForMinder(QueryTestCaseRequest request) {
-        request.setOrders(ServiceUtils.getDefaultOrder(request.getOrders()));
+        // 设置思维导图中用例的排序顺序
+        List<OrderRequest> orderList = new ArrayList<>();
+        OrderRequest orderRequest = new OrderRequest();
+        orderRequest.setName("create_time");
+        orderRequest.setType("asc");
+        orderList.add(orderRequest);
+        request.setOrders(orderList);
         return extTestCaseMapper.listForMinder(request);
     }
 

@@ -1,6 +1,14 @@
 <template>
   <ms-container>
     <ms-main-container v-loading="result.loading">
+      <div class="top">
+        <el-alert
+          title="公告：新功能上线啦😁"
+          type="info"
+          show-icon
+          description="测试用例支持导出为Xmind；用例导入默认为P1；去除默认模块；添加回收站功能！">
+        </el-alert>
+      </div>
       <el-row :gutter="10">
         <el-col :span="6">
           <div class="square">

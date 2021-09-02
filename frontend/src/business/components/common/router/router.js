@@ -58,8 +58,8 @@ function redirectLoginPath(originPath) {
   let redirectUrl = sessionStorage.getItem('redirectUrl');
   let loginSuccess = sessionStorage.getItem('loginSuccess');
   sessionStorage.setItem('redirectUrl', originPath);
-  // 换一个用户登录同一个浏览器，跳转到 /
-  if (getCurrentUserId() !== sessionStorage.getItem('lastUser')) {
+  // 换一个用户登录同一个浏览器，跳转到 /    // 当(user.id有值)的时候再去判断，否则新用户(user.id为空)redirectUrl不变
+  if (getCurrentUserId() !== sessionStorage.getItem('lastUser') && !getCurrentUserId()) {
     sessionStorage.setItem('lastUser', getCurrentUserId());
     redirectUrl = '/';
   }

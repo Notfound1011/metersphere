@@ -364,7 +364,7 @@ public class XmindCaseParser {
         TestCaseWithBLOBs testCase = new TestCaseWithBLOBs();
         testCase.setProjectId(projectId);
         testCase.setMaintainer(maintainer);
-        testCase.setPriority(priorityList.get(0));
+        testCase.setPriority(priorityList.get(1));
         testCase.setMethod("manual");
         testCase.setType("functional");
 
