@@ -1406,7 +1406,8 @@ public class TestCaseService {
         if (CollectionUtils.isNotEmpty(ids)) {
             TestCaseBatchRequest deleteRequest = new TestCaseBatchRequest();
             deleteRequest.setIds(ids);
-            deleteTestCaseBath(deleteRequest);
+//            deleteTestCaseBath(deleteRequest);
+            deleteToGcBatch(deleteRequest);
         }
     }
 

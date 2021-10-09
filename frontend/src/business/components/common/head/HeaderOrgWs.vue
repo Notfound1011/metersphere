@@ -98,7 +98,7 @@
           <!--                    class="search-input"-->
           <!--                    size="small"/>-->
           <div class="org-proj-menu">
-            <el-menu-item v-if="ws.wsProjectList.length === 0">无项目/无权限</el-menu-item>
+            <el-menu-item v-if="ws.wsProjectList !== undefined && ws.wsProjectList.length === 0">无项目/无权限</el-menu-item>
             <el-menu-item :index="1+'-'+index+'-'+index2" v-for="(proj,index2) in ws.wsProjectList"
                           :popper-append-to-body="false"
                           :key="index2">
@@ -202,6 +202,7 @@ export default {
             } else {
               this.$set(org, 'workspaceList', d);
               org.wsListCopy = d;
+              this.wsListCopy =d;
               let workspace = d.filter(r => r.id === getCurrentWorkspaceId());
 
               if (workspace.length > 0) {
@@ -220,6 +221,7 @@ export default {
                 }
 
                 this.workspaceList = org.workspaceList
+                // console.log("this.workspaceList",this.workspaceList)
                 let d = this.projectList;
                 if (d.length === 0) {
                   // org.workspaceList = [{name: this.$t('workspace.none')}];
