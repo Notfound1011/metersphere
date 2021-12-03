@@ -108,7 +108,7 @@ export default {
       if (window.location.protocol === 'https:') {
         protocol = "wss://";
       }
-      const uri = protocol + window.location.host + "/notification/count/" + getCurrentUserId();
+      const uri = protocol + window.location.host + ":8081" + "/notification/count/" + getCurrentUserId();
       this.websocket = new WebSocket(uri);
       this.websocket.onmessage = this.onMessage;
       this.websocket.onopen = this.onOpen;

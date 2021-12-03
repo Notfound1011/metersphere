@@ -195,7 +195,8 @@ export default {
 
     // let login = login;
 
-    axios.defaults.withCredentials = true;
+    axios.defaults.withCredentials = false;
+    axios.defaults.baseURL = '/api/tc';
 
     axios.interceptors.response.use(response => {
       if (response.headers["authentication-status"] === "invalid") {
@@ -205,6 +206,8 @@ export default {
     }, error => {
       return Promise.reject(error);
     });
+
+    Vue.prototype.$axios = axios;
 
     Vue.prototype.$get = get;
 

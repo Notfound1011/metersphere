@@ -536,6 +536,51 @@ export function fullScreenLoading(component) {
   });
 }
 
+export function removeEmptyField(data, defaultStr = null) {
+  // 普通数据类型
+  if (typeof data != 'object' || data == null) {
+    if ((data === '')) {
+      return defaultStr;
+    } else {
+      return data;
+    }
+  }
+  // 引用数据类型
+  for (const v in data) {
+    if (data[v] === '') {
+      data[v] = null;
+    }
+    if (typeof data[v] == 'object') {
+      removeEmptyField(data[v])
+    }
+  }
+}
+
+export function isObjectValueEqual(a, b) {
+  // 判断两个对象是否指向同一内存，指向同一内存返回true
+  if (a === b) return true
+  // 获取两个对象键值数组
+  let aProps = Object.getOwnPropertyNames(a)
+  let bProps = Object.getOwnPropertyNames(b)
+  // 判断两个对象键值数组长度是否一致，不一致返回false
+  if (aProps.length !== bProps.length) return false
+  // 遍历对象的键值
+  for (let prop in a) {
+    // 判断a的键值，在b中是否存在，不存在，返回false
+    if (b.hasOwnProperty(prop)) {
+      // 判断a的键值是否为对象，是则递归，不是对象直接判断键值是否相等，不相等返回false
+      if (typeof a[prop] === 'object') {
+        if (!isObjectValueEqual(a[prop], b[prop])) return false
+      } else if (a[prop] !== b[prop]) {
+        return false
+      }
+    } else {
+      return false
+    }
+  }
+  return true
+}
+
 export function stopFullScreenLoading(loading, timeout) {
   timeout = timeout ? timeout : 2000;
   setTimeout(() => {
@@ -567,4 +612,48 @@ export function getShareId() {
     }
   }
   return "";
+}
+
+export function formatTimeStamp(timeStamp) {
+  let date = new Date(timeStamp);
+  let year = date.getFullYear();
+  let month = date.getMonth() + 1;
+  let day = date.getDate();
+  let hour = date.getHours();
+  let minute = date.getMinutes();
+  let second = date.getSeconds();
+  month = month < 10 ? "0" + month : month;
+  day = day < 10 ? "0" + day : day;
+  hour = hour < 10 ? "0" + hour : hour;
+  minute = minute < 10 ? "0" + minute : minute;
+  second = second < 10 ? "0" + second : second;
+  return year + '-' + month + '-' + day + ' ' + hour + ':' + minute + ':' + second;
+}
+
+export function formatTime(msTime) {
+  let time = msTime / 1000;
+  let hour = Math.floor(time / 60 / 60) % 24;
+  let minute = Math.floor(time / 60) % 60;
+  let second = Math.floor(time) % 60;
+  if (hour === 0 && minute === 0) {
+    return `${second}秒`
+  } else if (hour === 0 && minute !== 0) {
+    return `${minute}分${second}秒`
+  } else {
+    return `${hour}时${minute}分${second}秒`
+  }
+}
+
+export function noRepeat(arr) {
+  let ret = [];
+  let hash = {};
+  for (let i = 0; i < arr.length; i++) {
+    let item = arr[i];
+    let key = typeof (item) + item;
+    if (hash[key] !== 1) {
+      ret.push(item);
+      hash[key] = 1;
+    }
+  }
+  return ret;
 }

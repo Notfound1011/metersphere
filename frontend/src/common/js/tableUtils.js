@@ -540,7 +540,7 @@ export function handleRowDrop(data, callback) {
     // 避免增删列表数据时，回调函数中的 data 与实际 data 不一致
     let dropClass = 'table-row-drop-bar-random' + '_' + getUUID();
 
-    dropBars.forEach(dropBar => {
+    Array.from(dropBars).forEach(dropBar => {
       dropBar.classList.add(dropClass);
     });
 

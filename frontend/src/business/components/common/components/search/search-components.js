@@ -2,6 +2,7 @@ import MsTableSearchInput from "./MsTableSearchInput";
 import MsTableSearchDateTimePicker from "./MsTableSearchDateTimePicker";
 import MsTableSearchDatePicker from "./MsTableSearchDatePicker";
 import MsTableSearchSelect from "./MsTableSearchSelect";
+import fa from "element-ui/src/locale/lang/fa";
 
 export default {
   MsTableSearchInput, MsTableSearchDatePicker, MsTableSearchDateTimePicker, MsTableSearchSelect
@@ -478,7 +479,121 @@ export const CASE_REVIEW_STATUS = {
   props: {
     multiple: true
   }
-}
+};
+
+
+// 自研自动化录入页面的组合查询
+export const CASE_NAME = {
+  key: "case_name", // 返回结果Map的key
+  name: 'MsTableSearchInput', // Vue控件名称
+  label: '用例名称', // 显示名称
+  operator: { // 运算符设置
+    value: OPERATORS.LIKE.value, // 如果未设置value初始值，则value初始值为options[0]
+    options: [OPERATORS.LIKE] // 运算符候选项
+  },
+};
+export const REQUEST_METHOD = {
+  key: "method",
+  name: 'MsTableSearchSelect',
+  label: 'api_test.definition.api_type',
+  operator: {
+    options: [OPERATORS.EQ]
+  },
+  options: [
+    {value: 'GET', label: 'GET'},
+    {value: 'POST', label: 'POST'},
+    {value: 'PUT', label: 'PUT'},
+    {value: 'DELETE', label: 'DELETE'}
+  ],
+  props: { // 尾部控件的props，一般为element ui控件的props
+    multiple: false
+  }
+};
+export const MARK = {
+  key: "mark", // 返回结果Map的key
+  name: 'MsTableSearchInput', // Vue控件名称
+  label: 'mark', // 显示名称
+  operator: { // 运算符设置
+    value: OPERATORS.LIKE.value, // 如果未设置value初始值，则value初始值为options[0]
+    options: [OPERATORS.LIKE] // 运算符候选项
+  },
+};
+export const WEB_SITE = {
+  key: "web_site", // 返回结果Map的key
+  name: 'MsTableSearchSelect', // Vue控件名称
+  label: '站点', // 显示名称
+  operator: {
+    options: [OPERATORS.EQ]
+  },
+  options: [
+    {value: 'phemex', label: '国际站'},
+    {value: 'turkey', label: '土耳其站'}
+  ],
+  props: { // 尾部控件的props，一般为element ui控件的props
+    multiple: false
+  }
+};
+export const TEMPLATE_TYPE = {
+  key: "template_type", // 返回结果Map的key
+  name: 'MsTableSearchSelect', // Vue控件名称
+  label: '模板类型', // 显示名称
+  operator: {
+    options: [OPERATORS.EQ]
+  },
+  options: [
+    {value: 'not_template', label: '非模板'},
+    {value: 'contract', label: '合约模板'},
+    {value: 'spot', label: '现货模板'}
+  ],
+  props: { // 尾部控件的props，一般为element ui控件的props
+    multiple: false
+  }
+};
+export const CASE_TYPE = {
+  key: "case_type", // 返回结果Map的key
+  name: 'MsTableSearchSelect', // Vue控件名称
+  label: '用例类型', // 显示名称
+  operator: {
+    options: [OPERATORS.EQ]
+  },
+  options: [
+    {value: 'rest_api', label: 'rest_api'},
+    {value: 'pub_api', label: 'pub_api'}
+  ],
+  props: { // 尾部控件的props，一般为element ui控件的props
+    multiple: false
+  }
+};
+export const NEED_HELP = {
+  key: "need_help", // 返回结果Map的key
+  name: 'MsTableSearchSelect', // Vue控件名称
+  label: '是否协助挂对手单', // 显示名称
+  operator: {
+    options: [OPERATORS.EQ]
+  },
+  options: [
+    {value: 'true', label: '是'},
+    {value: 'false', label: '否'}
+  ],
+  props: { // 尾部控件的props，一般为element ui控件的props
+    multiple: false
+  }
+};
+export const CASE_STATUS = {
+  key: "status", // 返回结果Map的key
+  name: 'MsTableSearchSelect', // Vue控件名称
+  label: '用例状态', // 显示名称
+  operator: {
+    options: [OPERATORS.EQ]
+  },
+  options: [
+    {value: 'true', label: '启用'},
+    {value: 'false', label: '停用'}
+  ],
+  props: { // 尾部控件的props，一般为element ui控件的props
+    multiple: false
+  }
+};
 
 export const TEST_CONFIGS = [NAME, UPDATE_TIME, CREATE_TIME, STATUS, CREATOR];
 
@@ -509,3 +624,8 @@ export const TEST_PLAN_RELEVANCE_LOAD_CASE= [NAME, STATUS, CREATE_TIME, UPDATE_T
 export const TEST_CASE_RELEVANCE_API_CASE_CONFIGS = [NAME, API_CASE_PRIORITY, API_TAGS, CREATOR];
 export const TEST_CASE_RELEVANCE_API_SCENARIO_CONFIGS = [NAME, API_CASE_PRIORITY, API_TAGS, CREATOR];
 export const TEST_CASE_RELEVANCE_LOAD_CASE= [NAME, STATUS, CREATE_TIME, UPDATE_TIME, CREATOR];
+
+// 自研自动化录入页面的组合查询
+export const AUTO_TEST_SEARCH_CASE= [CASE_NAME, REQUEST_METHOD, MARK, WEB_SITE ,TEMPLATE_TYPE, CASE_TYPE, NEED_HELP, CASE_STATUS];
+
+

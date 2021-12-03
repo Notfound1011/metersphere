@@ -12,11 +12,35 @@ module.exports = {
     proxy: {
       //1.8需求：增加分享功能，不登陆即可看到文档页面。所以代理设置增加了(?!/document)文档页面的相关信息
       // ['^(?!/login)']: {
-      ['^((?!/login)(?!/document))']: {
-        target: 'http://54.151.185.76:8081',
-        // target: 'http://localhost:8081',
-        ws: true,
+      // ['^((?!/login)(?!/document))']: {
+      //   target: 'http://3.1.250.199:8081',
+      //   // target: 'http://54.151.185.76:8081',
+      //   // target: 'http://localhost:8081',
+      //   ws: true,
+      // },
+      '/api/tc/TestCase': {
+        target: "http://3.1.250.199:6200",
+        changeOrigin: true,
+        pathRewrite: {
+          '^/api/tc/TestCase': '/TestCase'
+        }
       },
+      '/api/tc/jenkins': {
+        target: "http://3.1.250.199:6001",
+        changeOrigin: true,
+        pathRewrite: {
+          '^/api/tc/jenkins': '/',
+        }
+      },
+      '/api/tc': {
+        target: 'http://3.1.250.199:8081',
+        changeOrigin: true,
+        pathRewrite: { '^/api/tc': '/' },
+      },
+      ['^((?!/login)(?!/document))']: {
+        target: 'http://3.1.250.199:8081',
+        changeOrigin: true
+      }
     }
   },
   pages: {

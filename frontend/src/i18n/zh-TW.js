@@ -1868,6 +1868,8 @@ export default {
   },
   i18n: {
     home: '首頁',
+    testCaseRecord: '接口用例录入',
+    jobScheduler: '任務調度',
     definition: '接口定義',
     automation: '接口自動化',
     report: '測試報告',

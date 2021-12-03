@@ -27,6 +27,8 @@ import formCreate from "@form-create/element-ui"
 
 import mavonEditor from 'mavon-editor'
 import 'mavon-editor/dist/css/index.css'
+import echarts from 'echarts'
+Vue.prototype.$echarts = echarts
 Vue.use(mavonEditor)
 
 Vue.use(vueMinderEditor)

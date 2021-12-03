@@ -222,7 +222,7 @@ export default {
       if (window.location.protocol === 'https:') {
         protocol = "wss://";
       }
-      const uri = protocol + window.location.host + "/task/center/count/running/" + getCurrentProjectID();
+      const uri = protocol + window.location.host + ":8081" +  "/task/center/count/running/" + getCurrentProjectID();
       this.websocket = new WebSocket(uri);
       this.websocket.onmessage = this.onMessage;
       this.websocket.onopen = this.onOpen;

@@ -6,8 +6,14 @@
           title="公告：新功能上线啦😁"
           type="info"
           show-icon
-          description="同步v1.13.2功能；测试用例支持导出为Xmind；用例导入默认为P1；添加回收站功能！">
+          description="接口自动化功能上线，入口为【接口测试-接口自动化】,或者点击【下方快捷导航】;同步v1.13.2功能；测试用例支持导出为Xmind；用例导入默认为P1；添加回收站功能！">
         </el-alert>
+        <el-button type="primary" class="btn">
+          <i class="el-icon-s-platform" style="font-size: 15px; color: black"></i>
+          <el-link type="primary" class="member-size" @click="jumpPage()">快捷导航：接口自动化
+          </el-link>
+        </el-button>
+
       </div>
       <el-row :gutter="10">
         <el-col :span="6">
@@ -46,7 +52,6 @@
         </el-col>
       </el-row>
 
-
     </ms-main-container>
   </ms-container>
 </template>
@@ -63,7 +68,8 @@ import BugCountCard from "@/business/components/track/home/components/BugCountCa
 import ReviewList from "@/business/components/track/home/components/ReviewList";
 import MsRunningTaskList from "@/business/components/track/home/components/RunningTaskList";
 import MsFailureTestCaseList from "@/business/components/api/homepage/components/FailureTestCaseList";
-import {getCurrentProjectID} from "@/common/js/utils";
+import {fullScreenLoading,stopFullScreenLoading,getCurrentProjectID} from "@/common/js/utils";
+import {WORKSPACE_ID, PROJECT_ID} from "@/common/js/constants";
 
 require('echarts/lib/component/legend');
 export default {
@@ -184,7 +190,15 @@ export default {
           });
           break;
       }
+    },
+    jumpPage() {
+      const loading = fullScreenLoading(this);
+      window.sessionStorage.setItem(PROJECT_ID, "ffa8b8c4-eb9b-4ae7-84b2-8fae4eb5556b");
+      window.sessionStorage.setItem(WORKSPACE_ID, "f999049e-815b-4bf8-9c3d-f2615c94b9b8");
+      stopFullScreenLoading(loading, 1000);
+      this.$router.push('/api/testCaseRecord');
     }
+
   }
 }
 </script>
@@ -209,4 +223,14 @@ export default {
 .track-card {
   height: 100%;
 }
+.btn {
+  margin: 5px;
+  background-color:rgb(240, 240, 240);
+}
+
+.member-size {
+  margin-left: 10px;
+  text-decoration: underline;
+}
+
 </style>

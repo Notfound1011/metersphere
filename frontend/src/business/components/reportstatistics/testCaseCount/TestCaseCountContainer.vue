@@ -85,7 +85,7 @@ export default {
     init(opt) {
       this.loading = true;
       this.options = opt;
-      this.$post(' /report/test/case/count/getReport', opt, response => {
+      this.$post('/report/test/case/count/getReport', opt, response => {
         let data = response.data.barChartDTO;
         let pieData = response.data.pieChartDTO;
         let selectTableData = response.data.tableDTOs;

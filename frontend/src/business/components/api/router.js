@@ -19,6 +19,30 @@ export default {
       component: () => import('@/business/components/api/home/ApiTestHome'),
     },
     {
+      path: 'testCaseRecord',
+      name: 'testCaseRecord',
+      component: () => import('@/business/components/api/autotest/TestCaseRecord'),
+    },
+    {
+      path: 'jobScheduler',
+      name: 'jobScheduler',
+      redirect: "/api/jobScheduler/runJobs",
+      component: () => import('@/business/components/api/jobscheduler/jobScheduler'),
+      children: [
+        {
+          path: 'analysis',
+          component: () => import('@/business/components/api/jobscheduler/components/analysis')
+        },
+        {
+          path: 'reports',
+          component: () => import('@/business/components/api/jobscheduler/components/reports')
+        },
+        {
+          path: 'runJobs',
+          component: () => import('@/business/components/api/jobscheduler/components/runJobs')
+        }]
+    },
+    {
       path: "test/:type",
       name: "ApiTestConfig",
       component: () => import('@/business/components/api/test/ApiTestConfig'),

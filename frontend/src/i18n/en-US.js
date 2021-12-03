@@ -1857,6 +1857,8 @@ export default {
   },
   i18n: {
     home: 'Home',
+    testCaseRecord: 'Case Record',
+    jobScheduler: 'Automated Testing Scheduler',
     definition: 'Api Definition',
     automation: 'Api Automation',
     report: 'Test report',

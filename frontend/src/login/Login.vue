@@ -132,6 +132,17 @@ export default {
         this.form.authenticate = 'LDAP';
       }
     });
+    this.$axios.get("/jenkins/crumbIssuer/api/xml",
+      {
+        params: {'xpath': 'concat(//crumbRequestField,":",//crumb)'},
+        headers: {'Authorization': 'Basic dGVzdDoxMjM0NTY='}
+      }).then(res => {
+      if (res.status === 200) {
+        let json = {}
+        json.Jenkins_Crumb = res.data.split(":")[1];
+        localStorage.setItem("JenkinsInfo", JSON.stringify(json));
+      }
+    });
   },
   created: function () {
     // 主页添加键盘事件,注意,不能直接在焦点事件上添加回车

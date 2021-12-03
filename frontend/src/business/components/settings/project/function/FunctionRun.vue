@@ -46,7 +46,7 @@ export default {
       if (window.location.protocol === 'https:') {
         protocol = "wss://";
       }
-      const uri = protocol + window.location.host + "/api/definition/run/report/" + this.runId + "/debug";
+      const uri = protocol + window.location.host + ":8081" + "/api/definition/run/report/" + this.runId + "/debug";
       this.websocket = new WebSocket(uri);
       this.websocket.onmessage = this.onMessage;
     },

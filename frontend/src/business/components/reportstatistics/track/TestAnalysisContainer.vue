@@ -73,7 +73,7 @@
       init(opt) {
         this.loading = true;
         this.options = opt;
-        this.$post(' /report/test/analysis/getReport', opt, response => {
+        this.$post('/report/test/analysis/getReport', opt, response => {
           let data = response.data.chartDTO;
           let tableDTOs = response.data.tableDTOs;
           this.initPic(data,tableDTOs);
