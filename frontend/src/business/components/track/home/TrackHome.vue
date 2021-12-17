@@ -74,6 +74,7 @@ import {WORKSPACE_ID, PROJECT_ID} from "@/common/js/constants";
 require('echarts/lib/component/legend');
 export default {
   name: "TrackHome",
+  inject: ['reloadTopMenus'],  //注入依赖
   components: {
     ReviewList,
     BugCountCard,
@@ -197,6 +198,7 @@ export default {
       window.sessionStorage.setItem(WORKSPACE_ID, "f999049e-815b-4bf8-9c3d-f2615c94b9b8");
       stopFullScreenLoading(loading, 1000);
       this.$router.push('/api/testCaseRecord');
+      this.reloadTopMenus()   //引用app.vue中的重新加载菜单栏的方法
     }
 
   }

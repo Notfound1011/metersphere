@@ -4,7 +4,12 @@
     <el-dialog title="修改测试用例" :visible.sync="editCaseDialogVisible" width="70%" :before-close="editCaseHandleClose">
       <el-form :rules="rules1" ref="editCaseForm1" :model="editCaseObj.update_data" label-width="120px">
         <el-form-item label="用例名称" prop="case_name">
-          <el-input placeholder="必填项" v-model="editCaseObj.update_data.case_name"></el-input>
+          <el-input placeholder="必填项" type="textarea" :autosize="{ minRows: 1, maxRows: 10 }"
+                    style="width: 95%" v-model="editCaseObj.update_data.case_name"></el-input>
+        </el-form-item>
+        <el-form-item label="备注" prop="remark">
+          <el-input placeholder="非必填项" type="textarea" :autosize="{ minRows: 1, maxRows: 10 }"
+                    style="width: 95%" v-model="editCaseObj.update_data.remark"></el-input>
         </el-form-item>
       </el-form>
       <el-form :inline="true" :rules="rules2" ref="editCaseForm2" :model="editCaseObj.update_data" label-width="120px">
@@ -61,7 +66,7 @@
       <el-form ref="form" :model="editCaseObj.update_data" :rules="rules3" label-width="120px">
         <el-form-item label="mark" prop="mark">
           <el-select v-model="editCaseObj.update_data.mark" multiple filterable allow-create default-first-option
-                     placeholder="支持多选，模糊筛选，自定义标签" style="width: 60%">
+                     placeholder="支持多选，模糊筛选，自定义标签" style="width: 95%">
             <el-option-group
               v-for="group in options"
               :key="group.label"
@@ -84,7 +89,7 @@
                 <el-button v-else class="button-new-tag" size="small" @click="showInput">+ 新标签</el-button> -->
         </el-form-item>
         <el-form-item label="params" prop="params">
-          <el-input type="textarea" :autosize="{ minRows: 2, maxRows: 10 }"
+          <el-input type="textarea" :autosize="{ minRows: 2, maxRows: 10 }" style="width: 95%"
                     placeholder='接口参数: json格式,get请求拼接在url后面,样例：
 {
     "params_key":"params_value"
@@ -93,7 +98,7 @@
           </el-input>
         </el-form-item>
         <el-form-item label="json" prop="body_by_json">
-          <el-input type="textarea" :autosize="{ minRows: 2, maxRows: 10 }"
+          <el-input type="textarea" :autosize="{ minRows: 2, maxRows: 10 }" style="width: 95%"
                     placeholder='json格式，样例：
 {
     "json_key":"json_value"
@@ -101,7 +106,7 @@
                     v-model="editCaseObj.update_data.body_by_json"></el-input>
         </el-form-item>
         <el-form-item label="form" prop="body_by_form">
-          <el-input type="textarea" :autosize="{ minRows: 2, maxRows: 10 }"
+          <el-input type="textarea" :autosize="{ minRows: 2, maxRows: 10 }" style="width: 95%"
                     placeholder='json格式，样例：
 {
     "form_key": "form_value"
@@ -110,7 +115,7 @@
           </el-input>
         </el-form-item>
         <el-form-item label="依赖" prop="depend">
-          <el-input type="textarea" :autosize="{ minRows: 2, maxRows: 10 }"
+          <el-input type="textarea" :autosize="{ minRows: 2, maxRows: 10 }" style="width: 95%"
                     placeholder='数组+json格式，样例：
 [
     {
@@ -123,7 +128,7 @@
           </el-input>
         </el-form-item>
         <el-form-item label="预期结果" prop="expect">
-          <el-input type="textarea" :autosize="{ minRows: 2, maxRows: 10 }"
+          <el-input type="textarea" :autosize="{ minRows: 2, maxRows: 10 }" style="width: 95%"
                     placeholder='数组+json格式，样例：
 [
     {
@@ -134,7 +139,7 @@
           </el-input>
         </el-form-item>
         <el-form-item label="清理" prop="clear_up">
-          <el-input type="textarea" :autosize="{ minRows: 2, maxRows: 10 }"
+          <el-input type="textarea" :autosize="{ minRows: 2, maxRows: 10 }" style="width: 95%"
                     placeholder='数组+json格式，样例：
 [
     {
@@ -145,7 +150,7 @@
           </el-input>
         </el-form-item>
         <el-form-item label="yapi链接">
-          <el-input placeholder='yapi_url'
+          <el-input placeholder='yapi_url' style="width: 95%"
                     v-model="editCaseObj.update_data.yapi_url">
           </el-input>
         </el-form-item>

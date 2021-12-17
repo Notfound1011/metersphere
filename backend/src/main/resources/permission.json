@@ -751,6 +751,31 @@
       "resourceId": "PROJECT_API_REPORT"
     },
     {
+      "id": "PROJECT_API_CASE_RECORD:READ",
+      "name": "查询接口测试用例",
+      "resourceId": "PROJECT_API_CASE_RECORD"
+    },
+    {
+      "id": "PROJECT_API_CASE_RECORD:READ+CREATE",
+      "name": "新增接口测试用例",
+      "resourceId": "PROJECT_API_CASE_RECORD"
+    },
+    {
+      "id": "PROJECT_API_CASE_RECORD:READ+EDIT",
+      "name": "编辑接口测试用例",
+      "resourceId": "PROJECT_API_CASE_RECORD"
+    },
+    {
+      "id": "PROJECT_JOB_SCHEDULER:READ",
+      "name": "查看",
+      "resourceId": "PROJECT_JOB_SCHEDULER"
+    },
+    {
+      "id": "PROJECT_JOB_SCHEDULER:READ+RUN",
+      "name": "运行任务",
+      "resourceId": "PROJECT_JOB_SCHEDULER"
+    },
+    {
       "id": "PROJECT_PERFORMANCE_TEST:READ",
       "name": "查询测试",
       "resourceId": "PROJECT_PERFORMANCE_TEST"
@@ -958,6 +983,14 @@
     {
       "id": "PROJECT_API_REPORT",
       "name": "测试报告"
+    },
+    {
+      "id": "PROJECT_API_CASE_RECORD",
+      "name": "接口测试用例录入"
+    },
+    {
+      "id": "PROJECT_JOB_SCHEDULER",
+      "name": "接口任务调度"
     },
     {
       "id": "PROJECT_PERFORMANCE_TEST",

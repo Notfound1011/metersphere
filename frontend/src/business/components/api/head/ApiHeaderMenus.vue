@@ -20,11 +20,11 @@
             {{ $t("i18n.automation") }}
           </el-menu-item>
 
-          <el-menu-item v-show="isNewVersion" :index="'/api/testCaseRecord'" v-permission="['PROJECT_API_DEFINITION:READ']" v-if="isAPiProject()">
+          <el-menu-item v-show="isNewVersion" :index="'/api/testCaseRecord'" v-permission="['PROJECT_API_CASE_RECORD:READ']" v-if="isAPiProject()">
             {{ $t("i18n.testCaseRecord") }}
           </el-menu-item>
 
-          <el-menu-item v-show="isNewVersion" :index="'/api/jobScheduler'" v-permission="['PROJECT_API_DEFINITION:READ']" v-if="isAPiProject()">
+          <el-menu-item v-show="isNewVersion" :index="'/api/jobScheduler'" v-permission="['PROJECT_JOB_SCHEDULER:READ']" v-if="isAPiProject()">
             {{ $t("i18n.jobScheduler") }}
           </el-menu-item>
 

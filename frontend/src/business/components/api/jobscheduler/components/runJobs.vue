@@ -4,9 +4,10 @@
       <div style="margin: 20px">
         <!-- table主体内容 -->
         <el-table :data="tableData" style="width: 100%" border>
-          <el-table-column prop="name" label="job名称" width="180"></el-table-column>
+          <el-table-column prop="name" label="job名称" show-overflow-tooltip width="170"></el-table-column>
+          <el-table-column prop="description" label="描述" show-overflow-tooltip width="180"></el-table-column>
           <!--          <el-table-column prop="numExecutors" label="执行机器数量"  width="120"></el-table-column>-->
-          <el-table-column prop="url" label="jenkins地址" width="140" align="center">
+          <el-table-column prop="url" label="jenkins地址" width="100" align="center">
             <template slot-scope="scope">
               <el-link :href="scope.row.url" target="_blank">
                 <div v-if="scope.row.url !== '' && scope.row.url != null">
@@ -18,7 +19,7 @@
           <el-table-column prop="allure_report" label="查看测试报告" width="120" align="center">
             <template slot-scope="scope">
               <el-link :href="scope.row.allure_report"
-                       v-if="scope.row.name === 'ApiAutoTestToPhemex' || scope.row.name === 'ApiAutoTestToTurkey'"
+                       v-if="['ApiAutoTestToPhemex','ApiAutoTestBase','_DEBUG','ApiAutoTestToTurkey'].indexOf(scope.row.name) !== -1"
                        target="_blank">
                 <div v-if="scope.row.allure_report !== '' && scope.row.allure_report != null">
                   <i class="el-icon-view" style="font-size: 15px; color: blue"></i>
@@ -26,9 +27,9 @@
               </el-link>
             </template>
           </el-table-column>
-          <el-table-column prop="duration" label="上次构建用时" width="120"></el-table-column>
-          <el-table-column prop="timestamp" label="上次构建时间" width="180"></el-table-column>
-          <el-table-column prop="result" label="上次构建结果" width="140">
+          <el-table-column prop="duration" label="上次构建用时" width="110"></el-table-column>
+          <el-table-column prop="timestamp" label="上次构建时间" width="160"></el-table-column>
+          <el-table-column prop="result" label="上次构建结果" width="110">
             <template slot-scope="scope">
               <el-tag v-if="scope.row.result==='SUCCESS'" type="success" effect="dark">SUCCESS</el-tag>
               <el-tag v-if="scope.row.result==='RUNNING'" type="success" effect="dark">RUNNING</el-tag>
@@ -47,15 +48,17 @@
 
         <el-dialog title="调度参数（不修改则使用默认值）" :visible.sync="dialogVisible" width="70%" :before-close="dialogClose">
           <el-form :inline="true" :model="parameters" :rules="rules" ref="paramForm" label-width="140px">
-            <el-form-item label="运行环境" prop="env">
-              <el-select v-model="parameters.env" placeholder="选择执行环境" :style="{ width: width * 0.16+'px'}">
-                <el-option label="qa" value="qa"></el-option>
-                <el-option label="prod" value="prod"></el-option>
+            <el-form-item label="站点" prop="web_site">
+              <el-select v-model="parameters.web_site" placeholder="选择站点" :style="{ width: width * 0.16+'px'}">
+                <el-option label="主站" value="phemex"></el-option>
+                <el-option label="土耳其站" value="turkey"></el-option>
               </el-select>
             </el-form-item>
-            <el-form-item label="站点" prop="web_site">
-              <el-select v-model="parameters.web_site" disabled placeholder="选择站点" :style="{ width: width * 0.16+'px'}">
-                <el-option label="主站" value="phemex"></el-option>
+            <el-form-item label="运行环境" prop="env">
+              <el-select v-model="parameters.env" placeholder="选择执行环境" :style="{ width: width * 0.16+'px'}"
+                         @change="changePhemexHost">
+                <el-option label="qa" value="qa"></el-option>
+                <el-option label="prod" value="prod"></el-option>
               </el-select>
             </el-form-item>
             <el-form-item label="rest_host" prop="rest_api_host">
@@ -77,7 +80,7 @@
                           placement="right">
                 <i class="el-icon-question"/>
               </el-tooltip>
-              <el-input placeholder='多条用","隔开' v-model="parameters.spot_symbol_list"
+              <el-input placeholder='输入现货symbol, 多条用","隔开' v-model="parameters.spot_symbol_list"
                         :style="{ width: width * 0.5+'px'}"></el-input>
             </el-form-item>
             <el-form-item label="合约币对列表" prop="contract_symbol_list">
@@ -86,7 +89,7 @@
                           placement="right">
                 <i class="el-icon-question"/>
               </el-tooltip>
-              <el-input placeholder='多条用","隔开' v-model="parameters.contract_symbol_list"
+              <el-input placeholder='输入合约symbol, 多条用","隔开' v-model="parameters.contract_symbol_list"
                         :style="{ width: width * 0.5+'px'}"></el-input>
             </el-form-item>
             <el-form-item label="case类型" prop="case_type" class="form-item">
@@ -138,7 +141,9 @@
               <el-input placeholder='' v-model="parameters.execution_case_mark" class="el-input_inner2"></el-input>
             </el-form-item>
             <el-form-item label="不执行的用例" prop="not_execution_case_mark">
-              <el-tooltip class="tooltip" effect="dark" content='设置不要执行的用例的筛选条件,多条用","隔开' placement="right">
+              <el-tooltip class="tooltip" effect="dark"
+                          content='设置不要执行的用例的筛选条件,多条用","隔开；线上账号kyc全部被剥夺, 需要过滤kyc的case.'
+                          placement="right">
                 <i class="el-icon-question"/>
               </el-tooltip>
               <el-input placeholder='' v-model="parameters.not_execution_case_mark"
@@ -151,29 +156,32 @@
           </span>
         </el-dialog>
 
-        <el-dialog title="调度参数（不修改则使用默认值）" :visible.sync="turkeyDialogVisible" width="70%" :before-close="turkeyDialogClose">
+        <el-dialog title="调度参数（不修改则使用默认值）" :visible.sync="turkeyDialogVisible" width="70%"
+                   :before-close="turkeyDialogClose">
           <el-form :inline="true" :model="turkeyParameters" :rules="rules" ref="turkeyParamForm" label-width="140px">
-            <el-form-item label="运行环境" prop="env">
-              <el-select v-model="turkeyParameters.env" placeholder="选择执行环境" :style="{ width: width * 0.16+'px'}">
-                <el-option label="qa" value="qa"></el-option>
-                <el-option label="prod" value="prod"></el-option>
+            <el-form-item label="站点" prop="web_site">
+              <el-select v-model="turkeyParameters.web_site" disabled placeholder="选择站点"
+                         :style="{ width: width * 0.16+'px'}">
+                <el-option label="土耳其站" value="turkey"></el-option>
               </el-select>
             </el-form-item>
-            <el-form-item label="站点" prop="web_site">
-              <el-select v-model="turkeyParameters.web_site" disabled placeholder="选择站点" :style="{ width: width * 0.16+'px'}">
-                <el-option label="土耳其站" value="turkey"></el-option>
+            <el-form-item label="运行环境" prop="env">
+              <el-select v-model="turkeyParameters.env" @change="changeTurkeyHost" placeholder="选择执行环境"
+                         :style="{ width: width * 0.16+'px'}">
+                <el-option label="qa" value="qa"></el-option>
+                <el-option label="prod" value="prod"></el-option>
               </el-select>
             </el-form-item>
             <el-form-item label="rest_host" prop="rest_api_host">
               <el-input placeholder="默认qa环境" v-model="turkeyParameters.rest_api_host"
                         :style="{ width: width * 0.16+'px'}"></el-input>
             </el-form-item>
-            <el-form-item label="pub_host" prop="pub_api_host">
-              <el-input placeholder="默认qa环境" v-model="turkeyParameters.pub_api_host"
-                        :style="{ width: width * 0.16+'px'}"></el-input>
-            </el-form-item>
             <el-form-item label="ws_host" prop="ws_host">
               <el-input placeholder="默认qa环境" v-model="turkeyParameters.ws_host"
+                        :style="{ width: width * 0.16+'px'}"></el-input>
+            </el-form-item>
+            <el-form-item label="pub_host" prop="pub_api_host">
+              <el-input placeholder="默认qa环境" v-model="turkeyParameters.pub_api_host" disabled
                         :style="{ width: width * 0.16+'px'}"></el-input>
             </el-form-item>
             <el-form-item label="case类型" prop="case_type" class="form-item">
@@ -182,21 +190,22 @@
                 <el-option label="pub_api" value="pub_api"></el-option>
               </el-select>
             </el-form-item>
-            <el-form-item label="计划执行类型" prop="plan_type" class="form-item">
-              <el-select placeholder='请选择计划执行类型' disabled v-model="turkeyParameters.plan_type">
-                <el-option label="normal" value="normal"></el-option>
-              </el-select>
-            </el-form-item>
+            <!--            <el-form-item label="计划执行类型" prop="plan_type" class="form-item">-->
+            <!--              <el-select placeholder='请选择计划执行类型' disabled v-model="turkeyParameters.plan_type">-->
+            <!--                <el-option label="normal" value="normal"></el-option>-->
+            <!--              </el-select>-->
+            <!--            </el-form-item>-->
             <el-form-item label="指定case id" prop="case_id_List" class="form-item">
               <el-input placeholder='填写case_id，多条用","隔开' v-model="turkeyParameters.case_id_List"
-                        style="width: 130%;">
+                        style="width: 120%;">
               </el-input>
             </el-form-item>
             <el-form-item label="筛选执行的用例" prop="execution_case_mark" class="form-item">
               <el-tooltip class="tooltip" effect="dark" content='设置要执行的用例筛选的条件; 多条用","隔开' placement="right">
                 <i class="el-icon-question"/>
               </el-tooltip>
-              <el-input placeholder='' v-model="turkeyParameters.execution_case_mark" class="el-input_inner2"></el-input>
+              <el-input placeholder='' v-model="turkeyParameters.execution_case_mark"
+                        class="el-input_inner2"></el-input>
             </el-form-item>
             <el-form-item label="不执行的用例" prop="not_execution_case_mark">
               <el-tooltip class="tooltip" effect="dark" content='设置不要执行的用例的筛选条件,多条用","隔开' placement="right">
@@ -207,16 +216,15 @@
             </el-form-item>
           </el-form>
           <span slot="footer">
-            <el-button @click="turkeyDialogClose">取 消</el-button>
-            <el-button type="primary" @click="turkeyRunConfirm">运 行</el-button>
-          </span>
+              <el-button @click="turkeyDialogClose">取 消</el-button>
+              <el-button type="primary" @click="turkeyRunConfirm">运 行</el-button>
+            </span>
         </el-dialog>
-
         <el-dialog title="任务调度" :visible.sync="normalDialogVisible" width="20%">
-          <span slot="footer">
-            <el-button @click="normalDialogClose">取 消</el-button>
-            <el-button type="primary" @click="normalRunConfirm">运 行</el-button>
-          </span>
+            <span slot="footer">
+              <el-button @click="normalDialogClose">取 消</el-button>
+              <el-button type="primary" @click="normalRunConfirm">运 行</el-button>
+            </span>
         </el-dialog>
       </div>
 
@@ -244,6 +252,7 @@ export default {
       callback();
     };
     return {
+      result: {},
       width: document.body.clientWidth,
       JenkinsJobList: [],
       json: {},
@@ -259,7 +268,7 @@ export default {
         ws_host: 'wss://qa.phemex.com',
         env: 'qa',
         web_site: 'phemex',
-        spot_symbol_list: 'BTCUSDT,ETHUSDT',
+        spot_symbol_list: 'sBTCUSDT,sETHUSDT',
         contract_symbol_list: 'BTCUSD,uBTCUSD,cETHUSD',
         case_type: ['rest_api', 'pub_api'],
         total_spot_price: '15',
@@ -280,7 +289,7 @@ export default {
         web_site: 'turkey',
         case_type: ['rest_api', 'pub_api'],
         case_id_List: '',
-        plan_type: 'normal',
+        // plan_type: 'normal',
         execution_case_mark: 'p0',
         not_execution_case_mark: 'error',
         assert_socket_switch: false
@@ -322,11 +331,42 @@ export default {
     this.getJobList();
   },
   beforeDestroy() {
-    clearInterval(this.timer);
-    this.timer = null;
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+  },
+  beforeRouteLeave(to, from, next) {
+    next();
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
   },
   methods: {
-    getJobList() {
+    changePhemexHost() {
+      if (this.parameters.env === "prod") {
+        this.parameters.rest_api_host = 'https://phemex.com'
+        this.parameters.pub_api_host = 'https://api.phemex.com'
+        this.parameters.ws_host = 'wss://phemex.com'
+      } else {
+        this.parameters.rest_api_host = 'https://qa.phemex.com'
+        this.parameters.pub_api_host = 'https://testnet-api.phemex.com'
+        this.parameters.ws_host = 'wss://qa.phemex.com'
+      }
+    },
+    changeTurkeyHost() {
+      if (this.turkeyParameters.env === "prod") {
+        this.turkeyParameters.rest_api_host = 'https://api.phemex.com.tr'
+        // this.parameters.pub_api_host = 'https://api.phemex.com'
+        this.turkeyParameters.ws_host = 'wss://ws.phemex.com.tr'
+      } else {
+        this.turkeyParameters.rest_api_host = 'https://api.qa1.phemex.com.tr'
+        // this.parameters.pub_api_host = 'https://testnet-api.phemex.com'
+        this.turkeyParameters.ws_host = 'wss://ws.qa1.phemex.com.tr'
+      }
+    },
+    setJenkinsInfo() {
       this.$axios.get("/jenkins/crumbIssuer/api/xml",
         {
           params: {'xpath': 'concat(//crumbRequestField,":",//crumb)'},
@@ -335,53 +375,63 @@ export default {
         if (res.status === 200) {
           this.json.Jenkins_Crumb = res.data.split(":")[1];
           localStorage.setItem("JenkinsInfo", JSON.stringify(this.json));
-
-          this.$axios.post("/jenkins/api/json?tree=jobs[name,url,builds[number,result,duration,timestamp,url]{0,1}]", null,
-            {
-              headers: {
-                'Authorization': 'Basic dGVzdDoxMjM0NTY=',
-                'Jenkins-Crumb': this.json.Jenkins_Crumb
-              }
-            }).then((res) => {
-            if (res.status === 200) {
-              this.tableData = res.data.jobs
-              this.tableData.forEach(e => {
-                this.JenkinsJobList.push(e.name)
-                if (e.builds.length !== 0) {
-                  if (e.builds[0].result === null) {
-                    e.result = "RUNNING"
-                    this.timer = setInterval(() => {
-                      setTimeout(this.getJobList, 0)
-                    }, 1000 * 5)
-                  } else {
-                    e.result = e.builds[0].result
-                    e.allure_report = e.builds[0].url + "allure/"
-                    clearInterval(this.timer);
-                    this.timer = null;
-                  }
-                  e.duration = formatTime(e.builds[0].duration)
-                  e.timestamp = formatTimeStamp(e.builds[0].timestamp)
-                }
-              })
-              // this.json.JenkinsJobList = noRepeat(this.JenkinsJobList);
-              // localStorage.setItem("JenkinsInfo", JSON.stringify(this.json));
-            } else {
-              this.$notify.warning({
-                title: "Jenkins-crumb已过期，请刷新页面重试",
-                message: res.statusText
-              });
-            }
-          }).catch((error) => {
-            this.$notify.error({
-              title: "Jenkins-crumb已过期，请刷新页面重试",
-              message: error
-            });
-          })
-
         }
       });
-
     },
+    getJobList() {
+      this.$axios.post("/jenkins/api/json?tree=jobs[name,url,description,builds[number,result,duration,timestamp,url]{0,1}]", null,
+        {
+          headers: {
+            'Authorization': 'Basic dGVzdDoxMjM0NTY=',
+            'Jenkins-Crumb': this.Jenkins_Crumb
+          }
+        }).then((res) => {
+        if (res.status === 200) {
+          this.tableData = res.data.jobs
+          this.tableData.forEach(e => {
+            this.JenkinsJobList.push(e.name)
+            if (e.builds.length !== 0) {
+              if (e.builds[0].result === null) {
+                e.result = "RUNNING"
+              } else {
+                e.result = e.builds[0].result
+                e.allure_report = e.builds[0].url + "allure/"
+              }
+              e.duration = formatTime(e.builds[0].duration)
+              e.timestamp = formatTimeStamp(e.builds[0].timestamp)
+            }
+          })
+          if (JSON.stringify(this.tableData).indexOf("RUNNING") !== -1 || JSON.stringify(this.tableData).indexOf("duration: \"0秒\"") !== -1) {
+            clearInterval(this.timer);
+            this.timer = null;
+            this.timer = setInterval(() => {
+              setTimeout(this.getJobList, 0)
+            }, 1000 * 10)
+          }
+
+          // this.json.JenkinsJobList = noRepeat(this.JenkinsJobList);
+          // localStorage.setItem("JenkinsInfo", JSON.stringify(this.json));
+        } else {
+          this.$notify.warning({
+            title: "Jenkins-crumb已过期，请刷新页面重试",
+            message: res.statusText
+          });
+        }
+      }).catch((error) => {
+        if (error.response.data.message === 'No valid crumb was included in the request') {
+          this.$notify.error({
+            title: "Jenkins-crumb已过期，请刷新页面重试",
+            message: error,
+          });
+        } else {
+          this.$notify.error({
+            title: "获取Jenkins任务信息列表失败",
+            message: error,
+          });
+        }
+      })
+    },
+
     runJobs(name, body) {
       if (body !== undefined) {
         let url = "/jenkins/job/" + name + "/buildWithParameters"
@@ -407,17 +457,27 @@ export default {
             title: "job执行成功",
             message: res.statusText
           });
-          if (name === 'ApiAutoTestToPhemex'){
+          if (name === 'ApiAutoTestToPhemex' || name === '_DEBUG') {
             this.dialogVisible = false;
-          }else if (name === 'ApiAutoTestToTurkey'){
+          } else if (name === 'ApiAutoTestToTurkey') {
             this.turkeyDialogVisible = false;
           }
-          this.getJobList();
+          this.getJobList()
+          this.timer = setInterval(() => {
+            setTimeout(this.getJobList, 0)
+          }, 1000 * 10)
         }).catch((error) => {
-          this.$notify.error({
-            title: "job执行失败",
-            message: error
-          });
+          if (error.response.data.message === 'No valid crumb was included in the request') {
+            this.$notify.error({
+              title: "job执行失败：Jenkins-crumb已过期，请刷新页面重试",
+              message: error,
+            });
+          } else {
+            this.$notify.error({
+              title: "job执行失败",
+              message: error,
+            });
+          }
         })
       } else {
         let url = "/jenkins/job/" + name + "/build"
@@ -430,7 +490,10 @@ export default {
               message: res.statusText
             });
             this.normalDialogVisible = false;
-            this.getJobList();
+            this.getJobList()
+            this.timer = setInterval(() => {
+              setTimeout(this.getJobList, 0)
+            }, 1000 * 10)
           } else {
             this.$notify.warning({
               title: "job执行失败",
@@ -438,16 +501,23 @@ export default {
             });
           }
         }).catch((error) => {
-          this.$notify.error({
-            title: "job执行失败",
-            message: error
-          });
+          if (error.response.data.message === 'No valid crumb was included in the request') {
+            this.$notify.error({
+              title: "job执行失败：Jenkins-crumb已过期，请刷新页面重试",
+              message: error,
+            });
+          } else {
+            this.$notify.error({
+              title: "job执行失败",
+              message: error,
+            });
+          }
         })
       }
     },
 
     openDialog(item) {
-      if (item.name === 'ApiAutoTestToPhemex') {
+      if (['ApiAutoTestToPhemex', 'ApiAutoTestBase', '_DEBUG'].indexOf(item.name) !== -1) {
         this.resetForm();
         this.dialogVisible = true;
         this.runName = item.name;
@@ -502,14 +572,15 @@ export default {
           });
       }
     },
+    normalDialogClose() {
+      this.normalDialogVisible = false;
+    },
+
     runConfirm() {
       this.runJobs(this.runName, this.parameters)
     },
     turkeyRunConfirm() {
       this.runJobs(this.runName, this.turkeyParameters)
-    },
-    normalDialogClose() {
-      this.normalDialogVisible = false;
     },
     normalRunConfirm() {
       this.runJobs(this.runName)

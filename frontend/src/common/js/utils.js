@@ -7,6 +7,7 @@ import {
   ORIGIN_COLOR_SHALLOW,
   PRIMARY_COLOR,
   PROJECT_ID,
+  PROJECT_NAME,
   ROLE_ADMIN,
   ROLE_ORG_ADMIN,
   ROLE_TEST_MANAGER,
@@ -188,6 +189,10 @@ export function getCurrentWorkspaceId() {
 
 export function getCurrentProjectID() {
   return sessionStorage.getItem(PROJECT_ID);
+}
+
+export function getCurrentProjectName() {
+  return sessionStorage.getItem(PROJECT_NAME);
 }
 
 export function getCurrentUser() {

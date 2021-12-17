@@ -25,9 +25,9 @@
               </div>
               <el-divider></el-divider>
               <div style="margin-left:20px" class="bottom clearfix">
-                <span>构建名称：{{ this.lastBuildInfo.fullDisplayName }}</span><br>
-                <time class="time">上次执行时间：{{ this.lastBuildInfo.datetime }}</time><br>
-                <span>执行结果：{{ this.lastBuildInfo.result }}</span>
+                <span>构建名称：{{ lastBuildInfo.fullDisplayName }}</span><br>
+                <time class="time">上次执行时间：{{ lastBuildInfo.datetime }}</time><br>
+                <span>执行结果：{{ lastBuildInfo.result }}</span>
               </div>
             </div>
           </el-card>
@@ -36,7 +36,7 @@
           <el-card :body-style="{ padding: '0px' }" style="background: #ff9000;margin: 10px">
             <div style="padding:15px; color: #FFFFFF">
               <div style="float: top">Job调度次数<br>
-                <span style="font-size:30px">{{ this.scheduling_times }}</span>
+                <span style="font-size:30px">{{ scheduling_times }}</span>
               </div>
               <el-divider></el-divider>
               <div style="margin-left:20px">
@@ -81,19 +81,19 @@ export default {
           "value": "ApiAutoTestToTurkey",
           "label": "ApiAutoTestToTurkey"
         }],
-      value: '',
+      value: 'ApiAutoTestToPhemex',
       defaultValue: 'ApiAutoTestToPhemex',
       historyTrendList: []
     }
   },
-  created() {
+  // created() {
+  //   const JenkinsInfo = JSON.parse(localStorage.getItem("JenkinsInfo"));
+  //   this.Jenkins_Crumb = JenkinsInfo.Jenkins_Crumb;
+  // },
+  activated() {
     const JenkinsInfo = JSON.parse(localStorage.getItem("JenkinsInfo"));
     this.Jenkins_Crumb = JenkinsInfo.Jenkins_Crumb;
-    this.JenkinsJobList = JenkinsInfo.JenkinsJobList
-    // this.setOption();
-  },
-  activated() {
-    this.getInfoAll(this.defaultValue);
+    this.getInfoAll(this.value);
   },
 
   methods: {
@@ -132,10 +132,17 @@ export default {
           });
         }
       }).catch((error) => {
-        this.$notify.error({
-          title: "获取Jenkins最近一次构建信息失败",
-          message: error
-        });
+        if (error.response.data.message === 'No valid crumb was included in the request'){
+          this.$notify.error({
+            title: "Jenkins-crumb已过期，请刷新页面重试",
+            message: error,
+          });
+        }else {
+          this.$notify.error({
+            title: "获取Jenkins最近一次构建信息失败",
+            message: error,
+          });
+        }
       })
     },
     getJobInfoList(jobName) {
@@ -152,10 +159,17 @@ export default {
           });
         }
       }).catch((error) => {
-        this.$notify.error({
-          title: "获取Jenkins任务信息列表失败",
-          message: error
-        });
+        if (error.response.data.message === 'No valid crumb was included in the request'){
+          this.$notify.error({
+            title: "Jenkins-crumb已过期，请刷新页面重试",
+            message: error,
+          });
+        }else {
+          this.$notify.error({
+            title: "获取Jenkins任务信息列表失败",
+            message: error,
+          });
+        }
       })
     },
 

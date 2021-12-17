@@ -13,13 +13,15 @@
             </el-option>
           </el-select>
           <el-button type="primary" @click="getJobInfoList(value)" style="margin-left: 20px">查 询</el-button>
+          <h2 style=" color:rgb(106, 90, 205); font-weight:bold">| {{value}}</h2>
+<!--          <span style=" margin-left:200px ;color:#F00; font-weight:bold">{{value}}</span>-->
         </template>
         <!-- table主体内容 -->
         <el-table :data="(tableDataNew || []).slice((currentPage-1)*pageSize,currentPage*pageSize)"
                   style="width: 100%" border>
-          <el-table-column prop="name" label="job名称" width="170"></el-table-column>
-          <el-table-column prop="number" label="id" width="60"></el-table-column>
-          <el-table-column prop="url" label="jenkins地址" width="100" align="center">
+<!--          <el-table-column prop="name" label="job名称" width="170"></el-table-column>-->
+          <el-table-column prop="number" label="id" width="80"></el-table-column>
+          <el-table-column prop="url" label="jenkins地址" width="120" align="center">
             <template slot-scope="scope">
               <el-link :href="scope.row.url" target="_blank">
                 <div v-if="scope.row.url !== '' && scope.row.url != null">
@@ -40,14 +42,14 @@
           </el-table-column>
           <el-table-column label="case运行结果" align="center">
             <el-table-column label="通过率" prop="successRate" width="80"></el-table-column>
-            <el-table-column label="成功数" prop="passed" width="65"></el-table-column>
-            <el-table-column label="失败数" prop="failed" width="65"></el-table-column>
-            <el-table-column label="总数" prop="total" width="60"></el-table-column>
+            <el-table-column label="成功数" prop="passed" width="80"></el-table-column>
+            <el-table-column label="失败数" prop="failed" width="80"></el-table-column>
+            <el-table-column label="总数" prop="total" width="80"></el-table-column>
           </el-table-column>
 
-          <el-table-column prop="timestamp" label="构建时间" align="center" width="160"></el-table-column>
-          <el-table-column prop="duration" label="用时" align="center" width="100"></el-table-column>
-          <el-table-column prop="result" label="构建结果" align="center" width="100">
+          <el-table-column prop="timestamp" label="构建时间" align="center" width="180"></el-table-column>
+          <el-table-column prop="duration" label="用时" align="center" width="120"></el-table-column>
+          <el-table-column prop="result" label="构建结果" align="center" width="120">
             <template slot-scope="scope">
               <el-tag v-if="scope.row.result==='SUCCESS'" type="success" effect="dark">SUCCESS</el-tag>
               <el-tag v-if="scope.row.result==='FAILURE'" type="danger" effect="dark">FAILURE</el-tag>
@@ -113,13 +115,15 @@ export default {
       historyTrendList: [],
     }
   },
-  created() {
+  activated() {
     const JenkinsInfo = JSON.parse(localStorage.getItem("JenkinsInfo"));
     this.Jenkins_Crumb = JenkinsInfo.Jenkins_Crumb;
-    this.JenkinsJobList = JenkinsInfo.JenkinsJobList
-    // this.setOption();
     this.getJobInfoList(this.defaultValue)
   },
+  // activated() {
+  //   const JenkinsInfo = JSON.parse(localStorage.getItem("JenkinsInfo"));
+  //   this.Jenkins_Crumb = JenkinsInfo.Jenkins_Crumb;
+  // },
 
   methods: {
     // <!--监听pageSize变化-->
@@ -141,6 +145,7 @@ export default {
     //   console.log("ss",this.options)
     // },
     getJobInfoList(jobName) {
+      this.value = jobName
       if (jobName === '') {
         jobName = 'ApiAutoTestToPhemex'
       }
@@ -167,12 +172,18 @@ export default {
           });
         }
       }).catch((error) => {
-        this.$notify.error({
-          title: "获取Jenkins任务信息列表失败",
-          message: error
-        });
+        if (error.response.data.message === 'No valid crumb was included in the request'){
+          this.$notify.error({
+            title: "Jenkins-crumb已过期，请刷新页面重试",
+            message: error,
+          });
+        }else {
+          this.$notify.error({
+            title: "获取Jenkins任务信息列表失败",
+            message: error,
+          });
+        }
       })
-
     },
     getHistoryTrend(jobName) {
       let url = "/jenkins/job/" + jobName + "/allure/widgets/history-trend.json"
@@ -205,15 +216,22 @@ export default {
           });
         }
       }).catch((error) => {
-        this.$notify.error({
-          title: "获取Jenkins的报表数据失败",
-          message: error
-        });
+        if (error.response.data.message === 'No valid crumb was included in the request'){
+          this.$notify.error({
+            title: "Jenkins-crumb已过期，请刷新页面重试",
+            message: error,
+          });
+        }else {
+          this.$notify.error({
+            title: "获取Jenkins的报表数据失败",
+            message: error,
+          });
+        }
       })
     },
-
   }
 }
+
 </script>
 
 <style scoped>

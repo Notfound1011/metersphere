@@ -4,13 +4,13 @@
 
       <div>
         <h3>接口自动化用例录入平台</h3>
-        <el-button type="primary" @click="openTestCaseAddDialog" class="add-btn" plain>添加测试用例</el-button>
+        <el-button type="primary" @click="openTestCaseAddDialog" class="add-btn" plain v-permission="['PROJECT_API_CASE_RECORD:READ+CREATE']">添加测试用例</el-button>
 
         <div>
           <el-divider></el-divider>
           <el-form :inline="true" class="demo-form-inline">
             <template>
-              <el-select v-model="value" placeholder="请选择" style="margin-right: 10px">
+              <el-select v-model="value" placeholder="请选择" style="margin-right: 10px" @change="clearKeywords">
                 <el-option
                   v-for="item in options"
                   :key="item.value"
@@ -20,7 +20,33 @@
               </el-select>
             </template>
             <el-form-item>
-              <el-input v-model="keywords" placeholder="请输入查询内容" @keyup.enter.native="search(keywords)" clearable></el-input>
+              <el-input v-model="keywords" placeholder="请输入查询内容" @keyup.enter.native="search(keywords)" clearable
+                        v-if="value ==='id' || value ==='case_name' "></el-input>
+              <el-input v-model="keywords" placeholder='多条标签用逗号隔开' @keyup.enter.native="search(keywords)" clearable
+                        v-if="value ==='mark'"></el-input>
+              <el-select v-model="keywords" clearable placeholder="请选择" v-if="value==='method'">
+                <el-option label="get" value="get"></el-option>
+                <el-option label="post" value="post"></el-option>
+                <el-option label="put" value="put"></el-option>
+                <el-option label="delete" value="delete"></el-option>
+              </el-select>
+              <el-select v-model="keywords" clearable placeholder="请选择" v-if="value==='template_type'">
+                <el-option label="非模板" value="not_template"></el-option>
+                <el-option label="合约" value="contract"></el-option>
+                <el-option label="现货" value="spot"></el-option>
+              </el-select>
+              <el-select v-model="keywords" clearable placeholder="请选择" v-if="value==='case_type'">
+                <el-option label="rest_api" value="rest_api"></el-option>
+                <el-option label="pub_api" value="pub_api"></el-option>
+              </el-select>
+              <el-select v-model="keywords" clearable placeholder="请选择" v-if="value==='web_site'">
+                <el-option label=国际站 value="phemex"></el-option>
+                <el-option label="土耳其站" value="turkey"></el-option>
+              </el-select>
+              <el-select v-model="keywords" clearable placeholder="请选择" v-if="value==='status'">
+                <el-option label="启用" value="true"></el-option>
+                <el-option label="停用" value="false"></el-option>
+              </el-select>
             </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="search(keywords)">查询</el-button>
@@ -35,16 +61,16 @@
         <el-table :data="tableData" style="width: 100%" border @filter-change="filter" @cell-dblclick="cell_dblclick">
           <el-table-column prop="id" label="ID" width="80" sortable></el-table-column>
           <el-table-column prop="case_name" label="用例名称" width="300"></el-table-column>
-          <el-table-column prop="method" label="请求方法" width="140"
+          <el-table-column prop="method" label="请求方法" width="100"
                            column-key="method">
           </el-table-column>
-          <el-table-column prop="path" label="接口path" width="120"></el-table-column>
-          <el-table-column prop="body_by_json" label="json" :formatter="formatObject"
-                           align="left" width="140" show-overflow-tooltip>
-          </el-table-column>
-          <el-table-column prop="expect" label="预期结果" :formatter="formatObject"
-                           align="left" width="140" show-overflow-tooltip>
-          </el-table-column>
+          <el-table-column prop="path" label="接口path" width="180"></el-table-column>
+          <!--          <el-table-column prop="body_by_json" label="json" :formatter="formatObject"-->
+          <!--                           align="left" width="140" show-overflow-tooltip>-->
+          <!--          </el-table-column>-->
+          <!--          <el-table-column prop="expect" label="预期结果" :formatter="formatObject"-->
+          <!--                           align="left" width="140" show-overflow-tooltip>-->
+          <!--          </el-table-column>-->
           <el-table-column prop="mark" label="mark" header-align="center" width="240">
             <template slot-scope="scope">
               <el-tag v-for="item in scope.row.mark" :key="item" type="" effect="plain" class="tag-group">
@@ -57,10 +83,10 @@
           <el-table-column prop="web_site" label="站点" width="80"
                            column-key="web_site">
           </el-table-column>
-          <el-table-column prop="template_type" width="80" label="模板类型"
+          <el-table-column prop="template_type" width="120" label="模板类型"
                            column-key="template_type">
           </el-table-column>
-          <el-table-column prop="case_type" label="用例类型" width="80" column-key="case_type">
+          <el-table-column prop="case_type" label="用例类型" width="100" column-key="case_type">
           </el-table-column>
           <el-table-column prop="yapi_url" label="yapi链接" width="80" align="center">
             <template slot-scope="scope">
@@ -71,19 +97,23 @@
               </el-link>
             </template>
           </el-table-column>
-          <el-table-column prop="created_person" label="创建人" :formatter="formatCreatedData"></el-table-column>
-          <el-table-column prop="updated_person" label="更新人" :formatter="formatUpdatedData"></el-table-column>
+          <el-table-column prop="remark" label="备注"
+                           align="left" width="200" show-overflow-tooltip>
+          </el-table-column>
+          <el-table-column prop="created_person" label="创建人" :formatter="formatCreatedData"
+                           width="100"></el-table-column>
+          <el-table-column prop="updated_person" label="更新人" :formatter="formatUpdatedData"
+                           width="100"></el-table-column>
           <el-table-column prop="status" label="状态" width="80">
             <template slot-scope="scope">
               <el-tag v-if="scope.row.status===true" type="success" effect="dark">启用</el-tag>
               <el-tag v-if="scope.row.status===false" type="danger" effect="dark">停用</el-tag>
             </template>
           </el-table-column>
-
           <el-table-column prop="operation" label="操作" width="80">
             <template slot-scope="scope">
               <el-button type="primary" icon="el-icon-edit" @click="openTestCaseEditDialog(scope.row)"
-                         circle></el-button>
+                         circle v-permission="['PROJECT_API_CASE_RECORD:READ+EDIT']"></el-button>
               <!--              <el-button type="danger" icon="el-icon-delete" @click="delCase(scope.$index)" circle disabled></el-button>-->
             </template>
           </el-table-column>
@@ -135,10 +165,11 @@ export default {
         {value: 'id', label: 'ID'},
         {value: 'case_name', label: '用例名称'},
         {value: 'mark', label: 'mark'},
+        {value: 'method', label: '请求类型'},
         {value: 'case_type', label: '用例类型'},
-        {value: 'template_type', label: '模板类型'}
-        // {value: 'method', label: '请求方法'},
-        // {value: 'web_site', label: '站点'},
+        {value: 'template_type', label: '模板类型'},
+        {value: 'web_site', label: '站点'},
+        {value: 'status', label: '用例状态'},
       ],
       value: 'case_name',
       keywords: '',
@@ -163,6 +194,9 @@ export default {
     this.getCaseList();
   },
   methods: {
+    clearKeywords() {
+      this.keywords = ''
+    },
     combineSearch() {
       let combineQuery = JSON.parse(JSON.stringify(this.queryInfo))
       for (const i in this.condition.combine) {
@@ -208,6 +242,10 @@ export default {
             this.queryInfoNew = JSON.parse(JSON.stringify(this.queryInfo))
             this.queryInfoNew.case_name = keywords.trim()
             break;
+          case "method":
+            this.queryInfoNew = JSON.parse(JSON.stringify(this.queryInfo))
+            this.queryInfoNew.method = keywords.trim()
+            break;
           case "template_type":
             this.queryInfoNew = JSON.parse(JSON.stringify(this.queryInfo))
             this.queryInfoNew.template_type = keywords.trim()
@@ -219,6 +257,14 @@ export default {
           case "mark":
             this.queryInfoNew = JSON.parse(JSON.stringify(this.queryInfo))
             this.queryInfoNew.mark = keywords.trim().split(/,|，|\s+/)
+            break;
+          case "web_site":
+            this.queryInfoNew = JSON.parse(JSON.stringify(this.queryInfo))
+            this.queryInfoNew.web_site = keywords.trim()
+            break;
+          case "status":
+            this.queryInfoNew = JSON.parse(JSON.stringify(this.queryInfo))
+            this.queryInfoNew.status = keywords.trim()
             break;
           default:
             break;

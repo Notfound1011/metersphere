@@ -69,7 +69,7 @@
                 :popper-append-to-body="true">
       <template v-slot:title>{{ $t('commons.project') }}:
         <span class="project-name" :title="currentProjectName" v-if="currentProjectName.length === 0">无项目/无权限</span>
-        <span class="project-name" :title="currentProjectName" v-else-if= "currentProjectName.length !== 0">
+        <span class="project-name" :title="currentProjectName" v-else-if="currentProjectName.length !== 0">
           {{ currentProjectName }}
         </span>
       </template>
@@ -105,7 +105,7 @@
               <template v-slot:title>
                 <div @click="changeProj(proj)">
                   {{ proj.name }}
-                  <i class="el-icon-check" v-if="proj.id === getCurrentProjectID()"></i>
+                  <i class="el-icon-check" v-if="proj.id === currentProjectId"></i>
                 </div>
               </template>
             </el-menu-item>
@@ -118,8 +118,17 @@
 </template>
 
 <script>
-import {getCurrentOrganizationId,getCurrentProjectID, getCurrentUser, getCurrentWorkspaceId, saveLocalStorage} from "@/common/js/utils";
+import {
+  fullScreenLoading,
+  stopFullScreenLoading,
+  getCurrentOrganizationId,
+  getCurrentProjectID,
+  getCurrentUser,
+  getCurrentWorkspaceId,
+  saveLocalStorage
+} from "@/common/js/utils";
 import {ORGANIZATION_ID, PROJECT_ID, WORKSPACE_ID} from "@/common/js/constants";
+import {TokenKey} from "../../../../common/js/constants";
 
 export default {
   name: "MsHeaderOrgWs",
@@ -150,7 +159,8 @@ export default {
       workspaceIds: [],
       currentOrganizationName: '',
       currentWorkspaceName: '',
-      currentProjectName:'',
+      currentProjectName: '',
+      currentProjectId: getCurrentProjectID(),
       searchOrg: '',
       searchWs: '',
       searchProj: '',
@@ -202,38 +212,38 @@ export default {
             } else {
               this.$set(org, 'workspaceList', d);
               org.wsListCopy = d;
-              this.wsListCopy =d;
+              this.wsListCopy = d;
               let workspace = d.filter(r => r.id === getCurrentWorkspaceId());
 
               if (workspace.length > 0) {
                 this.currentWorkspaceName = workspace[0].name;
               }
               this.result = this.$post("/project/list/related", {userId: this.currentUserId}, response => {
-                this.projectList = response.data;
-                this.searchArray = response.data;
-                for(const id in org.workspaceList){
-                  this.$set(org.workspaceList[id], 'wsProjectList', []);
-                  this.projectList.map(item =>{
-                    if(org.workspaceList[id].id === item.workspaceId){
-                      org.workspaceList[id].wsProjectList.push({name:item.name, id:item.id})
-                    }
-                  })
-                }
-
-                this.workspaceList = org.workspaceList
-                // console.log("this.workspaceList",this.workspaceList)
-                let d = this.projectList;
-                if (d.length === 0) {
-                  // org.workspaceList = [{name: this.$t('workspace.none')}];
-                  // this.$set(org, 'workspaceList', [{name: this.$t('workspace.none')}]);
-                }
-                else {
-                  org.projListCopy = d;
-                  let project = d.filter(r => r.id === getCurrentProjectID());
-                  if (project.length > 0) {
-                    this.currentProjectName = project[0].name;
+                  this.projectList = response.data;
+                  this.searchArray = response.data;
+                  for (const id in org.workspaceList) {
+                    this.$set(org.workspaceList[id], 'wsProjectList', []);
+                    this.projectList.map(item => {
+                      if (org.workspaceList[id].id === item.workspaceId) {
+                        org.workspaceList[id].wsProjectList.push({name: item.name, id: item.id})
+                      }
+                    })
                   }
-                }}
+
+                  this.workspaceList = org.workspaceList
+                  // console.log("this.workspaceList",this.workspaceList)
+                  let d = this.projectList;
+                  if (d.length === 0) {
+                    // org.workspaceList = [{name: this.$t('workspace.none')}];
+                    // this.$set(org, 'workspaceList', [{name: this.$t('workspace.none')}]);
+                  } else {
+                    org.projListCopy = d;
+                    let project = d.filter(r => r.id === getCurrentProjectID());
+                    if (project.length > 0) {
+                      this.currentProjectName = project[0].name;
+                    }
+                  }
+                }
               )
 
             }
@@ -256,7 +266,7 @@ export default {
       }
       this.$post("/user/switch/source/org/" + orgId, {}, response => {
         saveLocalStorage(response);
-        console.log("response.data:~~",response.data)
+        // console.log("response.data:~~",response.data)
         sessionStorage.setItem(ORGANIZATION_ID, orgId);
         sessionStorage.setItem(WORKSPACE_ID, response.data.lastWorkspaceId);
         sessionStorage.setItem(PROJECT_ID, response.data.lastProjectId);
@@ -281,41 +291,52 @@ export default {
         }).catch(err => err);
       });
     },
-    changeProj(data) {
-      let projectId = data.id;
-      if (!projectId) {
-        return false;
+    changeProj(proj) {
+      let projectId = proj.id;
+      // if (!projectId) {
+      //   return false;
+      // }
+      if (projectId) {
+        let project = this.searchArray.filter(p => p.id === projectId);
+        let workspaceId = project[0].workspaceId;
+        if (project.length > 0 && workspaceId !== sessionStorage.getItem(WORKSPACE_ID)) {
+          sessionStorage.setItem(WORKSPACE_ID, workspaceId);
+          this.$axios.post("/user/switch/source/ws/" + workspaceId, {}, response => {
+            saveLocalStorage(response);
+            this.$router.push('/track/case/all').then(() => {
+              this.reloadTopMenus();
+            }).catch(err => err);
+          }).then(() => {
+            let token = JSON.parse(localStorage.getItem(TokenKey))
+            token.lastProjectId = projectId
+            localStorage.setItem(TokenKey, JSON.stringify(token));
+          });
+        }
       }
-      // 保存session里的projectId
-      sessionStorage.setItem(PROJECT_ID, projectId);
+      let currentProjectId = getCurrentProjectID();
+      if (projectId === currentProjectId) {
+        return;
+      }
+
+      const loading = fullScreenLoading(this);
       this.$post("/user/update/current", {id: this.currentUserId, lastProjectId: projectId}, (response) => {
         saveLocalStorage(response);
         this.currentProjectId = projectId;
-        this.$EventBus.$emit('projectChange');
+        // this.$EventBus.$emit('projectChange');
         // 保存session里的projectId
         sessionStorage.setItem(PROJECT_ID, projectId);
         // 刷新路由
         this.reload();
+        stopFullScreenLoading(loading, 1500);
         this.changeProjectName(projectId);
+      }, () => {
+        stopFullScreenLoading(loading, 1500);
       });
     },
     changeProjectName(projectId) {
       if (projectId) {
         let project = this.searchArray.filter(p => p.id === projectId);
-        let workspaceId = project[0].workspaceId;
-        if (project.length > 0) {
-          this.$emit("update:currentProject", workspaceId);
-          sessionStorage.setItem(WORKSPACE_ID, workspaceId);
-          this.$post("/user/switch/source/ws/" + workspaceId, {}, response => {
-            saveLocalStorage(response);
-            this.$router.push('/track/case/all').then(() => {
-              this.reloadTopMenus();
-            }).catch(err => err);
-          });
-        }
         this.currentProjectName = project[0].name;
-      } else {
-        this.$emit("update:currentProject", this.$t('project.select'));
       }
     },
     query(sign, queryString) {
@@ -328,7 +349,7 @@ export default {
       if (sign === 'proj') {
         this.workspaceList.forEach(ws => {
           let wsProjectListCopy = ws.wsProjectList;
-          console.log("wsProjectListCopy",wsProjectListCopy)
+          // console.log("wsProjectListCopy",wsProjectListCopy)
           ws.wsProjectList = queryString ? wsProjectListCopy?.filter(this.createFilter(queryString)) : wsProjectListCopy;
         });
       }
