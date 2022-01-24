@@ -141,6 +141,7 @@ export default {
     remove_cancel: 'Remove Cancel',
     remove_success: 'Remove Success',
     tips: 'The authentication information has expired, please login again',
+    jenkins_tips: 'jenkins-crumb authentication information has expired,please retry again',
     not_performed_yet: 'Not performed yet',
     incorrect_input: 'Incorrect input',
     delete_confirm: 'Please enter the following to confirm deletion:',

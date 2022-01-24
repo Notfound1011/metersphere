@@ -1,8 +1,9 @@
 <template>
   <div class="ms-div">
     <template>
+      <h2 style="margin-left: 10px;font-weight:bold">报表统计</h2>
       <el-select v-model="value" filterable placeholder="切换job"
-                 style='margin-left: 40px;margin-bottom: 20px;margin-top: 10px'>
+                 style='margin-left: 40px;margin-bottom: 20px'>
         <el-option
           v-for="item in options"
           :key="item.value"
@@ -49,7 +50,7 @@
     </el-row>
     <template>
       <div class="Echarts">
-        <div id="main" style="width: 1000px;height:500px;margin-top: 40px"></div>
+        <div id="main" style="width: 80%;height:500%"></div>
       </div>
     </template>
   </div>
@@ -105,16 +106,6 @@ export default {
       this.getJobInfoList(jobName);
       this.myEcharts(jobName);
     },
-
-    // setOption() {
-    //   this.JenkinsJobList.forEach(e => {
-    //     let option = {}
-    //     option.value = e
-    //     option.label = e
-    //     this.options.push(option)
-    //   });
-    //   this.options = Array.from(new Set(this.options))
-    // },
     getLastBuildInfo(jobName) {
       let url = "/jenkins/job/" + jobName + "/lastBuild/api/json"
       this.$axios.post(url, null,

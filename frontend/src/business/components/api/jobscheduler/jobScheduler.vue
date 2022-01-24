@@ -2,19 +2,26 @@
   <ms-container>
     <ms-aside-container>
       <!--router	是否使用 vue-router 的模式，启用该模式会在激活导航时以 index 作为 path 进行路由跳转-->
-      <el-menu router :default-active='$route.path' class="jobSchedulerMenu">
-        <el-menu-item :index="'/api/jobScheduler/analysis'">
-          <i class="el-icon-pie-chart"></i>
-          <span slot="title"> 报表统计</span>
-        </el-menu-item>
-        <el-menu-item :index="'/api/jobScheduler/runJobs'">
-          <i class="el-icon-video-play"></i>
-          <span slot="title"> 任务运行</span>
-        </el-menu-item>
-        <el-menu-item :index="'/api/jobScheduler/reports'">
-          <i class="el-icon-document"></i>
-          <span slot="title"> 测试报告</span>
-        </el-menu-item>
+      <el-menu router :default-active='$route.path' class="jobSchedulerMenu" active-text-color="rgb(0, 0, 255)"
+               :default-openeds="open_list" :unique-opened="true">
+        <el-submenu index="1">
+          <template v-slot:title>
+            <i class="el-icon-location"></i>
+            <span>{{ $t('i18n.jobScheduler') }}</span>
+          </template>
+          <el-menu-item :index="'/api/jobScheduler/analysis'">
+            <i class="el-icon-pie-chart"></i>
+            <span slot="title"> 报表统计</span>
+          </el-menu-item>
+          <el-menu-item :index="'/api/jobScheduler/runJobs'">
+            <i class="el-icon-video-play"></i>
+            <span slot="title"> 任务运行</span>
+          </el-menu-item>
+          <el-menu-item :index="'/api/jobScheduler/reports'">
+            <i class="el-icon-document"></i>
+            <span slot="title"> 测试报告</span>
+          </el-menu-item>
+        </el-submenu>
       </el-menu>
     </ms-aside-container>
     <ms-main-container>
@@ -35,8 +42,6 @@ export default {
   components: {MsMainContainer, MsContainer, MsAsideContainer},
   name: "jobScheduler",
   created() {
-    const JenkinsInfo = JSON.parse(localStorage.getItem("JenkinsInfo"));
-    this.Jenkins_Crumb = JenkinsInfo.Jenkins_Crumb;
     this.timer = setInterval(() => {
       setTimeout(this.setJenkinsInfo, 0)
     }, 1000 * 1800)
@@ -52,7 +57,8 @@ export default {
     return {
       JenkinsJobList: [],
       Jenkins_Crumb: '',
-      json: {}
+      json: {},
+      open_list:["1"]
     }
   },
   methods: {

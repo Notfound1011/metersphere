@@ -662,3 +662,154 @@ export function noRepeat(arr) {
   }
   return ret;
 }
+
+// 按周分组
+export function groupByWeek(date, value) {
+  const weekDay = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+  const weekDate = [];
+  let newDate = [];
+  let newValue = [];
+  /*遍历，把所有日期转为星期X*/
+  date.forEach((item) => {
+    const myDate = new Date(Date.parse(item));
+    weekDate.push(weekDay[myDate.getDay()]);
+  });
+  /*从前往后找第一个“星期日”，返回下标*/
+  const index = weekDate.findIndex((value)=>{
+    return value=="星期日";
+  });
+  if(index >= 0){ //日期数组内可以找到"星期日"
+    /*以周为单位开始分组*/
+    // 第一个周为一个数组，其他的按7天开始分组
+    const date1 = date.slice(0,index+1);
+    const date2 = date.slice(index+1,date.length);
+    const value1 = value.slice(0,index+1);
+    const value2 = value.slice(index+1,value.length);
+    newDate.push(date1[0]);
+    newValue.push(eval(value1.join("+")));
+    const result = dataGroupFunc(date2, value2, 7);
+    newDate = newDate.concat(result.newArr1);
+    newValue = newValue.concat(result.newArr2);
+  } else { //日期数组内找不到"星期日"
+    newDate = date;
+    newValue = [eval(value.join("+"))];
+  }
+  return {
+    newDate: newDate,
+    newValue:newValue
+  };
+  // 图表数据分组方法:arr1-图表横坐标，arr2-图表纵坐标数据，group-以几条数据为一组
+  function dataGroupFunc(arr1, arr2, group) {
+    const newArr1 = [];
+    const newArr2 = [];
+    for(let i = 0; i < arr1.length;) {
+      newArr1.push(arr1[i]);
+      let count = 0;
+      for (let j = i; j < i+group; j++) {
+        if (arr2[j]){
+          count += arr2[j];
+        }
+      }
+      newArr2.push(count);
+      i+=group;
+    }
+    return {
+      newArr1: newArr1,
+      newArr2: newArr2
+    }
+  }
+}
+
+// 按月分组
+export function groupByMonth(date, value) {
+  const newDate = [];
+  const newValue = [];
+  const newDate1 = [];
+  const newValue1 = [];
+  const monthArr = [];
+  const indexArr = [];
+  /*遍历，把所有日期的月份取出*/
+  date.forEach((item) => {
+    item.split('-');
+    monthArr.push(item.split('-')[1]);
+  });
+  group(monthArr, 0 , 0);
+  /*根据分好组的下标信息开始截取原始数组*/
+  indexArr.forEach((item) => {
+    newDate1.push(date.slice(item[0],item[item.length-1]+1));
+    newValue1.push(value.slice(item[0],item[item.length-1]+1));
+  });
+  /*把每个分组的第一项拿出用于图表横坐标的值*/
+  newDate1.forEach((item) => {
+    newDate.push(item[0].split('-')[0]+"年"+item[0].split('-')[1]+"月");
+  });
+  /*计算纵坐标的和值*/
+  newValue1.forEach((item) => {
+    newValue.push(eval(item.join("+")));
+  });
+  return {
+    newDate: newDate,
+    newValue: newValue
+  };
+  //数组相同项合一组记录下标
+  function group(arr, index, index1) {
+    if (index < arr.length) {
+      indexArr[index1] = [index];
+      for(let i=index+1; i<arr.length; i++){
+        if (arr[i] == arr[index]){
+          indexArr[index1].push(i);
+        } else {
+          group(arr, i, index1+1);
+          break;
+        }
+      }
+    }
+  }
+}
+
+// 按年分组
+export function groupByYear(date, value) {
+  const newDate = [];
+  const newValue = [];
+  const newDate1 = [];
+  const newValue1 = [];
+  const yearArr = [];
+  const indexArr = [];
+  /*遍历，把所有日期的年份取出*/
+  date.forEach((item) => {
+    item.split('-');
+    yearArr.push(item.split('-')[0]);
+  });
+  group(yearArr, 0 , 0);
+  /*根据分好组的下标信息开始截取原始数组*/
+  indexArr.forEach((item) => {
+    newDate1.push(date.slice(item[0],item[item.length-1]+1));
+    newValue1.push(value.slice(item[0],item[item.length-1]+1));
+  });
+  /*把每个分组的第一项拿出用于图表横坐标的值*/
+  newDate1.forEach((item) => {
+    newDate.push(item[0].split('-')[0]+"年");
+  });
+  /*计算纵坐标的和值*/
+  newValue1.forEach((item) => {
+    newValue.push(eval(item.join("+")));
+  });
+  return {
+    newDate: newDate,
+    newValue: newValue
+  };
+  //数组相同项合一组记录下标
+  function group(arr, index, index1) {
+    if (index < arr.length) {
+      indexArr[index1] = [index];
+      for(let i=index+1; i<arr.length; i++){
+        if (arr[i] == arr[index]){
+          indexArr[index1].push(i);
+        } else {
+          group(arr, i, index1+1);
+          break;
+        }
+      }
+    }
+  }
+}

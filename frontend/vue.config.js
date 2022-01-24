@@ -18,11 +18,11 @@ module.exports = {
       //   // target: 'http://localhost:8081',
       //   ws: true,
       // },
-      '/api/tc/TestCase': {
+      '/api/tc/pyServer': {
         target: "http://3.1.250.199:6200",
         changeOrigin: true,
         pathRewrite: {
-          '^/api/tc/TestCase': '/TestCase'
+          '^/api/tc/pyServer': '/'
         }
       },
       '/api/tc/jenkins': {
@@ -36,7 +36,7 @@ module.exports = {
         target: 'http://3.1.250.199:8081',
         // target: 'http://localhost:8081',
         changeOrigin: true,
-        pathRewrite: { '^/api/tc': '/' },
+        pathRewrite: {'^/api/tc': '/'},
       },
       ['^((?!/login)(?!/document))']: {
         target: 'http://3.1.250.199:8081',
@@ -88,8 +88,8 @@ module.exports = {
         return args;
       });
     config.plugin('inline-source-html-planReport')
-        .after('html-planReport')
-        .use(HtmlWebpackInlineSourcePlugin);
+      .after('html-planReport')
+      .use(HtmlWebpackInlineSourcePlugin);
 
     config.plugins.delete('prefetch');
   }

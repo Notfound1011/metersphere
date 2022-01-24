@@ -209,7 +209,7 @@ export default {
       this.getCaseList(combineQuery)
     },
     getCaseList(body = this.queryInfo) {
-      this.$axios.post("/TestCase/Search", body).then(res => {
+      this.$axios.post("/pyServer/TestCase/Search", body).then(res => {
         if (res.data.code === 0) {
           this.tableData = this.tableDataList = res.data.data
           this.total = res.data.total
@@ -356,7 +356,7 @@ export default {
       this.$confirm('确认删除此用例信息？')
         .then(_ => {
           this.deleteInfo.case_id = this.tableData.splice(idx, 1)[0].id;
-          this.$axios.delete("/TestCase/Delete", {params: this.deleteInfo, headers: {'x_power': true}})
+          this.$axios.delete("/pyServer/TestCase/Delete", {params: this.deleteInfo, headers: {'x_power': true}})
           this.$notify.warning({
             title: this.deleteInfo.case_id,
             message: this.$t('用例已删除').toString()

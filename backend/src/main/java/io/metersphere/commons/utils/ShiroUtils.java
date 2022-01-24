@@ -68,9 +68,6 @@ public class ShiroUtils {
         //mock接口
         filterChainDefinitionMap.put("/mock/**", "anon");
         filterChainDefinitionMap.put("/ws/**", "anon");
-
-        filterChainDefinitionMap.put("/plugin/**", "anon");
-
     }
 
     public static void ignoreCsrfFilter(Map<String, String> filterChainDefinitionMap) {

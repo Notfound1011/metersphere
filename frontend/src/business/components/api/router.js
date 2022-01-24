@@ -26,7 +26,6 @@ export default {
     {
       path: 'jobScheduler',
       name: 'jobScheduler',
-      redirect: "/api/jobScheduler/runJobs",
       component: () => import('@/business/components/api/jobscheduler/jobScheduler'),
       children: [
         {

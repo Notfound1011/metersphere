@@ -1,6 +1,7 @@
 <template>
   <ms-container>
     <ms-main-container>
+      <h2 style="font-weight:bold">任务运行</h2>
       <div style="margin: 20px">
         <!-- table主体内容 -->
         <el-table :data="tableData" style="width: 100%" border>
@@ -366,18 +367,6 @@ export default {
         this.turkeyParameters.ws_host = 'wss://ws.qa1.phemex.com.tr'
       }
     },
-    setJenkinsInfo() {
-      this.$axios.get("/jenkins/crumbIssuer/api/xml",
-        {
-          params: {'xpath': 'concat(//crumbRequestField,":",//crumb)'},
-          headers: {'Authorization': 'Basic dGVzdDoxMjM0NTY='}
-        }).then(res => {
-        if (res.status === 200) {
-          this.json.Jenkins_Crumb = res.data.split(":")[1];
-          localStorage.setItem("JenkinsInfo", JSON.stringify(this.json));
-        }
-      });
-    },
     getJobList() {
       this.$axios.post("/jenkins/api/json?tree=jobs[name,url,description,builds[number,result,duration,timestamp,url]{0,1}]", null,
         {
@@ -408,31 +397,41 @@ export default {
               setTimeout(this.getJobList, 0)
             }, 1000 * 10)
           }
-
-          // this.json.JenkinsJobList = noRepeat(this.JenkinsJobList);
-          // localStorage.setItem("JenkinsInfo", JSON.stringify(this.json));
-        } else {
-          this.$notify.warning({
-            title: "Jenkins-crumb已过期，请刷新页面重试",
-            message: res.statusText
-          });
         }
       }).catch((error) => {
-        if (error.response.data.message === 'No valid crumb was included in the request') {
-          this.$notify.error({
-            title: "Jenkins-crumb已过期，请刷新页面重试",
-            message: error,
-          });
-        } else {
-          this.$notify.error({
-            title: "获取Jenkins任务信息列表失败",
-            message: error,
-          });
+        this.$notify.error({
+          title: "获取Jenkins任务信息列表失败",
+          message: error,
+        });
+      })
+    },
+    refreshJenkinsCrumb() {
+      // Promise 异步处理接口请求，A接口处理完，再请求B接口
+      const promise = new Promise(resolve => {
+          this.$axios.get("/jenkins/crumbIssuer/api/xml",
+            {
+              params: {'xpath': 'concat(//crumbRequestField,":",//crumb)'},
+              headers: {'Authorization': 'Basic dGVzdDoxMjM0NTY='}
+            }).then(res => {
+            if (res.status === 200) {
+              this.json.Jenkins_Crumb = res.data.split(":")[1];
+              localStorage.setItem("JenkinsInfo", JSON.stringify(this.json));
+              const JenkinsInfo = JSON.parse(localStorage.getItem("JenkinsInfo"));
+              this.Jenkins_Crumb = JenkinsInfo.Jenkins_Crumb;
+            }
+            resolve(res);
+          }).catch((err) => {
+            console.log(err)
+          })
         }
+      );
+      promise.then(() => {
+        this.getJobList()
       })
     },
 
     runJobs(name, body) {
+      // 带参数的build
       if (body !== undefined) {
         let url = "/jenkins/job/" + name + "/buildWithParameters"
         this.$axios({
@@ -467,19 +466,13 @@ export default {
             setTimeout(this.getJobList, 0)
           }, 1000 * 10)
         }).catch((error) => {
-          if (error.response.data.message === 'No valid crumb was included in the request') {
-            this.$notify.error({
-              title: "job执行失败：Jenkins-crumb已过期，请刷新页面重试",
-              message: error,
-            });
-          } else {
-            this.$notify.error({
-              title: "job执行失败",
-              message: error,
-            });
-          }
+          this.$notify.error({
+            title: "job执行失败",
+            message: error,
+          });
         })
       } else {
+        // 不带参数的build
         let url = "/jenkins/job/" + name + "/build"
         this.$axios.post(url, null,
           {headers: {'Authorization': 'Basic dGVzdDoxMjM0NTY=', 'Jenkins-Crumb': this.Jenkins_Crumb}}).then((res) => {
@@ -501,17 +494,10 @@ export default {
             });
           }
         }).catch((error) => {
-          if (error.response.data.message === 'No valid crumb was included in the request') {
-            this.$notify.error({
-              title: "job执行失败：Jenkins-crumb已过期，请刷新页面重试",
-              message: error,
-            });
-          } else {
-            this.$notify.error({
-              title: "job执行失败",
-              message: error,
-            });
-          }
+          this.$notify.error({
+            title: "job执行失败",
+            message: error,
+          });
         })
       }
     },

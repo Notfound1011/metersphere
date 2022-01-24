@@ -142,6 +142,7 @@ export default {
     remove_cancel: '移除取消',
     remove_success: '移除成功',
     tips: '認證信息已過期，請重新登錄',
+    jenkins_tips: 'jenkins-crumb認證已過期，請重新進入頁面',
     not_performed_yet: '尚未執行',
     incorrect_input: '輸入內容不正確',
     delete_confirm: '請輸入以下內容，確認刪除：',

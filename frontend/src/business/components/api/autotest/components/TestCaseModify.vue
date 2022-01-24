@@ -73,9 +73,9 @@
               :label="group.label">
               <el-option
                 v-for="item in group.options"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value">
+                :key="item"
+                :label="item"
+                :value="item">
               </el-option>
             </el-option-group>
           </el-select>
@@ -272,85 +272,13 @@ export default {
         ]
       },
       userIndex: 0,
-      options: [
-        {
-          label: '用例等级',
-          options: [
-            {value: 'p0', label: 'p0'},
-            {value: 'p1', label: 'p1'}
-          ]
-        },
-        {
-          label: '用例类型',
-          options: [
-            {value: 'rest_api', label: 'rest_api'},
-            {value: 'pub_api', label: 'pub_api'}
-          ]
-        },
-        {
-          label: '国际站服务',
-          options: [
-            {value: 'contract', label: 'contract'},
-            {value: 'spot', label: 'spot'},
-            {value: 'user_service', label: 'user_service'},
-            {value: 'phemex_activity', label: 'phemex_activity'},
-            {value: 'phemex_institution', label: 'phemex_institution'},
-            {value: 'phemex_kol', label: 'phemex_kol'},
-            {value: 'phemex_wm', label: 'phemex_wm'},
-            {value: 'phemex_exchanger_core', label: 'phemex_exchanger_core'},
-          ]
-        },
-        {
-          label: '土站服务',
-          options: [
-            {value: 'turkey_user', label: 'turkey_user'},
-            {value: 'turkey_kyc', label: 'turkey_kyc'},
-            {value: 'turkey_payment', label: 'turkey_payment'},
-            {value: 'turkey_account', label: 'turkey_account'},
-            {value: 'turkey_activity', label: 'turkey_activity'},
-            {value: 'turkey_exchanger_core', label: 'turkey_exchanger_core'},
-          ]
-        },
-        {
-          label: '其他标签',
-          options: [
-            {value: 'business_contract_trade', label: 'business_contract_trade'},
-            {value: 'business_spot_trade', label: 'business_spot_trade'},
-            {value: 'business_funding_trans', label: 'business_funding_trans'},
-            {value: 'trigger_conditional_order', label: 'trigger_conditional_order'},
-            {value: 'take_profit_and_stop_loss', label: 'take_profit_and_stop_loss'},
-            {value: 'tracking_points', label: 'tracking_points'},
-            {value: 'bracket', label: 'bracket'},
-            {value: 'LOT_pub_api', label: 'LOT_pub_api'},
-            {value: 'jmeter_interface_data', label: 'jmeter_interface_data'},
-            {value: 'fiat_coin_payment', label: 'fiat_coin_payment'},
-            {value: 'competition', label: 'competition'},
-            {value: 'vip', label: 'vip'},
-            {value: 'membership', label: 'membership'},
-            {value: 'sub_user', label: 'sub_user'},
-            {value: 'user_key', label: 'user_key'},
-            {value: 'wallet', label: 'wallet'},
-            {value: 'wallet_v2', label: 'wallet_v2'},
-            {value: 'bonus', label: 'bonus'},
-            {value: 'user_profile', label: 'user_profile'},
-            {value: 'new_add', label: 'new_add'},
-            {value: 'market', label: 'market'},
-            {value: 'push', label: 'push'},
-            {value: 'order', label: 'order'},
-            {value: 'position_cfg', label: 'position_cfg'},
-            {value: 'conditional', label: 'conditional'},
-            {value: 'public_code', label: 'public_code'},
-            {value: 'error', label: 'error'},
-            {value: 'no_robot', label: 'no_robot'},
-            {value: 'need_help', label: 'need_help'},
-          ]
-        }
-      ]
+      options: []
     }
   },
   methods: {
     //编辑弹窗，默认将table中的数据赋值给编辑页面，json数据做json格式化展示
     openTestCaseEditDialog(item, idx) {
+      this.getConfig()
       // this.userIndex = idx;
       // this.editCaseObj.update_data = {...item};    // ...item 相当于 name: item.name,testCase: item.testCase,remarks: item.remarks,
       this.editCaseObj.update_data = {
@@ -504,7 +432,7 @@ export default {
                   return;
                 }
                 removeEmptyField(this.editCaseObjNew);
-                this.$axios.post("/TestCase/Update", this.editCaseObjNew).then(res => {
+                this.$axios.post("/pyServer/TestCase/Update", this.editCaseObjNew).then(res => {
                   if (res.data.code === 0) {
                     this.$notify.success({
                       title: "用例ID: " + this.editCaseObjNew.case_id,
@@ -552,6 +480,12 @@ export default {
       }
       this.inputVisible = false;
       this.inputValue = '';
+    },
+    async getConfig() {
+      this.$axios.get("/pyServer/TestConfig/Search", {params: {'config_id': '6ea520fc-691d-11ec-940a-3a27e1d6caa4'}}).then(res => {
+        this.options = res.data.data[0].config_data
+      }).catch(() => {
+      })
     }
 
   }

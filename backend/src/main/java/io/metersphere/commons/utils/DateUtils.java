@@ -116,7 +116,8 @@ public class DateUtils {
         System.out.println(getTimeString(afterDate));
         afterDate = dateSum(now,-20,Calendar.YEAR);
         System.out.println(getTimeString(afterDate));
-
+        System.out.println(getWeedFirstTimeAndLastTime(new Date()));
+        System.out.println(getWeedFirstTimeAndLastTime(new Date()).get("firstTime").getTime());
     }
 
 

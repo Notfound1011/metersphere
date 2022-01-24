@@ -3,6 +3,7 @@
     <ms-main-container>
       <div>
         <template>
+          <h2 style="font-weight:bold">测试报告</h2>
           <el-select v-model="value" filterable placeholder="切换job"
                      style='margin-bottom: 20px'>
             <el-option
@@ -13,13 +14,12 @@
             </el-option>
           </el-select>
           <el-button type="primary" @click="getJobInfoList(value)" style="margin-left: 20px">查 询</el-button>
-          <h2 style=" color:rgb(106, 90, 205); font-weight:bold">| {{value}}</h2>
-<!--          <span style=" margin-left:200px ;color:#F00; font-weight:bold">{{value}}</span>-->
+          <!--          <span style=" margin-left:200px ;color:#F00; font-weight:bold">{{value}}</span>-->
         </template>
         <!-- table主体内容 -->
         <el-table :data="(tableDataNew || []).slice((currentPage-1)*pageSize,currentPage*pageSize)"
                   style="width: 100%" border>
-<!--          <el-table-column prop="name" label="job名称" width="170"></el-table-column>-->
+          <!--          <el-table-column prop="name" label="job名称" width="170"></el-table-column>-->
           <el-table-column prop="number" label="id" width="80"></el-table-column>
           <el-table-column prop="url" label="jenkins地址" width="120" align="center">
             <template slot-scope="scope">
@@ -120,10 +120,6 @@ export default {
     this.Jenkins_Crumb = JenkinsInfo.Jenkins_Crumb;
     this.getJobInfoList(this.defaultValue)
   },
-  // activated() {
-  //   const JenkinsInfo = JSON.parse(localStorage.getItem("JenkinsInfo"));
-  //   this.Jenkins_Crumb = JenkinsInfo.Jenkins_Crumb;
-  // },
 
   methods: {
     // <!--监听pageSize变化-->
@@ -134,7 +130,7 @@ export default {
     handleCurrentChange(newPage) {
       this.currentPage = newPage;
     },
-    // setOption() {
+    // setOption() {     // 下拉框选项数组
     //   this.JenkinsJobList.forEach(e => {
     //     let option = {}
     //     option.value = e
@@ -142,7 +138,6 @@ export default {
     //     this.options.push(option)
     //   });
     //   this.options = Array.from(new Set(this.options))
-    //   console.log("ss",this.options)
     // },
     getJobInfoList(jobName) {
       this.value = jobName
@@ -165,24 +160,12 @@ export default {
             this.$set(e, 'timestamp', formatTimeStamp(e.timestamp))
           })
           this.getHistoryTrend(jobName)
-        } else {
-          this.$notify.warning({
-            title: "获取Jenkins的任务信息列表",
-            message: res.statusText
-          });
         }
       }).catch((error) => {
-        if (error.response.data.message === 'No valid crumb was included in the request'){
-          this.$notify.error({
-            title: "Jenkins-crumb已过期，请刷新页面重试",
-            message: error,
-          });
-        }else {
-          this.$notify.error({
-            title: "获取Jenkins任务信息列表失败",
-            message: error,
-          });
-        }
+        this.$notify.error({
+          title: "获取Jenkins任务信息列表失败",
+          message: error,
+        });
       })
     },
     getHistoryTrend(jobName) {
@@ -195,13 +178,13 @@ export default {
           historyTrendList.forEach(item => {
             tableData.forEach(item2 => {
                 if (item2.number === item.buildOrder) {
-                  item2.passed =  item.data.passed
-                  item2.failed =  item.data.failed
-                  item2.broken =  item.data.broken
-                  item2.skipped =  item.data.skipped
-                  item2.total =  item.data.total
-                  item2.unknown =  item.data.unknown
-                  item2.successRate =  (Math.round(item.data.passed / item.data.total * 10000) / 100.00) + "%"
+                  item2.passed = item.data.passed
+                  item2.failed = item.data.failed
+                  item2.broken = item.data.broken
+                  item2.skipped = item.data.skipped
+                  item2.total = item.data.total
+                  item2.unknown = item.data.unknown
+                  item2.successRate = (Math.round(item.data.passed / item.data.total * 10000) / 100.00) + "%"
                   // this.$set(item2, 'passed', item.data.passed)
                 }
               }
@@ -209,24 +192,12 @@ export default {
           })
           // this.$set(this.tableDataNew, 'tableDataNew', this.tableData) //this.$set() 响应式新增与修改数据
           this.tableDataNew = JSON.parse(JSON.stringify(tableData));
-        } else {
-          this.$notify.warning({
-            title: "获取Jenkins的报表数据失败",
-            message: res.statusText
-          });
         }
       }).catch((error) => {
-        if (error.response.data.message === 'No valid crumb was included in the request'){
-          this.$notify.error({
-            title: "Jenkins-crumb已过期，请刷新页面重试",
-            message: error,
-          });
-        }else {
-          this.$notify.error({
-            title: "获取Jenkins的报表数据失败",
-            message: error,
-          });
-        }
+        this.$notify.error({
+          title: "获取Jenkins的报表数据失败",
+          message: error,
+        });
       })
     },
   }
