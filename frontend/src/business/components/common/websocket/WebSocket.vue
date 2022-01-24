@@ -21,7 +21,7 @@
     methods: {
       initWebSocket() {
         // window.console.log("init WebSocket");
-        const uri = "ws://" + window.location.host + "/socket";
+        const uri = "ws://" + window.location.host + ":8081" + "/socket";
         this.websocket = new WebSocket(uri);
         this.websocket.onmessage = this.onMessage;
         this.websocket.onopen = this.onOpen;

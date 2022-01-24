@@ -61,9 +61,9 @@
         </if>
         <if test='${condition}.tags != null and ${objectKey}.operator == "not like"'>
             and (test_case.tags is null or test_case.tags
-                <include refid="io.metersphere.base.mapper.ext.ExtBaseMapper.condition">
-                    <property name="object" value="${condition}.tags"/>
-                </include>
+            <include refid="io.metersphere.base.mapper.ext.ExtBaseMapper.condition">
+                <property name="object" value="${condition}.tags"/>
+            </include>
             )
         </if>
         <if test='${condition}.tags != null and ${objectKey}.operator == "like"'>
@@ -80,7 +80,10 @@
         </if>
     </sql>
     <update id="updateTestCaseCustomNumByProjectId">
-        update test_case set custom_num = num where (custom_num is null or custom_num = '') and project_id = #{projectId}
+        update test_case
+        set custom_num = num
+        where (custom_num is null or custom_num = '')
+          and project_id = #{projectId}
     </update>
 
     <select id="getTestCaseByNotInReview" resultType="io.metersphere.base.domain.TestCase">
@@ -125,7 +128,8 @@
 
     <select id="getTestCaseByNotInPlan" resultType="io.metersphere.base.domain.TestCase">
         select test_case.id, test_case.name, test_case.priority, test_case.type, test_case.review_status,
-        test_case.num, test_case.custom_num, test_case.priority, test_case.tags, test_case.create_time, test_case.update_time
+        test_case.num, test_case.custom_num, test_case.priority, test_case.tags, test_case.create_time,
+        test_case.update_time
         from test_case as test_case
         <if test="!request.repeatCase">
             left join test_plan_test_case as T2 on test_case.id=T2.case_id and T2.plan_id =#{request.planId}
@@ -138,7 +142,8 @@
     </select>
 
     <select id="getTestCaseNames" resultType="io.metersphere.base.domain.TestCase">
-        select test_case.id, test_case.name, test_case.priority, test_case.type, test_case.review_status,test_case.num,test_case.custom_num
+        select test_case.id, test_case.name, test_case.priority, test_case.type,
+        test_case.review_status,test_case.num,test_case.custom_num
         from test_case
         <where>
             <if test="request.combine != null">
@@ -338,7 +343,7 @@
         <if test="request.orders != null and request.orders.size() > 0">
             order by
             <foreach collection="request.orders" separator="," item="order">
-               `${order.name}` ${order.type}
+                `${order.name}` ${order.type}
             </foreach>
         </if>
     </select>
@@ -347,8 +352,7 @@
         SELECT *
         FROM test_case
         WHERE test_case.project_id = #{projectId}
-        ORDER BY num DESC
-        LIMIT 1;
+        ORDER BY num DESC LIMIT 1;
     </select>
 
     <select id="checkIsHave" resultType="int">
@@ -478,68 +482,128 @@
     </sql>
 
     <select id="countPriority" resultType="io.metersphere.track.response.TrackCountResult">
-        SELECT test_case.priority as groupField,count(id) AS countNumber FROM test_case
-        WHERE project_id = #{projectId} AND (test_case.status IS NULL OR test_case.status != 'Trash')
+        SELECT test_case.priority as groupField, count(id) AS countNumber
+        FROM test_case
+        WHERE project_id = #{projectId}
+          AND (test_case.status IS NULL OR test_case.status != 'Trash')
         GROUP BY test_case.priority
     </select>
 
+    <select id="countCase" resultType="io.metersphere.track.response.TrackCountResult">
+        SELECT from_unixtime(create_time/1000, '%Y-%m-%d') as groupField,count(id) AS countNumber FROM test_case
+        WHERE (test_case.status IS NULL OR test_case.status != 'Trash')
+        <if test="request.startTime >0 and request.endTime >0">
+            and create_time BETWEEN #{request.startTime} and #{request.endTime}
+        </if>
+        <if test="request.createUser != null">
+            and create_user = #{request.createUser}
+        </if>
+        GROUP BY from_unixtime(create_time/1000, '%Y-%m-%d')
+    </select>
+
+    <select id="countTotal" resultType="java.lang.Integer">
+        SELECT count(id) AS countNumber
+        FROM test_case
+        WHERE test_case.status IS NULL
+           OR test_case.status != 'Trash'
+    </select>
+
+    <select id="countTotalByUser" resultType="java.lang.Integer">
+        SELECT count(id) AS countNumber FROM test_case
+        WHERE (test_case.status IS NULL OR test_case.status != 'Trash')
+        <if test="createUser != null">
+            and create_user = #{createUser}
+        </if>
+    </select>
+
     <select id="countCreatedThisWeek" resultType="java.lang.Long">
-        SELECT count(id) AS countNumber FROM test_case WHERE test_case.project_id = #{projectId} and test_case.status != 'Trash'
-          AND create_time BETWEEN #{firstDayTimestamp} AND #{lastDayTimestamp}
+        SELECT count(id) AS countNumber
+        FROM test_case
+        WHERE test_case.project_id = #{projectId}
+          and test_case.status != 'Trash'
+          AND create_time BETWEEN #{firstDayTimestamp}
+          AND #{lastDayTimestamp}
     </select>
     <select id="countStatus" resultType="io.metersphere.track.response.TrackCountResult">
-        SELECT review_status AS groupField,count(id) AS countNumber FROM test_case
-        WHERE project_id = #{projectId} and (test_case.status != 'Trash' or test_case.status is null)
+        SELECT review_status AS groupField, count(id) AS countNumber
+        FROM test_case
+        WHERE project_id = #{projectId}
+          and (test_case.status != 'Trash' or test_case.status is null)
         GROUP BY test_case.review_status
     </select>
 
     <select id="countRelevance" resultType="io.metersphere.track.response.TrackCountResult">
         SELECT test_case_test.test_type AS groupField, count(test_case_test.test_case_id) AS countNumber
-        FROM test_case join test_case_test on test_case.id = test_case_test.test_case_id
-        WHERE test_case.project_id = #{projectId} and test_case.status != 'Trash' GROUP BY test_case_test.test_type
+        FROM test_case
+                 join test_case_test on test_case.id = test_case_test.test_case_id
+        WHERE test_case.project_id = #{projectId}
+          and test_case.status != 'Trash'
+        GROUP BY test_case_test.test_type
     </select>
     <select id="countRelevanceCreatedThisWeek" resultType="java.lang.Long">
-        SELECT count(distinct test_case_test.test_case_id) AS countNumber FROM test_case join test_case_test on test_case.id = test_case_test.test_case_id
-        WHERE test_case.project_id = #{projectId} and test_case.status != 'Trash'
-        AND test_case_test.create_time BETWEEN #{firstDayTimestamp} AND #{lastDayTimestamp}
+        SELECT count(distinct test_case_test.test_case_id) AS countNumber
+        FROM test_case
+                 join test_case_test on test_case.id = test_case_test.test_case_id
+        WHERE test_case.project_id = #{projectId}
+          and test_case.status != 'Trash'
+        AND test_case_test.create_time BETWEEN #{firstDayTimestamp}
+          AND #{lastDayTimestamp}
     </select>
 
     <select id="countCoverage" resultType="int">
-        select count(test_case.id) from test_case where test_case.project_id = #{projectId} and test_case.status != 'Trash'
+        select count(test_case.id)
+        from test_case
+        where test_case.project_id = #{projectId}
+          and test_case.status != 'Trash'
         and test_case.id in (select distinct test_case_test.test_case_id from test_case_test)
     </select>
     <select id="countFuncMaintainer" resultType="io.metersphere.track.response.TrackCountResult">
-        select count(tc.id) as countNumber, user.name as groupField from test_case tc right join user on tc.maintainer = user.id
-        where tc.project_id = #{projectId} and tc.status != 'Trash'
+        select count(tc.id) as countNumber, user.name as groupField
+        from test_case tc
+                 right join user on tc.maintainer = user.id
+        where tc.project_id = #{projectId}
+          and tc.status != 'Trash'
         group by tc.maintainer
     </select>
     <select id="countRelevanceMaintainer" resultType="io.metersphere.track.response.TrackCountResult">
-        select count(tc.id) as countNumber, user.name as groupField from test_case tc right join user on tc.maintainer = user.id
-        where tc.project_id = #{projectId} and tc.status != 'Trash' and tc.id in (select distinct test_case_test.test_case_id from test_case_test)
+        select count(tc.id) as countNumber, user.name as groupField
+        from test_case tc
+                 right join user on tc.maintainer = user.id
+        where tc.project_id = #{projectId}
+          and tc.status != 'Trash' and tc.id in (select distinct test_case_test.test_case_id from test_case_test)
         group by tc.maintainer
     </select>
     <select id="getTestPlanBug" resultType="int">
-        select count(distinct (tci.issues_id)) from test_plan_test_case tptc join test_case_issues tci on tptc.case_id = tci.test_case_id join issues on tci.issues_id  = issues.id
-        where tptc.plan_id = #{planId} and (issues.status != 'closed' or issues.status is null);
+        select count(distinct (tci.issues_id))
+        from test_plan_test_case tptc
+                 join test_case_issues tci on tptc.case_id = tci.test_case_id
+                 join issues on tci.issues_id = issues.id
+        where tptc.plan_id = #{planId}
+          and (issues.status != 'closed' or issues.status is null);
     </select>
     <select id="getTestPlanCase" resultType="int">
         select count(s)
         from (
                  select tptc.id as s
-                 from test_plan_test_case tptc join test_case on tptc.case_id = test_case.id
+                 from test_plan_test_case tptc
+                          join test_case on tptc.case_id = test_case.id
                  where tptc.plan_id = #{planId}
                  union all
                  select tpas.id as s
-                 from test_plan_api_scenario tpas join api_scenario on tpas.api_scenario_id = api_scenario.id
-                 where tpas.test_plan_id = #{planId} and api_scenario.status != 'Trash'
+                 from test_plan_api_scenario tpas
+                          join api_scenario on tpas.api_scenario_id = api_scenario.id
+                 where tpas.test_plan_id = #{planId}
+                   and api_scenario.status != 'Trash'
                  union all
                  select tpac.id as s
-                 from test_plan_api_case tpac join api_test_case on tpac.api_case_id = api_test_case.id
-                                              join api_definition on api_test_case.api_definition_id = api_definition.id
+                 from test_plan_api_case tpac join api_test_case
+                 on tpac.api_case_id = api_test_case.id
+                     join api_definition on api_test_case.api_definition_id = api_definition.id
                  where tpac.test_plan_id = #{planId} and api_definition.status != 'Trash'
                  union all
                  select tplc.id as s
-                 from test_plan_load_case tplc join load_test on tplc.load_case_id = load_test.id
+                 from test_plan_load_case tplc join load_test
+                 on tplc.load_case_id = load_test.id
                  where tplc.test_plan_id = #{planId}
              ) as temp
     </select>
@@ -548,19 +612,23 @@
         from (
                  select id as s
                  from test_plan_test_case tptc
-                 where tptc.plan_id = #{planId} and tptc.status = 'Pass'
+                 where tptc.plan_id = #{planId}
+                   and tptc.status = 'Pass'
                  union all
                  select id as s
                  from test_plan_api_scenario tpas
-                 where tpas.test_plan_id = #{planId} and tpas.last_result = 'Success'
+                 where tpas.test_plan_id = #{planId}
+                   and tpas.last_result = 'Success'
                  union all
                  select id as s
                  from test_plan_api_case tpac
-                 where tpac.test_plan_id = #{planId} and tpac.status = 'success'
+                 where tpac.test_plan_id = #{planId}
+                   and tpac.status = 'success'
                  union all
                  select id as s
                  from test_plan_load_case tplc
-                 where tplc.test_plan_id = #{planId} and tplc.status = 'success'
+                 where tplc.test_plan_id = #{planId}
+                   and tplc.status = 'success'
              ) as temp
     </select>
 
@@ -621,13 +689,19 @@
         </where>
     </select>
     <select id="getTestCaseStep" resultType="io.metersphere.base.domain.TestCaseWithBLOBs">
-        select id, prerequisite, steps, step_description, expected_result, step_model from test_case where id = #{id}
+        select id, prerequisite, steps, step_description, expected_result, step_model
+        from test_case
+        where id = #{id}
     </select>
     <select id="selectProjectIds" resultType="java.lang.String">
-        select DISTINCT project_id from test_case;
+        select DISTINCT project_id
+        from test_case;
     </select>
     <select id="getIdsOrderByUpdateTime" resultType="java.lang.String">
-        select id from test_case where project_id = #{projectId} order by update_time ASC;
+        select id
+        from test_case
+        where project_id = #{projectId}
+        order by update_time ASC;
     </select>
 
     <select id="getLastOrder" resultType="java.lang.Long">

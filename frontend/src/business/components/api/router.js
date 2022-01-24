@@ -19,6 +19,29 @@ export default {
     //   component: MsProject,
     // },
     {
+      path: 'testCaseRecord',
+      name: 'testCaseRecord',
+      component: () => import('@/business/components/api/autotest/TestCaseRecord'),
+    },
+    {
+      path: 'jobScheduler',
+      name: 'jobScheduler',
+      component: () => import('@/business/components/api/jobscheduler/jobScheduler'),
+      children: [
+        {
+          path: 'analysis',
+          component: () => import('@/business/components/api/jobscheduler/components/analysis')
+        },
+        {
+          path: 'reports',
+          component: () => import('@/business/components/api/jobscheduler/components/reports')
+        },
+        {
+          path: 'runJobs',
+          component: () => import('@/business/components/api/jobscheduler/components/runJobs')
+        }]
+    },
+    {
       path: "report/list/:testId",
       name: "ApiReportList",
       component: () => import('@/business/components/api/report/ApiReportList'),

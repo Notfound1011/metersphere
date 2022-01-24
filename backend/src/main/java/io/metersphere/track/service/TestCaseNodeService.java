@@ -142,7 +142,7 @@ public class TestCaseNodeService extends NodeTreeService<TestCaseNodeDTO> {
     }
     public List<TestCaseNodeDTO> getNodeTreeByProjectId(String projectId) {
         // 判断当前项目下是否有默认模块，没有添加默认模块
-        this.getDefaultNode(projectId);
+//        this.getDefaultNode(projectId);
 //        TestCaseNodeExample example = new TestCaseNodeExample();
 //        example.createCriteria().andProjectIdEqualTo(projectId).andNameEqualTo("默认模块");
 //        long count = testCaseNodeMapper.countByExample(example);

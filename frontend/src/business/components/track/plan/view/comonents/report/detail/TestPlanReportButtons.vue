@@ -74,7 +74,7 @@ export default {
         pram.shareType = 'PLAN_DB_REPORT';
       }
       generateShareInfoWithExpired(pram, (data) => {
-        let thisHost = window.location.host;
+        let thisHost = window.location.host + ":8081";
         this.shareUrl = thisHost + "/sharePlanReport" + data.shareUrl;
       });
     },

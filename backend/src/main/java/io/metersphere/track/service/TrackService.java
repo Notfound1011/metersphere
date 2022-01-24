@@ -11,6 +11,7 @@ import io.metersphere.commons.utils.MathUtils;
 import io.metersphere.performance.base.ChartsData;
 import io.metersphere.service.ProjectService;
 import io.metersphere.track.dto.TestPlanDTOWithMetric;
+import io.metersphere.track.request.testcase.TrackCountBatchRequest;
 import io.metersphere.track.response.BugStatustics;
 import io.metersphere.track.response.TestPlanBugCount;
 import io.metersphere.track.response.TrackCountResult;
@@ -46,6 +47,18 @@ public class TrackService {
 
     public List<TrackCountResult> countPriority(String projectId) {
         return extTestCaseMapper.countPriority(projectId);
+    }
+
+    public int countTotal() {
+        return extTestCaseMapper.countTotal();
+    }
+
+    public int countTotalByUser(String createUser) {
+        return extTestCaseMapper.countTotalByUser(createUser);
+    }
+
+    public List<TrackCountResult> getTrackCountAll(TrackCountBatchRequest request) {
+        return extTestCaseMapper.countCase(request);
     }
 
     public long countCreatedThisWeek(String projectId) {

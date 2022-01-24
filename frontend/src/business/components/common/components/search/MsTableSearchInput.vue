@@ -17,7 +17,7 @@
     data() {
       return {
         props: {
-          maxlength: "60",
+          maxlength: "200",
           showWordLimit: true,
           ...this.component.props
         }

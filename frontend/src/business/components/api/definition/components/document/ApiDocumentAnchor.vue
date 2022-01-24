@@ -291,7 +291,7 @@ export default {
       genShareInfoParam.shareType = shareType;
 
       generateApiDocumentShareInfo(genShareInfoParam, (data) => {
-        let thisHost = window.location.host;
+        let thisHost = window.location.host + ":8081";
         if (shareType == "Batch") {
           this.batchShareUrl = thisHost + "/document" + data.shareUrl;
         } else {

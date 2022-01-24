@@ -194,7 +194,8 @@ export default {
 
     // let login = login;
 
-    axios.defaults.withCredentials = true;
+    axios.defaults.withCredentials = false;
+    axios.defaults.baseURL = '/api/tc';
 
     axios.interceptors.response.use(response => {
       if (response.headers["authentication-status"] === "invalid") {
@@ -202,8 +203,19 @@ export default {
       }
       return response;
     }, error => {
+      if (error.response.data.message === 'No valid crumb was included in the request' && error.response.status === 403) {
+        MessageBox.alert(i18n.t('commons.jenkins_tips'), i18n.t('commons.prompt'), {
+          callback: () => {
+            window.location.href = "/#/api/jobScheduler";
+            window.location.reload()
+          }
+        });
+        return;
+      }
       return Promise.reject(error);
     });
+
+    Vue.prototype.$axios = axios;
 
     Vue.prototype.$get = get;
 
