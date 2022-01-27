@@ -4,10 +4,10 @@
       <el-col :span="14">
         <el-menu class="header-menu" :unique-opened="true" mode="horizontal" router :default-active='$route.path'>
 
-          <el-menu-item v-show="isNewVersion" :index="'/reports/home'" style="margin-left: 2%">
+          <el-menu-item :index="'/reports/home'" style="margin-left: 2%">
             {{ $t("i18n.home") }}
           </el-menu-item>
-          <el-menu-item v-show="isNewVersion" :index="'/reports/analysis'">
+          <el-menu-item :index="'/reports/analysis'">
             报告分析
           </el-menu-item>
         </el-menu>
@@ -22,14 +22,14 @@
 import MsRecentList from "../../common/head/RecentList";
 import MsShowAll from "../../common/head/ShowAll";
 import MsCreateButton from "../../common/head/CreateButton";
-import MsCreateTest from "../../common/head/CreateTest";
+// import MsCreateTest from "../../common/head/CreateTest";
 import SearchList from "@/business/components/common/head/SearchList";
 import ProjectChange from "@/business/components/common/head/ProjectSwitch";
 import {mapGetters} from "vuex";
 
 export default {
   name: "MsReportHeaderMenus",
-  components: {SearchList, MsCreateTest, MsCreateButton, MsShowAll, MsRecentList, ProjectChange},
+  components: {SearchList, MsCreateButton, MsShowAll, MsRecentList, ProjectChange},
   data() {
     return {
       isProjectActivation: true,

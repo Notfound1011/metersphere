@@ -44,6 +44,7 @@
     "mavon-editor": "2.9.1",
     "md5": "^2.3.0",
     "mockjs": "^1.1.0",
+    "moment": "^2.29.1",
     "nprogress": "^0.2.0",
     "pdfjs-dist": "2.5.207",
     "sha.js": "^2.4.11",

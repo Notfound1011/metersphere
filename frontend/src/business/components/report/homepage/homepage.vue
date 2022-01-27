@@ -27,15 +27,14 @@
       <!--      <el-col :span="15">-->
       <!--        <div id="recentPie" style="width: 500px;height:400px;margin-left: 50px"></div>-->
       <!--      </el-col>-->
-      <el-col :span="4" style="margin-left: 30px">
+      <el-col :span="6" style="margin-left: 30px">
         <el-row :span="4">
           <el-card :body-style="{ padding: '0px' }" style="background: rgba(55, 96, 186, 1);margin: 10px">
             <div style="padding:15px; color: #FFFFFF;float: left">
-              <div style="float: top">
+              <div style="float: top" v-if="value ===''">
                 用例总数<br>
                 <span style="font-size:30px">{{ allCaseCountNumber }}</span>
               </div>
-              <el-divider></el-divider>
               <div style="float: top" v-if="value !=='' && value !== '1'">个人用例总数<br>
                 <span style="font-size:30px">{{ value }}: {{ allCaseCountNumberByUser }}</span>
               </div>
@@ -48,8 +47,7 @@
       </el-col>
     </el-row>
     <template>
-      <div class="Echarts">
-        <div id="main" style="width: 80%;height:500%"></div>
+      <div class="Echarts" id="main" style="width:90%;height:500%;">
       </div>
     </template>
   </div>
@@ -59,8 +57,7 @@
 import MsChart from "@/business/components/common/chart/MsChart";
 import MsMainContainer from "@/business/components/common/components/MsMainContainer";
 import MsContainer from "@/business/components/common/components/MsContainer";
-import {ORGANIZATION_ID} from "../../../../common/js/constants";
-import {groupByMonth, groupByWeek, groupByYear} from "../../../../common/js/utils";
+import {groupByMonth, groupByWeek, groupByYear} from "@/common/js/utils";
 
 export default {
   name: "analysis",
@@ -88,12 +85,8 @@ export default {
     },
 
     getUser() {
-      let param = {
-        name: '',
-        organizationId: sessionStorage.getItem(ORGANIZATION_ID)
-      };
-      let path = "user/special/org/member/list/all";
-      this.$post(path, param, res => {
+      let path = "user/list/";
+      this.$get(path, res => {
         this.users = res.data
       });
     },
@@ -122,6 +115,10 @@ export default {
           this.allCaseCountNumber = res.data.data.allCaseCountNumber
           this.allCaseCountNumberByUser = res.data.data.allCaseCountNumberByUser
           let data = res.data.data.caseCount //获取数组的长度
+          if (document.getElementById('main') == null) {
+            return
+          }
+          this.$echarts.dispose(document.getElementById('main'))
           let myChart = this.$echarts.init(document.getElementById('main'))
           let xAxisData = []
           let dayX = []
@@ -228,7 +225,7 @@ export default {
           const week = groupByWeek(xAxisData, barSeriesDataDay);
           const month = groupByMonth(xAxisData, barSeriesDataDay);
           const year = groupByYear(xAxisData, barSeriesDataDay);
-          for (var h = 0; h < month.newDate.length; h++) {
+          for (var h = 0; h < week.newDate.length; h++) {
             weekX.push(week.newDate[h]);
             barSeriesDataWeek.push(week.newValue[h]);
           }

@@ -108,7 +108,8 @@ public class ExecThreadPoolExecutor {
             threadPool.setCorePoolSize(corePoolSize);
             threadPool.setMaximumPoolSize(corePoolSize);
             threadPool.allowCoreThreadTimeOut(true);
-            LoggerUtil.info("AllCoreThreads: " + threadPool.prestartAllCoreThreads());
+            //预启动的线程数太多，导致本机内存溢出，本地启动时请注释掉这行
+//            LoggerUtil.info("AllCoreThreads: " + threadPool.prestartAllCoreThreads());
         } catch (Exception e) {
             LoggerUtil.error("设置线程参数异常：" + e);
         }

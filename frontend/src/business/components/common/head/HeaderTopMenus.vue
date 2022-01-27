@@ -84,18 +84,18 @@ export default {
       this.activeIndex = this.$route.matched[0].path;
     }
 
-    axios.get('/license/valid').then(response => {
-      validateAndSetLicense(response.data.data); // 在调用 listModules 之前删除校验失败的 license, axios 失败不弹框
-      if (!hasLicense()) {
-        this.isReport = false;
-      } else {
-        if (module.default) {
-          module.default.listModules(this);
-        }
-      }
-    }).catch(error => {
-      window.console.error(error.response || error.message);
-    });
+    // axios.get('/license/valid').then(response => {
+    //   validateAndSetLicense(response.data.data); // 在调用 listModules 之前删除校验失败的 license, axios 失败不弹框
+    //   if (!hasLicense()) {
+    //     this.isReport = false;
+    //   } else {
+    //     if (module.default) {
+    //       module.default.listModules(this);
+    //     }
+    //   }
+    // }).catch(error => {
+    //   window.console.error(error.response || error.message);
+    // });
 
     this.registerEvents();
   },
