@@ -26,7 +26,7 @@
     </el-menu-item>
     <el-menu-item index="/reports" v-if="check('reportStat')" onselectstart="return false">
 <!--                  v-permission="['PROJECT_REPORT_ANALYSIS:READ']"-->
-      {{ $t('commons.report_statistics.title') }}
+      {{ $t('commons.quality_market.title') }}
     </el-menu-item>
 
     <el-menu-item index="/project" onselectstart="return false"

@@ -583,6 +583,16 @@ export function formatTimeStamp(timeStamp) {
   return year + '-' + month + '-' + day + ' ' + hour + ':' + minute + ':' + second;
 }
 
+export function formatTimeStampToDay(timeStamp) {
+  let date = new Date(timeStamp);
+  let year = date.getFullYear();
+  let month = date.getMonth() + 1;
+  let day = date.getDate();
+  month = month < 10 ? "0" + month : month;
+  day = day < 10 ? "0" + day : day;
+  return year + '-' + month + '-' + day + ' ';
+}
+
 export function formatTime(msTime) {
   let time = msTime / 1000;
   let hour = Math.floor(time / 60 / 60) % 24;

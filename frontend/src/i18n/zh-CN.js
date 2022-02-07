@@ -318,6 +318,15 @@ export default {
       select_module: "选择模块",
       default_module: "默认模块",
     },
+    quality_market: {
+      title: "质量大盘",
+      testcase_statistics: {
+        title: "功能用例统计"
+      },
+      testcase_pass_rate:{
+        title: "用例通过率"
+      }
+    },
     report_statistics: {
       reserved: "预留模块敬请期待",
       menu: {

@@ -1,15 +1,20 @@
 export default {
   path: "/reports",
   name: "reports",
-  redirect: "/reports/home",
+  redirect: "/reports/testCaseStat",
   components: {
     content: () => import('@/business/components/report/Reports')
   },
   children: [
     {
-      path: 'home',
-      name: 'reportHome',
-      component: () => import('@/business/components/report/homepage/homepage'),
+      path: 'testCaseStat',
+      name: 'testCaseStat',
+      component: () => import('@/business/components/report/testcasestat/TestCaseStat'),
+    },
+    {
+      path: 'testPlanSummary',
+      name: 'testPlanSummary',
+      component: () => import('@/business/components/report/testcasepassrate/TestPlanSummary'),
     },
   ]
 }

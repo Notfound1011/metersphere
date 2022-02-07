@@ -4,11 +4,11 @@
       <el-col :span="14">
         <el-menu class="header-menu" :unique-opened="true" mode="horizontal" router :default-active='$route.path'>
 
-          <el-menu-item :index="'/reports/home'" style="margin-left: 2%">
-            {{ $t("i18n.home") }}
+          <el-menu-item :index="'/reports/testcaseStat'" style="margin-left: 2%">
+            {{ $t('commons.quality_market.testcase_statistics.title') }}
           </el-menu-item>
-          <el-menu-item :index="'/reports/analysis'">
-            报告分析
+          <el-menu-item :index="'/reports/testPlanSummary'">
+            {{ $t('commons.quality_market.testcase_pass_rate.title') }}
           </el-menu-item>
         </el-menu>
       </el-col>

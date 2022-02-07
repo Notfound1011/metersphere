@@ -1,9 +1,9 @@
 <template>
   <div class="ms-div">
     <template>
-      <h2 style="margin-left: 40px;font-weight:bold">功能用例统计</h2>
+<!--      <h2 style="margin-left: 40px;font-weight:bold">功能用例统计</h2>-->
       <el-select v-model="value" filterable placeholder="切换成员" clearable @change="getInfoAll()"
-                 style='margin-left: 40px;margin-bottom: 20px'>
+                 style='margin-left: 40px;margin-bottom: 10px;margin-top: 20px'>
         <el-option
           v-for="item in users"
           :key="item.id"
