@@ -70,6 +70,31 @@
                         v-for="item in resourcePools"
                         :key="item.id"
                         :label="item.name"
+                        :disabled="!item.api"
+                        :value="item.id">
+                      </el-option>
+                    </el-select>
+                  </div>
+                </el-col>
+              </el-row>
+            </div>
+            <div class="ms-mode-div" v-if="runConfig.mode === 'parallel'">
+              <el-row>
+                <el-col :span="3">
+                  <span class="ms-mode-span">{{ $t("run_mode.other_config") }}:</span>
+                </el-col>
+                <el-col :span="18">
+                  <div v-if="scheduleTaskType === 'TEST_PLAN_TEST'" style="padding-top: 10px">
+                    <el-checkbox v-model="runConfig.runWithinResourcePool" style="padding-right: 10px;">
+                      {{ $t('run_mode.run_with_resource_pool') }}
+                    </el-checkbox>
+                    <el-select :disabled="!runConfig.runWithinResourcePool" v-model="runConfig.resourcePoolId"
+                               size="mini">
+                      <el-option
+                        v-for="item in resourcePools"
+                        :key="item.id"
+                        :label="item.name"
+                        :disabled="!item.api"
                         :value="item.id">
                       </el-option>
                     </el-select>
@@ -95,16 +120,16 @@
 
 <script>
 import {
-  getCurrentOrganizationId,
   getCurrentProjectID,
-  getCurrentUser, getCurrentWorkspaceId,
+  getCurrentUser,
+  getCurrentWorkspaceId,
   listenGoBack,
   removeGoBackListener
 } from "@/common/js/utils";
 import Crontab from "@/business/components/common/cron/Crontab";
 import CrontabResult from "@/business/components/common/cron/CrontabResult";
 import {cronValidate} from "@/common/js/cron";
-import MsScheduleNotification from "@/business/components/api/automation/schedule/ScheduleNotification";
+import MsScheduleNotification from "./ScheduleNotification";
 import ScheduleSwitch from "@/business/components/api/automation/schedule/ScheduleSwitch";
 
 function defaultCustomValidate() {
@@ -140,6 +165,11 @@ export default {
   watch: {
     'schedule.value'() {
       this.form.cronValue = this.schedule.value;
+    },
+    'runConfig.runWithinResourcePool'() {
+      if (!this.runConfig.runWithinResourcePool) {
+        this.runConfig.resourcePoolId = null;
+      }
     }
   },
   data() {
@@ -214,7 +244,7 @@ export default {
       }
     },
     updateTask(param) {
-      this.result = this.$post('/api/schedule/updateEnableByPrimyKey', param, response => {
+      this.result = this.$post('/test/plan/schedule/updateEnableByPrimyKey', param, response => {
         let paramTestId = "";
         if (this.paramRow.redirectFrom === 'testPlan') {
           paramTestId = this.paramRow.id;
@@ -228,15 +258,9 @@ export default {
       });
     },
     initUserList() {
-      let param = {
-        name: '',
-        organizationId: getCurrentOrganizationId()
-      };
-
-      this.result = this.$post('user/org/member/list/all', param, response => {
+      this.result = this.$get('user/ws/member/list/' + getCurrentWorkspaceId(), response => {
         this.scheduleReceiverOptions = response.data;
       });
-
     },
     buildParam() {
       let param = {};
@@ -270,7 +294,7 @@ export default {
       this.result = this.$get("/schedule/findOne/" + scheduleResourceID + "/" + taskType, response => {
         if (response.data != null) {
           this.schedule = response.data;
-          if(response.data.config){
+          if (response.data.config) {
             this.runConfig = JSON.parse(response.data.config);
           }
         } else {
@@ -285,7 +309,12 @@ export default {
       this.$refs['from'].validate();
     },
     showCronDialog() {
-      this.showCron = true;
+      let tmp = this.schedule.value;
+      this.schedule.value = '';
+      this.$nextTick(() => {
+        this.schedule.value = tmp;
+        this.showCron = true;
+      });
     },
     saveCron() {
       this.$refs['from'].validate((valid) => {
@@ -377,7 +406,7 @@ export default {
     },
     getResourcePools() {
       this.result = this.$get('/testresourcepool/list/quota/valid', response => {
-        this.resourcePools = response.data.filter(p => p.type === 'NODE');
+        this.resourcePools = response.data;
       });
     },
   },

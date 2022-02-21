@@ -1,5 +1,6 @@
 import {getUUID} from "@/common/js/utils";
 import {getUploadConfig, request} from "@/common/js/ajax";
+import {basePost} from "@/network/base-network";
 
 function buildBodyFile(item, bodyUploadFiles, obj, bodyParam) {
   if (bodyParam) {
@@ -69,8 +70,16 @@ function getScenarioFiles(obj) {
   return scenarioFiles;
 }
 
-export function saveScenario(url, scenario, scenarioDefinition, success) {
+export function saveScenario(url, scenario, scenarioDefinition, _this, success) {
   let bodyFiles = getBodyUploadFiles(scenario, scenarioDefinition);
+  if (_this && _this.$store && _this.$store.state && _this.$store.state.pluginFiles && _this.$store.state.pluginFiles.length > 0) {
+    _this.$store.state.pluginFiles.forEach(fileItem => {
+      if (fileItem.file) {
+        scenario.bodyFileRequestIds.push(fileItem.file.uid);
+        bodyFiles.push(fileItem.file);
+      }
+    });
+  }
   let scenarioFiles = getScenarioFiles(scenario);
   let formData = new FormData();
   if (bodyFiles) {
@@ -89,5 +98,27 @@ export function saveScenario(url, scenario, scenarioDefinition, success) {
     if (success) {
       success(response);
     }
+  }, error => {
+    _this.$emit('errorRefresh', error);
   });
+}
+
+export function editApiScenarioCaseOrder(request, callback) {
+  return basePost('/api/automation/edit/order', request, callback);
+}
+
+export function savePreciseEnvProjectIds(projectIds, envMap) {
+  if (envMap != null && projectIds != null) {
+    let keys = envMap.keys();
+    for (let key of keys) {
+      if (!projectIds.has(key)) {
+        envMap.delete(key);
+      }
+    }
+    for (let id of projectIds) {
+      if (!envMap.get(id)) {
+        envMap.set(id, "");
+      }
+    }
+  }
 }

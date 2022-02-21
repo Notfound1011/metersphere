@@ -5,8 +5,10 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.parser.Feature;
 import io.metersphere.api.dto.ApiTestImportRequest;
+import io.metersphere.api.dto.EnvironmentType;
+import io.metersphere.api.dto.definition.parse.ms.NodeTree;
 import io.metersphere.api.dto.definition.request.MsScenario;
-import io.metersphere.api.dto.definition.request.MsTestElement;
+import io.metersphere.plugin.core.MsTestElement;
 import io.metersphere.api.parse.MsAbstractParser;
 import io.metersphere.api.service.ApiAutomationService;
 import io.metersphere.api.service.ApiTestCaseService;
@@ -19,6 +21,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.io.InputStream;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class MsScenarioParser extends MsAbstractParser<ScenarioImport> {
 
@@ -63,33 +66,73 @@ public class MsScenarioParser extends MsAbstractParser<ScenarioImport> {
         return scenarioWithBLOBs;
     }
 
+    private void formatHashTree(JSONArray hashTree) {
+        if (CollectionUtils.isNotEmpty(hashTree)) {
+            for (int i = 0; i < hashTree.size(); i++) {
+                JSONObject object = (JSONObject) hashTree.get(i);
+                object.put("index", i + 1);
+                object.put("resourceId", UUID.randomUUID().toString());
+                hashTree.set(i, object);
+                if (CollectionUtils.isNotEmpty(object.getJSONArray("hashTree"))) {
+                    formatHashTree(object.getJSONArray("hashTree"));
+                }
+            }
+        }
+    }
+
     private ScenarioImport parseMsFormat(String testStr, ApiTestImportRequest importRequest) {
-        ScenarioImport apiDefinitionImport = JSON.parseObject(testStr, ScenarioImport.class);
-        List<ApiScenarioWithBLOBs> data = apiDefinitionImport.getData();
+        ScenarioImport scenarioImport = JSON.parseObject(testStr, ScenarioImport.class);
+        List<ApiScenarioWithBLOBs> data = scenarioImport.getData();
+
+        Set<String> moduleIdSet = scenarioImport.getData().stream()
+                .map(ApiScenarioWithBLOBs::getApiScenarioModuleId).collect(Collectors.toSet());
+
+        Map<String, NodeTree> nodeMap = null;
+        List<NodeTree> nodeTree = scenarioImport.getNodeTree();
+        if (CollectionUtils.isNotEmpty(nodeTree)) {
+            cutDownTree(nodeTree, moduleIdSet);
+            ApiScenarioImportUtil.createNodeTree(nodeTree, projectId, importRequest.getModuleId());
+            nodeMap = getNodeMap(nodeTree);
+        }
+
         if (CollectionUtils.isNotEmpty(data)) {
+            Map<String, NodeTree> finalNodeMap = nodeMap;
             data.forEach(item -> {
                 String scenarioDefinitionStr = item.getScenarioDefinition();
                 if (StringUtils.isNotBlank(scenarioDefinitionStr)) {
                     JSONObject scenarioDefinition = JSONObject.parseObject(scenarioDefinitionStr);
                     if (scenarioDefinition != null) {
                         JSONArray hashTree = scenarioDefinition.getJSONArray("hashTree");
+                        formatHashTree(hashTree);
                         setCopy(hashTree);
                         JSONObject environmentMap = scenarioDefinition.getJSONObject("environmentMap");
                         if (environmentMap != null) {
                             scenarioDefinition.put("environmentMap", new HashMap<>());
                         }
+                        item.setEnvironmentType(EnvironmentType.JSON.name());
+                        item.setEnvironmentJson(null);
+                        item.setEnvironmentGroupId(null);
                         item.setScenarioDefinition(JSONObject.toJSONString(scenarioDefinition));
                     }
                 }
-                if (StringUtils.isBlank(item.getModulePath())) {
-                    item.setApiScenarioModuleId(null);
+
+                if (finalNodeMap != null && finalNodeMap.get(item.getApiScenarioModuleId()) != null) {
+                    NodeTree node = finalNodeMap.get(item.getApiScenarioModuleId());
+                    item.setApiScenarioModuleId(node.getNewId());
+                    item.setModulePath(node.getPath());
+                } else {
+                    if (StringUtils.isBlank(item.getModulePath())) {
+                        item.setApiScenarioModuleId(null);
+                    }
+                    // 旧版本未导出模块
+                    parseModule(item.getModulePath(), importRequest, item);
                 }
-                parseModule(item.getModulePath(), importRequest, item);
-                item.setId(UUID.randomUUID().toString());
+
+//                item.setId(UUID.randomUUID().toString());
                 item.setProjectId(this.projectId);
             });
         }
-        return apiDefinitionImport;
+        return scenarioImport;
     }
 
     private void setCopy(JSONArray hashTree) {
@@ -155,7 +198,7 @@ public class MsScenarioParser extends MsAbstractParser<ScenarioImport> {
                 if (StringUtils.isNotBlank(this.selectModulePath)) {
                     apiScenarioWithBLOBs.setModulePath(this.selectModulePath + path);
                 } else if (StringUtils.isBlank(importRequest.getModuleId())) {
-                    apiScenarioWithBLOBs.setModulePath("/默认模块" + path);
+                    apiScenarioWithBLOBs.setModulePath("/未规划场景" + path);
                 }
             }
         }

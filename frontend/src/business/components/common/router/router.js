@@ -5,28 +5,34 @@ import Setting from "@/business/components/settings/router";
 import API from "@/business/components/api/router";
 import Performance from "@/business/components/performance/router";
 import Track from "@/business/components/track/router";
-import {getCurrentUserId} from "@/common/js/utils";
+import ReportStatistics from "@/business/components/reportstatistics/router";
+import Project from "@/business/components/project/router";
+import Reports from "@/business/components/report/router";
+import {getCurrentUserId, hasPermissions} from "@/common/js/utils";
 
-const requireContext = require.context('@/business/components/xpack/', true, /router\.js$/);
-const Report = requireContext.keys().map(key => requireContext(key).report);
-const ReportObj = Report && Report != null && Report.length > 0 && Report[0] != undefined ? Report : [{path: "/sidebar"}];
-
+// const requireContext = require.context('@/business/components/xpack/', true, /router\.js$/);
+// const Report = requireContext.keys().map(key => requireContext(key).report);
+// const ReportObj = Report && Report != null && Report.length > 0 && Report[0] != undefined ? Report : [{path: "/sidebar"}];
 Vue.use(VueRouter);
-
+const requireContext = require.context('@/business/components/xpack/', true, /router\.js$/);
 const router = new VueRouter({
   routes: [
-    {path: "/", redirect: '/setting/personsetting'},
+    {path: "/", redirect: '/setting'},
     {
       path: "/sidebar",
       components: {
         sidebar: RouterSidebar
       }
     },
+    ...requireContext.keys().map(key => requireContext(key).workstation),
     Setting,
     API,
     Performance,
     Track,
-    ...ReportObj
+    ReportStatistics,
+    Reports,
+    Project
+    // ...ReportStatistics
   ]
 });
 
@@ -57,16 +63,25 @@ VueRouter.prototype.push = function push(location) {
 function redirectLoginPath(originPath) {
   let redirectUrl = sessionStorage.getItem('redirectUrl');
   let loginSuccess = sessionStorage.getItem('loginSuccess');
-  sessionStorage.setItem('redirectUrl', originPath);
-  // 换一个用户登录同一个浏览器，跳转到 /    // 当(user.id有值)的时候再去判断，否则新用户(user.id为空)redirectUrl不变
-  if (getCurrentUserId() !== sessionStorage.getItem('lastUser') && !getCurrentUserId()) {
-    sessionStorage.setItem('lastUser', getCurrentUserId());
-    redirectUrl = '/';
+
+  if (!redirectUrl || redirectUrl === '/') {
+    if (hasPermissions('PROJECT_USER:READ', 'PROJECT_ENVIRONMENT:READ', 'PROJECT_OPERATING_LOG:READ', 'PROJECT_FILE:READ+JAR', 'PROJECT_FILE:READ+FILE', 'PROJECT_CUSTOM_CODE:READ')) {
+      redirectUrl = '/project/home';
+    } else if (hasPermissions('WORKSPACE_SERVICE:READ', 'WORKSPACE_MESSAGE:READ', 'WORKSPACE_USER:READ', 'WORKSPACE_PROJECT_MANAGER:READ', 'WORKSPACE_PROJECT_ENVIRONMENT:READ', 'WORKSPACE_OPERATING_LOG:READ', 'WORKSPACE_TEMPLATE:READ')) {
+      redirectUrl = '/setting/project/:type';
+    } else if (hasPermissions('SYSTEM_USER:READ', 'SYSTEM_WORKSPACE:READ', 'SYSTEM_GROUP:READ', 'SYSTEM_TEST_POOL:READ', 'SYSTEM_SETTING:READ', 'SYSTEM_AUTH:READ', 'SYSTEM_QUOTA:READ', 'SYSTEM_OPERATING_LOG:READ')) {
+      redirectUrl = '/setting';
+    } else {
+      redirectUrl = '/';
+    }
   }
+
   if (redirectUrl && loginSuccess) {
     sessionStorage.removeItem('loginSuccess');
     router.push(redirectUrl);
   }
+  sessionStorage.setItem('lastUser', getCurrentUserId());
+  sessionStorage.setItem('redirectUrl', originPath);
   sessionStorage.removeItem('loginSuccess');
 }
 

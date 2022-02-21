@@ -13,10 +13,10 @@ pipeline {
         stage('Build/Test') {
             steps {
                 configFileProvider([configFile(fileId: 'metersphere-maven', targetLocation: 'settings.xml')]) {
-                    sh "cd frontend"
-                    sh "yarn install"
-                    sh "cd .."
-                    sh "mvn clean package --settings ./settings.xml"
+//                     sh "cd frontend"
+//                     sh "yarn install"
+//                     sh "cd .."
+                    sh "./mvnw clean package --settings ./settings.xml"
                 }
             }
         }
@@ -25,6 +25,7 @@ pipeline {
                 sh "docker build --build-arg MS_VERSION=\${TAG_NAME:-\$BRANCH_NAME}-\${GIT_COMMIT:0:8} -t ${IMAGE_NAME}:\${TAG_NAME:-\$BRANCH_NAME} ."
                 sh "docker tag ${IMAGE_NAME}:\${TAG_NAME:-\$BRANCH_NAME} ${IMAGE_PREFIX}/${IMAGE_NAME}:\${TAG_NAME:-\$BRANCH_NAME}"
                 sh "docker push ${IMAGE_PREFIX}/${IMAGE_NAME}:\${TAG_NAME:-\$BRANCH_NAME}"
+                sh "docker rmi ${IMAGE_NAME}:\${TAG_NAME:-\$BRANCH_NAME} ${IMAGE_PREFIX}/${IMAGE_NAME}:\${TAG_NAME:-\$BRANCH_NAME}"
             }
         }
     }
@@ -34,6 +35,10 @@ pipeline {
             withCredentials([string(credentialsId: 'wechat-bot-webhook', variable: 'WEBHOOK')]) {
                 qyWechatNotification failSend: true, mentionedId: '', mentionedMobile: '', webhookUrl: "$WEBHOOK"
             }
+            cleanWs(cleanWhenNotBuilt: false,
+                    deleteDirs: true,
+                    disableDeferredWipeout: true,
+                    notFailBuild: true)            
         }
     }
 }

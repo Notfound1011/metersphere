@@ -1,6 +1,6 @@
 package io.metersphere.api.dto.automation;
 
-import io.metersphere.api.dto.definition.request.MsTestElement;
+import io.metersphere.plugin.core.MsTestElement;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -34,7 +34,7 @@ public class SaveApiScenarioRequest {
 
     private Integer stepTotal;
 
-    private String followPeople;
+    private List<String> follows;
 
     private String schedule;
 
@@ -59,5 +59,9 @@ public class SaveApiScenarioRequest {
     private List<String> unSelectIds;
 
     private String customNum;
+
+    private String environmentType;
+    private String environmentJson;
+    private String environmentGroupId;
 
 }

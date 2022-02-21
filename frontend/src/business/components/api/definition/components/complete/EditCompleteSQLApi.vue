@@ -4,12 +4,19 @@
     <el-row>
       <el-col>
         <!--操作按钮-->
-        <div style="float: right;margin-right: 20px;margin-top: 20px">
+        <div style="float: right;margin-right: 20px;margin-top: 20px" class="ms-opt-btn">
+          <el-tooltip :content="$t('commons.follow')" placement="bottom" effect="dark" v-if="!showFollow">
+            <i class="el-icon-star-off" style="color: #783987; font-size: 25px; margin-right: 5px; position: relative; top: 5px; cursor: pointer "
+               @click="saveFollow"/>
+          </el-tooltip>
+          <el-tooltip :content="$t('commons.cancel')" placement="bottom" effect="dark" v-if="showFollow">
+            <i class="el-icon-star-on" style="color: #783987; font-size: 28px; margin-right: 5px; position: relative; top: 5px; cursor: pointer "
+               @click="saveFollow"/>
+          </el-tooltip>
           <el-link type="primary" style="margin-right: 20px" @click="openHis" v-if="basisData.id">
             {{ $t('operating_log.change_history') }}
           </el-link>
           <el-button type="primary" size="small" @click="saveApi" title="ctrl + s">{{ $t('commons.save') }}</el-button>
-          <el-button type="primary" size="small" @click="runTest">{{ $t('commons.test') }}</el-button>
         </div>
       </el-col>
     </el-row>
@@ -26,6 +33,9 @@
     <!-- 请求参数 -->
     <p class="tip">{{ $t('api_test.definition.request.req_param') }} </p>
     <ms-basis-parameters :showScript="false" :request="request"/>
+
+    <api-other-info :api="basisData"/>
+
     <ms-change-history ref="changeHistory"/>
 
   </div>
@@ -35,11 +45,14 @@
 import MsBasisApi from "./BasisApi";
 import MsBasisParameters from "../request/database/BasisParameters";
 import MsChangeHistory from "../../../../history/ChangeHistory";
+import ApiOtherInfo from "@/business/components/api/definition/components/complete/ApiOtherInfo";
+import {getCurrentUser} from "@/common/js/utils";
 
 export default {
   name: "MsApiSqlRequestForm",
   components: {
-    MsBasisApi, MsBasisParameters,MsChangeHistory
+    ApiOtherInfo,
+    MsBasisApi, MsBasisParameters, MsChangeHistory
   },
   props: {
     request: {},
@@ -49,7 +62,7 @@ export default {
       type: Boolean,
       default: false
     },
-    syncTabs:{},
+    syncTabs: {},
   },
   watch: {
     syncTabs() {
@@ -72,11 +85,25 @@ export default {
     }
   },
   data() {
-    return {validated: false}
+    return {
+      validated: false,
+      showFollow: false
+    }
+  },
+  created() {
+    this.$get('/api/definition/follow/' + this.basisData.id, response => {
+      this.basisData.follows = response.data;
+      for (let i = 0; i < response.data.length; i++) {
+        if (response.data[i] === getCurrentUser().id) {
+          this.showFollow = true;
+          break;
+        }
+      }
+    });
   },
   methods: {
-    openHis(){
-      this.$refs.changeHistory.open(this.basisData.id);
+    openHis() {
+      this.$refs.changeHistory.open(this.basisData.id, ["接口定义", "接口定義", "Api definition"]);
     },
     callback() {
       this.validated = true;
@@ -109,10 +136,42 @@ export default {
     createRootModelInTree() {
       this.$emit("createRootModelInTree");
     },
+    saveFollow() {
+      if (this.showFollow) {
+        this.showFollow = false;
+        for (let i = 0; i < this.basisData.follows.length; i++) {
+          if (this.basisData.follows[i] === getCurrentUser().id) {
+            this.basisData.follows.splice(i, 1)
+            break;
+          }
+        }
+        if (this.basisData.id) {
+          this.$post("/api/definition/update/follows/" + this.basisData.id, this.basisData.follows, () => {
+            this.$success(this.$t('commons.cancel_follow_success'));
+          });
+        }
+      } else {
+        this.showFollow = true;
+        if (!this.basisData.follows) {
+          this.basisData.follows = [];
+        }
+        this.basisData.follows.push(getCurrentUser().id)
+        if (this.basisData.id) {
+          this.$post("/api/definition/update/follows/" + this.basisData.id, this.basisData.follows, () => {
+            this.$success(this.$t('commons.follow_success'));
+          });
+        }
+      }
+    }
   },
 }
 </script>
 
 <style scoped>
+.ms-opt-btn {
+  position: fixed;
+  right: 50px;
+  z-index: 1;
+}
 
 </style>

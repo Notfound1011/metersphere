@@ -9,7 +9,9 @@ import io.metersphere.commons.constants.TestPlanTestCaseStatus;
 import io.metersphere.commons.utils.DateUtils;
 import io.metersphere.commons.utils.MathUtils;
 import io.metersphere.performance.base.ChartsData;
+import io.metersphere.service.ProjectService;
 import io.metersphere.track.dto.TestPlanDTOWithMetric;
+import io.metersphere.track.request.testcase.TrackCountBatchRequest;
 import io.metersphere.track.response.BugStatustics;
 import io.metersphere.track.response.TestPlanBugCount;
 import io.metersphere.track.response.TrackCountResult;
@@ -40,9 +42,23 @@ public class TrackService {
     private TestPlanScenarioCaseService testPlanScenarioCaseService;
     @Resource
     private TestPlanLoadCaseService testPlanLoadCaseService;
+    @Resource
+    private ProjectService projectService;
 
     public List<TrackCountResult> countPriority(String projectId) {
         return extTestCaseMapper.countPriority(projectId);
+    }
+
+    public int countTotal() {
+        return extTestCaseMapper.countTotal();
+    }
+
+    public int countTotalByUser(String createUser) {
+        return extTestCaseMapper.countTotalByUser(createUser);
+    }
+
+    public List<TrackCountResult> getTrackCountAll(TrackCountBatchRequest request) {
+        return extTestCaseMapper.countCase(request);
     }
 
     public long countCreatedThisWeek(String projectId) {
@@ -115,9 +131,14 @@ public class TrackService {
         List<TestPlanBugCount> list = new ArrayList<>();
         BugStatustics bugStatustics = new BugStatustics();
         int index = 1;
-        int totalBugSize = 0;
         int totalCaseSize = 0;
         for (TestPlan plan : plans) {
+            int planBugSize = getPlanBugSize(plan.getId());
+            // bug为0不记录
+            if (planBugSize == 0) {
+                continue;
+            }
+
             TestPlanBugCount testPlanBug = new TestPlanBugCount();
             testPlanBug.setIndex(index++);
             testPlanBug.setPlanName(plan.getName());
@@ -127,17 +148,15 @@ public class TrackService {
             int planCaseSize = getPlanCaseSize(plan.getId());
             testPlanBug.setCaseSize(planCaseSize);
 
-            int planBugSize = getPlanBugSize(plan.getId());
             testPlanBug.setBugSize(planBugSize);
             double planPassRage = getPlanPassRage(plan.getId());
             testPlanBug.setPassRage(planPassRage + "%");
             list.add(testPlanBug);
-
-            totalBugSize += planBugSize;
             totalCaseSize += planCaseSize;
 
         }
 
+        int totalBugSize = projectService.getProjectBugSize(projectId);
         bugStatustics.setList(list);
         float rage =totalCaseSize == 0 ? 0 : (float) totalBugSize * 100 / totalCaseSize;
         DecimalFormat df = new DecimalFormat("0.0");

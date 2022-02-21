@@ -3,11 +3,10 @@ package io.metersphere.notice.service;
 import com.alibaba.fastjson.JSON;
 import io.metersphere.base.domain.MessageTask;
 import io.metersphere.base.domain.MessageTaskExample;
-import io.metersphere.base.mapper.LoadTestReportMapper;
+import io.metersphere.base.domain.Project;
 import io.metersphere.base.mapper.MessageTaskMapper;
-import io.metersphere.base.mapper.UserMapper;
+import io.metersphere.base.mapper.ProjectMapper;
 import io.metersphere.commons.exception.MSException;
-import io.metersphere.commons.user.SessionUser;
 import io.metersphere.commons.utils.LogUtil;
 import io.metersphere.commons.utils.SessionUtils;
 import io.metersphere.i18n.Translator;
@@ -32,9 +31,7 @@ public class NoticeService {
     @Resource
     private MessageTaskMapper messageTaskMapper;
     @Resource
-    private LoadTestReportMapper loadTestReportMapper;
-    @Resource
-    private UserMapper userMapper;
+    private ProjectMapper projectMapper;
 
     public void saveMessageTask(MessageDetail messageDetail) {
         MessageTaskExample example = new MessageTaskExample();
@@ -43,15 +40,14 @@ public class NoticeService {
         if (messageTaskLists.size() > 0) {
             delMessage(messageDetail.getIdentification());
         }
-        SessionUser user = SessionUtils.getUser();
-        String orgId = user.getLastOrganizationId();
+        String workspaceId = SessionUtils.getCurrentWorkspaceId();
         long time = System.currentTimeMillis();
         String identification = messageDetail.getIdentification();
         if (StringUtils.isBlank(identification)) {
             identification = UUID.randomUUID().toString();
         }
         for (String userId : messageDetail.getUserIds()) {
-            checkUserIdExist(userId, messageDetail, orgId);
+            checkUserIdExist(userId, messageDetail, workspaceId);
             MessageTask messageTask = new MessageTask();
             messageTask.setId(UUID.randomUUID().toString());
             messageTask.setEvent(messageDetail.getEvent());
@@ -61,7 +57,7 @@ public class NoticeService {
             messageTask.setWebhook(messageDetail.getWebhook());
             messageTask.setIdentification(identification);
             messageTask.setIsSet(false);
-            messageTask.setOrganizationId(orgId);
+            messageTask.setWorkspaceId(workspaceId);
             messageTask.setTestId(messageDetail.getTestId());
             messageTask.setCreateTime(time);
             setTemplate(messageDetail, messageTask);
@@ -76,7 +72,7 @@ public class NoticeService {
         }
     }
 
-    private void checkUserIdExist(String userId, MessageDetail list, String orgId) {
+    private void checkUserIdExist(String userId, MessageDetail list, String workspaceId) {
         MessageTaskExample example = new MessageTaskExample();
         if (StringUtils.isBlank(list.getTestId())) {
             example.createCriteria()
@@ -85,7 +81,7 @@ public class NoticeService {
                     .andTypeEqualTo(list.getType())
                     .andTaskTypeEqualTo(list.getTaskType())
                     .andWebhookEqualTo(list.getWebhook())
-                    .andOrganizationIdEqualTo(orgId);
+                    .andWorkspaceIdEqualTo(workspaceId);
         } else {
             example.createCriteria()
                     .andUserIdEqualTo(userId)
@@ -94,7 +90,7 @@ public class NoticeService {
                     .andTaskTypeEqualTo(list.getTaskType())
                     .andWebhookEqualTo(list.getWebhook())
                     .andTestIdEqualTo(list.getTestId())
-                    .andOrganizationIdEqualTo(orgId);
+                    .andWorkspaceIdEqualTo(workspaceId);
         }
         if (messageTaskMapper.countByExample(example) > 0) {
             MSException.throwException(Translator.get("message_task_already_exists"));
@@ -117,69 +113,62 @@ public class NoticeService {
 
     public List<MessageDetail> searchMessageByType(String type) {
         try {
-            SessionUser user = SessionUtils.getUser();
-            String orgId = user.getLastOrganizationId();
-            List<MessageDetail> messageDetails = new ArrayList<>();
-
-            MessageTaskExample example = new MessageTaskExample();
-            example.createCriteria()
-                    .andTaskTypeEqualTo(type)
-                    .andOrganizationIdEqualTo(orgId);
-            List<MessageTask> messageTaskLists = messageTaskMapper.selectByExampleWithBLOBs(example);
-
-            Map<String, List<MessageTask>> messageTaskMap = messageTaskLists.stream()
-                    .collect(Collectors.groupingBy(NoticeService::fetchGroupKey));
-            messageTaskMap.forEach((k, v) -> {
-                MessageDetail messageDetail = getMessageDetail(v);
-                messageDetails.add(messageDetail);
-            });
-
-            return messageDetails.stream()
-                    .sorted(Comparator.comparing(MessageDetail::getCreateTime, Comparator.nullsLast(Long::compareTo)).reversed())
-                    .collect(Collectors.toList())
-                    .stream()
-                    .distinct()
-                    .collect(Collectors.toList());
+            String workspaceId = SessionUtils.getCurrentWorkspaceId();
+            return getMessageDetails(type, workspaceId);
         } catch (Exception e) {
             LogUtil.error(e.getMessage(), e);
             return new ArrayList<>();
         }
     }
 
-    public List<MessageDetail> searchMessageByTypeBySend(String type, String id) {
+
+    public List<MessageDetail> searchMessageByTypeAndWorkspaceId(String type, String workspaceId) {
         try {
-            String orgId = "";
-            if (null == SessionUtils.getUser()) {
-                String userId = loadTestReportMapper.selectByPrimaryKey(id).getUserId();
-                orgId = userMapper.selectByPrimaryKey(userId).getLastOrganizationId();
-            } else {
-                SessionUser user = SessionUtils.getUser();
-                orgId = user.getLastOrganizationId();
-            }
-            List<MessageDetail> messageDetails = new ArrayList<>();
-            MessageTaskExample example = new MessageTaskExample();
-            example.createCriteria()
-                    .andTaskTypeEqualTo(type)
-                    .andOrganizationIdEqualTo(orgId);
-            List<MessageTask> messageTaskLists = messageTaskMapper.selectByExampleWithBLOBs(example);
-
-            Map<String, List<MessageTask>> messageTaskMap = messageTaskLists.stream()
-                    .collect(Collectors.groupingBy(NoticeService::fetchGroupKey));
-            messageTaskMap.forEach((k, v) -> {
-                MessageDetail messageDetail = getMessageDetail(v);
-                messageDetails.add(messageDetail);
-            });
-
-            return messageDetails.stream()
-                    .sorted(Comparator.comparing(MessageDetail::getCreateTime, Comparator.nullsLast(Long::compareTo)).reversed())
-                    .collect(Collectors.toList())
-                    .stream()
-                    .distinct()
-                    .collect(Collectors.toList());
+            return getMessageDetails(type, workspaceId);
         } catch (Exception e) {
             LogUtil.error(e.getMessage(), e);
             return new ArrayList<>();
         }
+    }
+
+    public List<MessageDetail> searchMessageByTypeBySend(String type, String projectId) {
+        try {
+            String workspaceId = "";
+            if (null == SessionUtils.getUser()) {
+                Project project = projectMapper.selectByPrimaryKey(projectId);
+                workspaceId = project.getWorkspaceId();
+            } else {
+                workspaceId = SessionUtils.getCurrentWorkspaceId();
+            }
+            return getMessageDetails(type, workspaceId);
+        } catch (Exception e) {
+            LogUtil.error(e.getMessage(), e);
+            return new ArrayList<>();
+        }
+    }
+
+    private List<MessageDetail> getMessageDetails(String type, String workspaceId) {
+        List<MessageDetail> messageDetails = new ArrayList<>();
+
+        MessageTaskExample example = new MessageTaskExample();
+        example.createCriteria()
+                .andTaskTypeEqualTo(type)
+                .andWorkspaceIdEqualTo(workspaceId);
+        List<MessageTask> messageTaskLists = messageTaskMapper.selectByExampleWithBLOBs(example);
+
+        Map<String, List<MessageTask>> messageTaskMap = messageTaskLists.stream()
+                .collect(Collectors.groupingBy(NoticeService::fetchGroupKey));
+        messageTaskMap.forEach((k, v) -> {
+            MessageDetail messageDetail = getMessageDetail(v);
+            messageDetails.add(messageDetail);
+        });
+
+        return messageDetails.stream()
+                .sorted(Comparator.comparing(MessageDetail::getCreateTime, Comparator.nullsLast(Long::compareTo)).reversed())
+                .collect(Collectors.toList())
+                .stream()
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     private MessageDetail getMessageDetail(List<MessageTask> messageTasks) {
@@ -216,19 +205,21 @@ public class NoticeService {
     public String getLogDetails(String id) {
         MessageTask task = messageTaskMapper.selectByPrimaryKey(id);
         if (task == null) {
-            MessageTaskExample example = new MessageTaskExample();
-            example.createCriteria().andIdentificationEqualTo(id);
-            List<MessageTask> tasks = messageTaskMapper.selectByExample(example);
-            List<String> names = tasks.stream().map(MessageTask::getType).collect(Collectors.toList());
-            OperatingLogDetails details = new OperatingLogDetails(JSON.toJSONString(id), null, String.join(",", names), null, new LinkedList<>());
-            return JSON.toJSONString(details);
+            try {
+                MessageTaskExample example = new MessageTaskExample();
+                example.createCriteria().andIdentificationEqualTo(id);
+                List<MessageTask> tasks = messageTaskMapper.selectByExample(example);
+                List<String> names = tasks.stream().map(MessageTask::getType).collect(Collectors.toList());
+                OperatingLogDetails details = new OperatingLogDetails(JSON.toJSONString(id), null, String.join(",", names), null, new LinkedList<>());
+                return JSON.toJSONString(details);
+
+            } catch (Exception e) {
+                task = new MessageTask();
+            }
         }
-        if (task != null) {
-            List<DetailColumn> columns = ReflexObjectUtil.getColumns(task, SystemReference.messageColumns);
-            OperatingLogDetails details = new OperatingLogDetails(JSON.toJSONString(task.getId()), null,
-                    StatusReference.statusMap.containsKey(task.getTaskType()) ? StatusReference.statusMap.get(task.getTaskType()) : task.getTaskType(), task.getUserId(), columns);
-            return JSON.toJSONString(details);
-        }
-        return null;
+        List<DetailColumn> columns = ReflexObjectUtil.getColumns(task, SystemReference.messageColumns);
+        OperatingLogDetails details = new OperatingLogDetails(JSON.toJSONString(task.getId()), null,
+                StatusReference.statusMap.containsKey(task.getTaskType()) ? StatusReference.statusMap.get(task.getTaskType()) : task.getTaskType(), null, columns);
+        return JSON.toJSONString(details);
     }
 }

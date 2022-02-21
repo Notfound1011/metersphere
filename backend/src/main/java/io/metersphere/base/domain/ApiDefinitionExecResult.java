@@ -23,6 +23,12 @@ public class ApiDefinitionExecResult implements Serializable {
 
     private String type;
 
+    private String actuator;
+
+    private String triggerMode;
+
+    private String errorCode;
+
     private String content;
 
     private static final long serialVersionUID = 1L;

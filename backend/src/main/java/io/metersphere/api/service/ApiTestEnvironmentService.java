@@ -5,12 +5,15 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import io.metersphere.api.dto.ApiTestEnvironmentDTO;
 import io.metersphere.api.dto.mockconfig.MockConfigStaticData;
+import io.metersphere.api.tcp.TCPPool;
 import io.metersphere.base.domain.ApiTestEnvironmentExample;
 import io.metersphere.base.domain.ApiTestEnvironmentWithBLOBs;
+import io.metersphere.base.domain.Project;
 import io.metersphere.base.mapper.ApiTestEnvironmentMapper;
 import io.metersphere.commons.exception.MSException;
 import io.metersphere.commons.utils.CommonBeanFactory;
 import io.metersphere.commons.utils.FileUtils;
+import io.metersphere.commons.utils.LogUtil;
 import io.metersphere.commons.utils.SessionUtils;
 import io.metersphere.controller.request.EnvironmentRequest;
 import io.metersphere.dto.BaseSystemConfigDTO;
@@ -19,6 +22,7 @@ import io.metersphere.log.utils.ReflexObjectUtil;
 import io.metersphere.log.vo.DetailColumn;
 import io.metersphere.log.vo.OperatingLogDetails;
 import io.metersphere.log.vo.system.SystemReference;
+import io.metersphere.service.EnvironmentGroupProjectService;
 import io.metersphere.service.ProjectService;
 import io.metersphere.service.SystemParameterService;
 import org.apache.commons.collections.CollectionUtils;
@@ -36,6 +40,8 @@ public class ApiTestEnvironmentService {
 
     @Resource
     private ApiTestEnvironmentMapper apiTestEnvironmentMapper;
+    @Resource
+    private EnvironmentGroupProjectService environmentGroupProjectService;
 
     public List<ApiTestEnvironmentWithBLOBs> list(String projectId) {
         ApiTestEnvironmentExample example = new ApiTestEnvironmentExample();
@@ -68,6 +74,7 @@ public class ApiTestEnvironmentService {
 
     public void delete(String id) {
         apiTestEnvironmentMapper.deleteByPrimaryKey(id);
+        environmentGroupProjectService.deleteRelateEnv(id);
     }
 
     public void update(ApiTestEnvironmentWithBLOBs apiTestEnvironment) {
@@ -115,6 +122,9 @@ public class ApiTestEnvironmentService {
     }
     private void checkEnvironmentExist(ApiTestEnvironmentWithBLOBs environment) {
         if (environment.getName() != null) {
+            if(StringUtils.isEmpty(environment.getProjectId())){
+                MSException.throwException(Translator.get("项目ID不能为空"));
+            }
             ApiTestEnvironmentExample example = new ApiTestEnvironmentExample();
             ApiTestEnvironmentExample.Criteria criteria = example.createCriteria();
             criteria.andNameEqualTo(environment.getName())
@@ -134,10 +144,12 @@ public class ApiTestEnvironmentService {
      * @param projectId
      * @return
      */
-    public synchronized ApiTestEnvironmentWithBLOBs getMockEnvironmentByProjectId(String projectId, String protocal, String baseUrl) {
-        //创建的时候检查当前站点
+    public synchronized ApiTestEnvironmentWithBLOBs getMockEnvironmentByProjectId(String projectId) {
+
         SystemParameterService systemParameterService = CommonBeanFactory.getBean(SystemParameterService.class);
         BaseSystemConfigDTO baseSystemConfigDTO = systemParameterService.getBaseInfo();
+        String baseUrl = baseSystemConfigDTO.getUrl();
+        String protocal = "http";
         if (baseSystemConfigDTO != null && StringUtils.isNotEmpty(baseSystemConfigDTO.getUrl())) {
             baseUrl = baseSystemConfigDTO.getUrl();
             if (baseUrl.startsWith("http:")) {
@@ -148,7 +160,7 @@ public class ApiTestEnvironmentService {
         }
 
         String apiName = MockConfigStaticData.MOCK_EVN_NAME;
-        ApiTestEnvironmentWithBLOBs returnModel = null;
+        ApiTestEnvironmentWithBLOBs returnModel;
         ApiTestEnvironmentExample example = new ApiTestEnvironmentExample();
         example.createCriteria().andProjectIdEqualTo(projectId).andNameEqualTo(apiName);
         List<ApiTestEnvironmentWithBLOBs> list = this.selectByExampleWithBLOBs(example);
@@ -166,7 +178,9 @@ public class ApiTestEnvironmentService {
 
     private ApiTestEnvironmentWithBLOBs checkMockEvnIsRightful(ApiTestEnvironmentWithBLOBs returnModel, String protocal, String projectId,String projectNumber, String name, String url) {
         boolean needUpdate = false;
-        if (returnModel.getConfig() != null) {
+        ProjectService projectService = CommonBeanFactory.getBean(ProjectService.class);
+        Project project = projectService.getProjectById(projectId);
+        if (returnModel.getConfig() != null && project != null) {
             try {
                 JSONObject configObj = JSONObject.parseObject(returnModel.getConfig());
                 if (configObj.containsKey("httpConfig")) {
@@ -203,28 +217,65 @@ public class ApiTestEnvironmentService {
                         }
                     }
                 }
+
+                if(project.getMockTcpPort() != null && project.getMockTcpPort().intValue() != 0){
+                    if(configObj.containsKey("tcpConfig")){
+                        if(configObj.containsKey("port")){
+                            if(configObj.getInteger("port").intValue() != project.getMockTcpPort().intValue()){
+                                needUpdate = true;
+                            }
+                        }else {
+                            needUpdate = true;
+                        }
+
+                        if(configObj.containsKey("server")){
+                            if(!StringUtils.equals(configObj.getString("server"),url)){
+                                needUpdate = true;
+                            }
+                        }else {
+                            needUpdate = true;
+                        }
+                    }
+                }
             } catch (Exception e) {
                 needUpdate = true;
-                e.printStackTrace();
+                LogUtil.error(e);
             }
         }
         if (needUpdate) {
             String id = returnModel.getId();
-            returnModel = this.genHttpApiTestEnvironmentByUrl(projectId,projectNumber, protocal, name, url);
+            returnModel = this.genHttpApiTestEnvironmentByUrl(project,projectNumber, protocal, name, url);
             returnModel.setId(id);
             apiTestEnvironmentMapper.updateByPrimaryKeyWithBLOBs(returnModel);
         }
         return returnModel;
     }
 
-    private ApiTestEnvironmentWithBLOBs genHttpApiTestEnvironmentByUrl(String projectId,String projectNumber, String protocal, String name, String url) {
+    private ApiTestEnvironmentWithBLOBs genHttpApiTestEnvironmentByUrl(String projectId,String projectNumber, String protocal, String name, String baseUrl) {
+        ProjectService projectService = CommonBeanFactory.getBean(ProjectService.class);
+        Project project = projectService.getProjectById(projectId);
+        if(project != null){
+            return this.genHttpApiTestEnvironmentByUrl(project,projectNumber, protocal, name, baseUrl);
+        }
+        return null;
+    }
+
+    private ApiTestEnvironmentWithBLOBs genHttpApiTestEnvironmentByUrl(Project project,String projectNumber, String protocal, String name, String baseUrl) {
+        if(project == null){
+            return null;
+        }
         String socket = "";
+        String url = baseUrl;
         if (url.startsWith("http://")) {
             url = url.substring(7);
         } else if (url.startsWith("https://")) {
             url = url.substring(8);
         }
         socket = url;
+        String tcpSocket = socket;
+        if(StringUtils.isNotEmpty(tcpSocket) && tcpSocket.contains(":")){
+            tcpSocket = socket.split(":")[0];
+        }
 
         String portStr = "";
         String ipStr = url;
@@ -297,6 +348,12 @@ public class ApiTestEnvironmentService {
         tcpConfigObj.put("reUseConnection", false);
         tcpConfigObj.put("nodelay", false);
         tcpConfigObj.put("closeConnection", false);
+        if(project != null){
+            if(project.getMockTcpPort() != null && project.getMockTcpPort().intValue() != 0){
+                tcpConfigObj.put("server", tcpSocket);
+                tcpConfigObj.put("port", project.getMockTcpPort().intValue());
+            }
+        }
 
         JSONObject object = new JSONObject();
         object.put("commonConfig", commonConfigObj);
@@ -305,7 +362,7 @@ public class ApiTestEnvironmentService {
         object.put("tcpConfig", tcpConfigObj);
 
         ApiTestEnvironmentWithBLOBs blobs = new ApiTestEnvironmentWithBLOBs();
-        blobs.setProjectId(projectId);
+        blobs.setProjectId(project.getId());
         blobs.setName(name);
         blobs.setConfig(object.toString());
 
@@ -330,7 +387,9 @@ public class ApiTestEnvironmentService {
 
     private String getSystemIdByProjectId(String projectId){
         ProjectService projectService = CommonBeanFactory.getBean(ProjectService.class);
-        if(projectService != null){
+        Project project = projectService.getProjectById(projectId);
+        if(project != null){
+            project = projectService.checkSystemId(project);
             return  projectService.getSystemIdByProjectId(projectId);
         }else {
             return "";
@@ -345,5 +404,37 @@ public class ApiTestEnvironmentService {
             return JSON.toJSONString(details);
         }
         return null;
+    }
+
+    public String getMockInfo(String projectId) {
+        String returnStr = "";
+        ApiTestEnvironmentWithBLOBs mockEnv = this.getMockEnvironmentByProjectId(projectId);
+        if (mockEnv != null && mockEnv.getConfig() != null) {
+            try {
+                JSONObject configObj = JSONObject.parseObject(mockEnv.getConfig());
+
+                if(configObj.containsKey("tcpConfig")){
+                    JSONObject tcpConfigObj = configObj.getJSONObject("tcpConfig");
+                    int tcpPort = 0;
+                    if(tcpConfigObj.containsKey("port")){
+                        tcpPort = tcpConfigObj.getInteger("port").intValue();
+                        if(tcpPort == 0 || !TCPPool.isTcpOpen(tcpPort)){
+                            return returnStr;
+                        }
+                    }else {
+                        return returnStr;
+                    }
+                    if(tcpConfigObj.containsKey("server")){
+                        String server = tcpConfigObj.getString("server");
+                        returnStr = server +":"+ tcpPort;
+                    }else {
+                        return returnStr;
+                    }
+                }
+            }catch (Exception e){
+                LogUtil.error(e);
+            }
+        }
+        return returnStr;
     }
 }

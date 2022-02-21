@@ -19,7 +19,9 @@ public class UserBatchProcessRequest {
     String projectId;
     String batchType;
     List<String> batchProcessValue;
-    String organizationId;
+    String workspaceId;
     UserRequest condition;
+
+    String selectUserGroupId;
 }
 

@@ -2,10 +2,11 @@
   <div v-loading="result.loading">
     <div class="comment-list">
       <review-comment-item v-for="(comment) in comments" v-bind:key="comment.id"
+                           ref="reviewComments"
                            :comment="comment"
                            @refresh="refresh"
-                           :review-status="reviewStatus"/>
-      <div v-if="comments.length === 0" style="text-align: center">
+                           :review-status="reviewStatus" api-url="/test/case"/>
+      <div v-if="comments.length === 0" style="text-align: center" >
         <i class="el-icon-chat-line-square" style="font-size: 15px;color: #8a8b8d;">
         <span style="font-size: 15px; color: #8a8b8d;">
           {{ $t('test_track.comment.no_comment') }}
@@ -14,10 +15,12 @@
       </div>
     </div>
     <div>
-      <div>
-        <mavon-editor v-if="showEditor" @imgAdd="imgAdd" :default-open="'edit'" class="mavon-editor" :imageFilter="imageFilter"
-                      :toolbars="richDataToolbars"  @imgDel="imgDel" v-model="textarea"  ref="md"/>
+      <div class="editors_div_style">
+        <div id="editorsDiv" >
+          <ms-mark-down-text prop="description" :data="form" :toolbars="toolbars" ref="md"/>
+        </div>
       </div>
+
       <el-button type="primary" size="mini" class="send-btn"
                  v-permission="['PROJECT_TRACK_REVIEW:READ+COMMENT']"
                  @click="sendComment" :disabled="isReadOnly">
@@ -30,11 +33,11 @@
 <script>
 import ReviewCommentItem from "./ReviewCommentItem";
 import FormRichTextItem from "@/business/components/track/case/components/FormRichTextItem";
-import {getUUID} from "@/common/js/utils";
+import MsMarkDownText from "@/business/components/track/case/components/MsMarkDownText";
 
 export default {
   name: "ReviewComment",
-  components: {ReviewCommentItem,FormRichTextItem},
+  components: {MsMarkDownText, ReviewCommentItem,FormRichTextItem},
   props: {
     caseId: String,
     comments: Array,
@@ -44,12 +47,14 @@ export default {
   data() {
     return {
       result: {},
-      textarea: '',
+      form: {
+        description: ''
+      },
       loadCommenItem:true,
       labelWidth: '120px',
       showEditor:true,
       isReadOnly: false,
-      richDataToolbars: {
+      toolbars: {
         bold: false, // 粗体
         italic: false, // 斜体
         header: false, // 标题
@@ -68,7 +73,7 @@ export default {
         fullscreen: false, // 全屏编辑
         readmodel: false, // 沉浸式阅读
         htmlcode: false, // 展示html源码
-        help: true, // 帮助
+        help: false, // 帮助
         /* 1.3.5 */
         undo: false, // 上一步
         redo: false, // 下一步
@@ -97,60 +102,39 @@ export default {
     sendComment() {
       let comment = {};
       comment.caseId = this.caseId;
-      comment.description = this.textarea;
+      comment.description = this.form.description;
       comment.reviewId = this.reviewId;
       comment.status = this.reviewStatus;
-      if (!this.textarea) {
+      if (!comment.description) {
         this.$warning(this.$t('test_track.comment.description_is_null'));
         return;
       }
-      this.result = this.$post('/test/case/comment/save', comment, () => {
+      this.result = this.$post('/test/case/review/comment/save', comment, () => {
         this.$success(this.$t('test_track.comment.send_success'));
+        this.form.description = "";
         this.refresh();
-        this.$refs.md.toolbar_left_click('trash');
-      });
-    },
-    /* inputLight() {
-       this.$refs.md.focus();
-     },*/
-    refresh() {
-      this.$emit('getComments');
-    },
-    //富文本框
-    imgAdd(pos, file) {
-      let param = {
-        id: getUUID().substring(0, 8)
-      };
-
-      file.prefix = param.id;
-      this.result = this.$fileUpload('/resource/md/upload', file, null, param, () => {
-        this.$success(this.$t('commons.save_success'));
-        this.$refs.md.$img2Url(pos, '/resource/md/get/'  + param.id+"_"+file.name);
-        this.sendComment();
-      });
-      this.$emit('imgAdd', file);
-    },
-    imageFilter(file){
-      let isImg = false;
-      if(file){
-        if(file.name){
-          if (file.name.indexOf("[")> 0 || file.name.indexOf("]") > 0||file.name.indexOf("([)")> 0 || file.name.indexOf(")") > 0){
-            this.$error("图片名称不能含有特殊字符");
-            isImg = false;
-          }else {
-            isImg = true;
-          }
+        if(this.$refs.md){
+          this.$refs.md.toolbar_left_click('trash');
         }
-      }
-      return isImg;
+      });
     },
-    imgDel(file) {
-      if (file && !this.clearImg) {
-        this.$get('/resource/md/delete/' + file[1].prefix + "_" + file[1].name);
+    inputLight() {
+      let textAreaDom = this.$refs.md.getTextareaDom();
+      let editorDivDom = document.getElementById("editorsDiv");
+      if(editorDivDom){
+        editorDivDom.setAttribute("style","-webkit-box-shadow: 0 0 8px rgb(205,51,43);");
+      }
+      textAreaDom.focus();
+     },
+    resetInputLight(){
+      let editorDivDom = document.getElementById("editorsDiv");
+      if(editorDivDom){
+        editorDivDom.setAttribute("style","-webkit-box-shadow: 0 0 0px rgb(-1,0,0);");
       }
     },
-    alertComment(){
-      alert(JSON.stringify(this.comments))
+    refresh() {
+      this.resetInputLight();
+      this.$emit('getComments');
     }
   }
 };
@@ -165,5 +149,22 @@ export default {
 .comment-list {
   overflow-y: scroll;
   height: calc(100vh - 450px);
+}
+.editors-div{
+  -webkit-box-shadow: 0 0 8px rgb(-1,0,0);
+}
+.editors_div_style {
+  height: 300px;
+  overflow: auto
+}
+
+.review-mavon-editor {
+  min-height: 20px;
+  height: 300px;
+  overflow: auto
+}
+
+.review-mavon-editor {
+  position: initial;
 }
 </style>

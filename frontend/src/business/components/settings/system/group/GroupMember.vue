@@ -2,8 +2,7 @@
   <div>
     <el-dialog :close-on-click-modal="false" :visible.sync="visible" width="65%" top="15vh"
                :destroy-on-close="true" @close="close" v-loading="result.loading"
-               class="group-member"
-    >
+               class="group-member">
       <template v-slot:title>
         <ms-table-header :condition.sync="condition" @create="addMemberBtn" @search="search"
                          :create-tip="$t('member.create')" :title="$t('commons.member')"/>
@@ -22,16 +21,14 @@
             <el-popover
               placement="top"
               width="250"
-              trigger="click"
-            >
+              trigger="click">
               <div v-loading="sourceResult.loading" style="height: 150px;overflow: auto;">
                 <el-tag
                   v-for="item in groupSource"
                   :key="item.id"
                   :type="item.name"
                   size="small"
-                  style="margin-left: 5px;margin-top: 5px;"
-                >
+                  style="margin-left: 5px;margin-top: 5px;">
                   {{ item.name }}
                 </el-tag>
               </div>
@@ -56,7 +53,7 @@
     </el-dialog>
     <el-dialog :close-on-click-modal="false" :visible.sync="memberVisible" width="45%"
                :title="title" :destroy-on-close="true" v-loading="memberResult.loading" @close="memberDialogClose">
-      <el-form ref="memberFrom" label-position="right" :model="form" size="small" :rules="rules" label-width="100px"
+      <el-form ref="memberFrom" label-position="right" :model="form" size="small" :rules="rules" label-width="120px"
                style="margin-right: 40px;">
         <el-form-item :label="$t('commons.member')" prop="userIds">
           <el-select
@@ -64,7 +61,7 @@
             multiple
             filterable
             :popper-append-to-body="false"
-            style="width: 100%"
+            class="member_select"
             :disabled="userSelectDisable"
             :placeholder="$t('member.please_choose_member')">
             <el-option
@@ -73,15 +70,14 @@
               :label="item.id"
               :value="item.id">
               <template>
-                <span class="user-select-left">{{ item.name }} ({{ item.id }})</span>
-                <span class="user-select-right">{{ item.email }}</span>
+                <user-option-item :user="item"/>
               </template>
             </el-option>
           </el-select>
         </el-form-item>
         <el-form-item :label="typeLabel" v-if="showTypeLabel" prop="sourceIds">
-          <el-select v-model="form.sourceIds" :placeholder="typeLabel" style="width: 100%;" clearable multiple
-                     filterable>
+          <el-select v-model="form.sourceIds" :placeholder="typeLabel" class="other_source_select"
+                     clearable multiple filterable>
             <el-option v-for="item in sourceData" :key="item.id" :label="item.name" :value="item.id"/>
           </el-select>
         </el-form-item>
@@ -101,12 +97,14 @@
 <script>
 import MsTableHeader from "@/business/components/common/components/MsTableHeader";
 import MsTablePagination from "@/business/components/common/pagination/TablePagination";
-import {GROUP_ORGANIZATION, GROUP_PROJECT, GROUP_SYSTEM, GROUP_WORKSPACE} from "@/common/js/constants";
+import {GROUP_PROJECT, GROUP_SYSTEM, GROUP_WORKSPACE} from "@/common/js/constants";
 import MsTableOperator from "@/business/components/common/components/MsTableOperator";
+import UserOptionItem from "@/business/components/settings/common/UserOptionItem";
 
 export default {
   name: "GroupMember",
   components: {
+    UserOptionItem,
     MsTableHeader,
     MsTablePagination,
     MsTableOperator
@@ -140,9 +138,6 @@ export default {
   computed: {
     typeLabel() {
       let type = this.group.type;
-      if (type === GROUP_ORGANIZATION) {
-        return this.$t('group.belong_organization');
-      }
       if (type === GROUP_WORKSPACE) {
         return this.$t('group.belong_workspace');
       }
@@ -262,7 +257,7 @@ export default {
       })
     },
     getResource() {
-      this.memberResult = this.$get('/organization/list/resource/' + this.group.id + "/" + this.group.type, res => {
+      this.memberResult = this.$get('/workspace/list/resource/' + this.group.id + "/" + this.group.type, res => {
         let data = res.data;
         if (data) {
           this._setResource(this.group.type, data);
@@ -271,9 +266,6 @@ export default {
     },
     _setResource(type, data) {
       switch (type) {
-        case GROUP_ORGANIZATION:
-          this.sourceData = data.organizations;
-          break;
         case GROUP_WORKSPACE:
           this.sourceData = data.workspaces;
           break;
@@ -293,18 +285,10 @@ export default {
 </script>
 
 <style scoped>
-/*.group-member >>> .el-dialog__header {*/
-/*  padding: 0;*/
-/*}*/
-
-.user-select-left {
-  float: left;
+.member_select, .other_source_select {
+  display: block;
 }
-
-.user-select-right {
-  float: right;
-  margin-right: 18px;
-  color: #8492a6;
-  font-size: 13px;
+.group-member >>> .el-dialog__body {
+  padding-top: 0;
 }
 </style>

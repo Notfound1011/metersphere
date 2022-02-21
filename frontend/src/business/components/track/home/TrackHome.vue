@@ -6,8 +6,13 @@
           title="公告：新功能上线啦😁"
           type="info"
           show-icon
-          description="新增二级导航菜单，点击右上角的菜单栏寻找自己的项目吧！；修复浏览器首次登录不能跳转指定链接的bug；修复脑图删除用例失败bug；新增接口测试用例录入功能；优化思维导图用例排序；用例导入时放开层级限制">
+          description="接口自动化功能上线，入口为【接口测试-接口自动化】,或者点击【下方快捷导航】;同步v1.16.6功能">
         </el-alert>
+        <el-button type="primary" class="btn">
+          <i class="el-icon-s-platform" style="font-size: 15px; color: black"></i>
+          <el-link type="primary" class="member-size" @click="jumpPage()">快捷导航：接口自动化
+          </el-link>
+        </el-button>
       </div>
       <el-row :gutter="10">
         <el-col :span="6">
@@ -46,7 +51,6 @@
         </el-col>
       </el-row>
 
-
     </ms-main-container>
   </ms-container>
 </template>
@@ -61,13 +65,15 @@ import CaseMaintenance from "@/business/components/track/home/components/CaseMai
 import {COUNT_NUMBER, COUNT_NUMBER_SHALLOW} from "@/common/js/constants";
 import BugCountCard from "@/business/components/track/home/components/BugCountCard";
 import ReviewList from "@/business/components/track/home/components/ReviewList";
-import MsRunningTaskList from "@/business/components/api/homepage/components/RunningTaskList";
+import MsRunningTaskList from "@/business/components/track/home/components/RunningTaskList";
 import MsFailureTestCaseList from "@/business/components/api/homepage/components/FailureTestCaseList";
-import {getCurrentProjectID} from "@/common/js/utils";
+import {fullScreenLoading,stopFullScreenLoading,getCurrentProjectID} from "@/common/js/utils";
+import {WORKSPACE_ID, PROJECT_ID} from "@/common/js/constants";
 
 require('echarts/lib/component/legend');
 export default {
   name: "TrackHome",
+  inject: ['reloadTopMenus'],  //注入依赖
   components: {
     ReviewList,
     BugCountCard,
@@ -152,10 +158,9 @@ export default {
           name: this.$t('test_track.home.function_case_count'),
           data: yAxis1,
           type: 'bar',
+          barWidth: 50,
           itemStyle: {
-            normal: {
-              color: this.$store.state.theme ? this.$store.state.theme : COUNT_NUMBER
-            }
+            color: this.$store.state.theme ? this.$store.state.theme : COUNT_NUMBER
           }
         },
           {
@@ -163,9 +168,7 @@ export default {
             data: yAxis2,
             type: 'bar',
             itemStyle: {
-              normal: {
-                color: this.$store.state.theme ? this.$store.state.theme : COUNT_NUMBER_SHALLOW
-              }
+              color: this.$store.state.theme ? this.$store.state.theme : COUNT_NUMBER_SHALLOW
             }
           }]
       };
@@ -184,6 +187,14 @@ export default {
           });
           break;
       }
+    },
+    jumpPage() {
+      const loading = fullScreenLoading(this);
+      window.sessionStorage.setItem(PROJECT_ID, "ffa8b8c4-eb9b-4ae7-84b2-8fae4eb5556b");
+      window.sessionStorage.setItem(WORKSPACE_ID, "f999049e-815b-4bf8-9c3d-f2615c94b9b8");
+      stopFullScreenLoading(loading, 1000);
+      this.$router.push('/api/testCaseRecord');
+      this.reloadTopMenus()   //引用app.vue中的重新加载菜单栏的方法
     }
   }
 }
@@ -208,5 +219,15 @@ export default {
 
 .track-card {
   height: 100%;
+}
+
+.btn {
+  margin: 5px;
+  background-color:rgb(240, 240, 240);
+}
+
+.member-size {
+  margin-left: 10px;
+  text-decoration: underline;
 }
 </style>

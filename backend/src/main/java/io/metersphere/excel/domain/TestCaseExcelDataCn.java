@@ -76,7 +76,7 @@ public class TestCaseExcelDataCn extends TestCaseExcelData {
     @ExcelProperty("用例状态")
     private String status;
 
-    @ExcelProperty(value = "责任人")
+    @ExcelProperty(value = "责任人(ID)")
     private String maintainer;
 
     @NotBlank(message = "{cannot_be_null}")
@@ -135,10 +135,29 @@ public class TestCaseExcelDataCn extends TestCaseExcelData {
                     continue;
                 }
                 List<String> list = new ArrayList<>();
-                list.add(dto.getName());
+                if (StringUtils.equals(dto.getName(), "责任人")) {
+                    list.add("责任人(ID)");
+                } else {
+                    list.add(dto.getName());
+                }
                 returnList.add(list);
             }
         }
         return returnList;
+    }
+
+    @Override
+    public String parseStatus(String parseStatus){
+        String caseStatusValue = "";
+        if(StringUtils.equalsAnyIgnoreCase(parseStatus,"Underway","进行中","進行中")){
+            caseStatusValue = "进行中";
+        }else if(StringUtils.equalsAnyIgnoreCase(parseStatus,"Prepare","未开始","未開始")){
+            caseStatusValue = "未开始";
+        }else if(StringUtils.equalsAnyIgnoreCase(parseStatus,"Completed","已完成","已完成")){
+            caseStatusValue = "已完成";
+        }else if(StringUtils.equalsAnyIgnoreCase(parseStatus,"Trash","废弃","廢棄")){
+            caseStatusValue = "废弃";
+        }
+        return caseStatusValue;
     }
 }

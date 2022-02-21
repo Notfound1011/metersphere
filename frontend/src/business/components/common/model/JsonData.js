@@ -37,8 +37,13 @@ export const Test_Plan_List = [
   {id: 'actualEndTime', label: i18n.t('test_track.plan.actual_end_time')},
   {id: 'tags', label: i18n.t('commons.tag')},
   {id: 'executionTimes', label: i18n.t('commons.execution_times')},
+  {id: 'rejectedTimes', label: i18n.t('commons.rejected_times')},
   {id: 'passRate', label: i18n.t('commons.pass_rate')},
   {id: 'createUser', label: i18n.t('commons.create_user')},
+  {id: 'testPlanTestCaseCount', label: i18n.t('test_track.plan.test_plan_test_case_count')},
+  {id: 'testPlanApiCaseCount', label: i18n.t('test_track.plan.test_plan_api_case_count')},
+  {id: 'testPlanApiScenarioCount', label: i18n.t('test_track.plan.test_plan_api_scenario_count')},
+  {id: 'testPlanLoadCaseCount', label: i18n.t('test_track.plan.test_plan_load_case_count')}
 ]
 //接口定义-api列表
 export const Api_List = [
@@ -87,7 +92,7 @@ export const Test_Plan_Function_Test_Case = [
 //测试计划-api用例
 export const Test_Plan_Api_Case = [
   {id: 'num', label: i18n.t('commons.id')},
-  {id: 'name', label: i18n.t('test_track.case.name')},
+  {id: 'name', label: i18n.t('api_test.definition.api_name')},
   {id: 'priority', label: i18n.t('test_track.case.priority')},
   {id: 'path', label: i18n.t('api_test.definition.api_path')},
   {id: 'createUser', label: '创建人'},

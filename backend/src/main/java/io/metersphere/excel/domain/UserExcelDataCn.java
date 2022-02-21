@@ -33,7 +33,7 @@ public class UserExcelDataCn extends UserExcelData {
     @Length(max = 255)
     @ExcelProperty("密码")
     @ColumnWidth(30)
-    @Pattern(regexp = "^(?![0-9]+$)(?![^0-9]+$)(?![a-zA-Z]+$)(?![^a-zA-Z]+$)(?![a-zA-Z0-9]+$)[a-zA-Z0-9\\S]{8,30}$", message = "{user_import_format_wrong}")
+    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[\\s\\S]{8,30}$", message = "{user_import_format_wrong}")
     private String password;
 
     @ExcelProperty("电话")
@@ -46,26 +46,6 @@ public class UserExcelDataCn extends UserExcelData {
     @ColumnWidth(30)
     @ExcelProperty("是否是系统管理员(是/否)")
     private String userIsAdmin;
-
-    @NotBlank(message = "{cannot_be_null}")
-    @ColumnWidth(30)
-    @ExcelProperty("是否是组织管理员(是/否)")
-    private String userIsOrgAdmin;
-
-    @Length(max = 100)
-    @ColumnWidth(30)
-    @ExcelProperty("组织管理员组织名称")
-    private String orgAdminOrganization;
-
-    @NotBlank(message = "{cannot_be_null}")
-    @ExcelProperty("是否是组织成员(是/否)")
-    @ColumnWidth(30)
-    private String userIsOrgMember;
-
-    @Length(max = 100)
-    @ColumnWidth(30)
-    @ExcelProperty("组织成员组织名称")
-    private String orgMemberOrganization;
 
     @NotBlank(message = "{cannot_be_null}")
     @ExcelProperty("是否是工作空间管理员(是/否)")

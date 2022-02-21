@@ -1,7 +1,9 @@
-import {getCurrentProjectID, getCurrentUser, humpToLine} from "@/common/js/utils";
+import {getCurrentProjectID, getCurrentUser, getUUID, humpToLine} from "@/common/js/utils";
 import {CUSTOM_TABLE_HEADER} from "@/common/js/default-table-header";
 import {updateCustomFieldTemplate} from "@/network/custom-field-template";
 import i18n from "@/i18n/i18n";
+import Sortable from 'sortablejs'
+import {timestampFormatDate} from "@/common/js/filter";
 
 export function _handleSelectAll(component, selection, tableData, selectRows, condition) {
   if (selection.length > 0) {
@@ -138,11 +140,14 @@ export function _sort(column, condition) {
   let field = humpToLine(column.column.columnKey ? column.column.columnKey : column.prop);
   if (column.order === 'descending') {
     column.order = 'desc';
-  } else {
+  } else if (column.order === 'ascending'){
     column.order = 'asc';
   }
   if (!condition.orders) {
     condition.orders = [];
+  }
+  if (column.order == null) {
+    return;
   }
   let hasProp = false;
   condition.orders.forEach(order => {
@@ -186,14 +191,14 @@ export function getLabel(vueObj, type) {
 }
 
 
-export function buildBatchParam(vueObj, selectIds) {
+export function buildBatchParam(vueObj, selectIds, projectId) {
   let param = {};
   if (vueObj.selectRows) {
     param.ids = selectIds ? selectIds: Array.from(vueObj.selectRows).map(row => row.id);
   } else {
     param.ids = selectIds;
   }
-  param.projectId = getCurrentProjectID();
+  param.projectId = projectId ? projectId : getCurrentProjectID();
   param.condition = vueObj.condition;
   return param;
 }
@@ -222,6 +227,7 @@ export function getPageInfo(condition) {
     result: {},
     data: [],
     condition: condition ? condition : {},
+    loading: false
   }
 }
 
@@ -278,7 +284,9 @@ function getCustomTableHeaderByFiledSetting(key, fieldSetting) {
  * @returns {[]|*}
  */
 export function getTableHeaderWithCustomFields(key, customFields) {
-  let fieldSetting = [...CUSTOM_TABLE_HEADER[key]]; // 复制
+  let fieldSetting = [...CUSTOM_TABLE_HEADER[key]];
+  fieldSetting = JSON.parse(JSON.stringify(fieldSetting)); // 复制，国际化
+  translateLabel(fieldSetting);
   let keys = getCustomFieldsKeys(customFields);
   customFields.forEach(item => {
     if (!item.key) {
@@ -297,6 +305,16 @@ export function getTableHeaderWithCustomFields(key, customFields) {
   return getCustomTableHeaderByFiledSetting(key, fieldSetting);
 }
 
+export function translateLabel(fieldSetting) {
+  if (fieldSetting) {
+    fieldSetting.forEach(item => {
+      if (item.label) {
+        item.label = i18n.t(item.label);
+      }
+    });
+  }
+}
+
 /**
  * 获取所有字段
  * @param key
@@ -305,6 +323,8 @@ export function getTableHeaderWithCustomFields(key, customFields) {
  */
 export function getAllFieldWithCustomFields(key, customFields) {
   let fieldSetting = [...CUSTOM_TABLE_HEADER[key]];
+  fieldSetting = JSON.parse(JSON.stringify(fieldSetting));
+  translateLabel(fieldSetting);
   if (customFields) {
     customFields.forEach(item => {
       let field = {
@@ -368,8 +388,15 @@ export function saveLastTableSortField(key, field) {
 }
 
 export function getLastTableSortField(key) {
-  let fieldStr = localStorage.getItem(key+"_SORT");
-  return fieldStr;
+  let orderJsonStr = localStorage.getItem(key+"_SORT");
+  if(orderJsonStr){
+    try {
+      return JSON.parse(orderJsonStr);
+    }catch (e){
+      return [];
+    }
+  }
+  return [];
 }
 
 
@@ -411,20 +438,81 @@ export function getCustomFieldValue(row, field, members) {
     for (let i = 0; i < row.customFields.length; i++) {
       let item = row.customFields[i];
       if (item.name === field.name) {
-        if (field.type === 'member' || field.type === 'multipleMember') {
+        if (!item.value) return '';
+        if (field.type === 'member') {
           for (let j = 0; j < members.length; j++) {
             let member = members[j];
             if (member.id === item.value) {
               return member.name;
             }
           }
-        } else if (['radio', 'select', 'multipleSelect', 'checkbox'].indexOf(field.type) > -1) {
-          for (let j = 0; j < field.options.length; j++) {
-            let option = field.options[j];
-            if (option.value === item.value) {
-              return field.system ? i18n.t(option.text) : option.text;
+        } else if (field.type === 'multipleMember') {
+          let values = '';
+          item.value.forEach(v => {
+            for (let j = 0; j < members.length; j++) {
+              let member = members[j];
+              if (member.id === v) {
+                values += member.name;
+                values += " ";
+                break;
+              }
+            }
+          });
+          return values;
+        } else if (['radio', 'select'].indexOf(field.type) > -1) {
+          if (field.options) {
+            for (let j = 0; j < field.options.length; j++) {
+              let option = field.options[j];
+              if (option.value === item.value) {
+                return field.system ? i18n.t(option.text) : option.text;
+              }
             }
           }
+        }
+        else if (['multipleSelect', 'checkbox'].indexOf(field.type) > -1) {
+          let values = '';
+          try {
+            if (field.type === 'multipleSelect') {
+              if (typeof (item.value) === 'string' || item.value instanceof String) {
+                item.value = JSON.parse(item.value);
+              }
+            }
+            item.value.forEach(v => {
+              for (let j = 0; j < field.options.length; j++) {
+                let option = field.options[j];
+                if (option.value === v) {
+                  values += (field.system ? i18n.t(option.text) : option.text);
+                  values += " ";
+                  break;
+                }
+              }
+            });
+          } catch (e) {
+            values = '';
+          }
+          return values;
+        } else if (field.type === 'cascadingSelect') {
+          let val = '';
+          let options = field.options;
+          for (const v of item.value) {
+            if (!options) break;
+            for (const o of options) {
+              if (o.value === v) {
+                val = o.text;
+                options = o.children;
+                break;
+              }
+            }
+          }
+          return val;
+        }  else if (field.type === 'multipleInput') {
+          let val = '';
+          item.value.forEach(i => {
+            val += i + ' ';
+          });
+          return val;
+        } else if (field.type === 'datetime') {
+          return timestampFormatDate(item.value);
         }
         return item.value;
       }
@@ -446,7 +534,8 @@ export function getCustomFieldBatchEditOption(customFields, typeArr, valueArr, m
       typeArr.push({
         id: item.name,
         name: item.name,
-        uuid: item.id
+        uuid: item.id,
+        custom: "custom" + item.id
       });
 
       let options = [];
@@ -468,4 +557,66 @@ export function getCustomFieldBatchEditOption(customFields, typeArr, valueArr, m
       valueArr[item.name] = options;
     }
   });
+}
+
+export function handleRowDrop(data, callback) {
+  setTimeout(() => {
+    const tbody = document.querySelector('.el-table__body-wrapper tbody');
+    if (!tbody) {
+      return;
+    }
+    const dropBars = tbody.getElementsByClassName('table-row-drop-bar');
+
+    const msTable = document.getElementsByClassName('ms-table');
+
+    // 每次调用生成一个class
+    // 避免增删列表数据时，回调函数中的 data 与实际 data 不一致
+    let dropClass = 'table-row-drop-bar-random' + '_' + getUUID();
+
+    for (let i = 0; i < dropBars.length; i++) {
+      dropBars[i].classList.add(dropClass);
+    }
+
+    Sortable.create(tbody, {
+      handle: "." + dropClass,
+      animation: 100,
+      onStart: function (/**Event*/evt) {
+        // 解决拖拽时高亮阴影停留在原位置的问题
+        if (msTable) {
+          for (let i = 0; i < msTable.length; i++) {
+            msTable[i].classList.add('disable-hover');
+          }
+        }
+      },
+      onEnd({ newIndex, oldIndex}) {
+        let param = {};
+        param.moveId = data[oldIndex].id;
+        if (newIndex === 0) {
+          param.moveMode = 'BEFORE';
+          param.targetId = data[0].id;
+        } else {
+          // 默认从后面添加
+          param.moveMode = 'AFTER';
+          if (newIndex < oldIndex) {
+            // 如果往前拖拽，则添加到当前下标的前一个元素后面
+            param.targetId = data[newIndex - 1].id;
+          } else {
+            // 如果往后拖拽，则添加到当前下标的元素后面
+            param.targetId = data[newIndex].id;
+          }
+        }
+        if (data && data.length > 1 && newIndex != oldIndex) {
+          const currRow = data.splice(oldIndex, 1)[0];
+          data.splice(newIndex, 0, currRow);
+          if (callback) {
+            callback(param);
+          }
+        }
+
+        for (let i = 0; i < msTable.length; i++) {
+          msTable[i].classList.remove('disable-hover');
+        }
+      }
+    });
+  }, 100);
 }

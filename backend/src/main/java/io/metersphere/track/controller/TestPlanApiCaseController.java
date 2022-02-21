@@ -2,20 +2,21 @@ package io.metersphere.track.controller;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
+import io.metersphere.api.dto.automation.TestPlanFailureApiDTO;
 import io.metersphere.api.dto.definition.ApiTestCaseDTO;
 import io.metersphere.api.dto.definition.ApiTestCaseRequest;
+import io.metersphere.api.dto.definition.BatchRunDefinitionRequest;
 import io.metersphere.api.dto.definition.TestPlanApiCaseDTO;
 import io.metersphere.commons.constants.OperLogConstants;
 import io.metersphere.commons.constants.PermissionConstants;
-import io.metersphere.commons.constants.RoleConstants;
 import io.metersphere.commons.utils.PageUtils;
 import io.metersphere.commons.utils.Pager;
+import io.metersphere.controller.request.ResetOrderRequest;
+import io.metersphere.dto.MsExecResponseDTO;
 import io.metersphere.log.annotation.MsAuditLog;
 import io.metersphere.track.request.testcase.TestPlanApiCaseBatchRequest;
 import io.metersphere.track.service.TestPlanApiCaseService;
-import org.apache.shiro.authz.annotation.Logical;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
-import org.apache.shiro.authz.annotation.RequiresRoles;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -32,6 +33,16 @@ public class TestPlanApiCaseController {
     public Pager<List<TestPlanApiCaseDTO>> list(@PathVariable int goPage, @PathVariable int pageSize, @RequestBody ApiTestCaseRequest request) {
         Page<Object> page = PageHelper.startPage(goPage, pageSize, true);
         return PageUtils.setPageInfo(page, testPlanApiCaseService.list(request));
+    }
+
+    @GetMapping("/list/failure/{planId}")
+    public List<TestPlanFailureApiDTO> getFailureList(@PathVariable String planId) {
+        return testPlanApiCaseService.getFailureCases(planId);
+    }
+
+    @GetMapping("/list/all/{planId}")
+    public List<TestPlanFailureApiDTO> getAllList(@PathVariable String planId) {
+        return testPlanApiCaseService.getAllCases(planId);
     }
 
     @PostMapping("/selectAllTableRows")
@@ -66,4 +77,14 @@ public class TestPlanApiCaseController {
         testPlanApiCaseService.batchUpdateEnv(request);
     }
 
+    @PostMapping(value = "/run")
+    @MsAuditLog(module = "track_test_plan", type = OperLogConstants.EXECUTE, content = "#msClass.getLogDetails(#request.planIds)", msClass = TestPlanApiCaseService.class)
+    public List<MsExecResponseDTO> run(@RequestBody BatchRunDefinitionRequest request) {
+        return testPlanApiCaseService.run(request);
+    }
+
+    @PostMapping("/edit/order")
+    public void orderCase(@RequestBody ResetOrderRequest request) {
+        testPlanApiCaseService.updateOrder(request);
+    }
 }

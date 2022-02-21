@@ -4,20 +4,22 @@
     <slot name="header"></slot>
 
     <ms-node-tree
-      :is-display="getIsRelevance"
-      v-loading="result.loading"
-      :tree-nodes="data"
-      :type="isReadOnly ? 'view' : 'edit'"
-      :allLabel="$t('commons.all_module_title')"
-      @add="add"
-      @edit="edit"
-      @drag="drag"
-      @remove="remove"
-      @refresh="list"
-      :delete-permission="['PROJECT_API_DEFINITION:READ+DELETE_API']"
-      :add-permission="['PROJECT_API_DEFINITION:READ+CREATE_API']"
-      :update-permission="['PROJECT_API_DEFINITION:READ+EDIT_API']"
-      @nodeSelectEvent="nodeChange"
+        :is-display="getIsRelevance"
+        v-loading="result.loading"
+        :tree-nodes="data"
+        :type="isReadOnly ? 'view' : 'edit'"
+        :allLabel="$t('api_test.definition.api_all')"
+        :default-label="$t('api_test.definition.unplanned_api')"
+        @add="add"
+        @edit="edit"
+        @drag="drag"
+        @remove="remove"
+        @refresh="list"
+        @filter="filter"
+        :delete-permission="['PROJECT_API_DEFINITION:READ+DELETE_API']"
+        :add-permission="['PROJECT_API_DEFINITION:READ+CREATE_API']"
+        :update-permission="['PROJECT_API_DEFINITION:READ+EDIT_API']"
+        @nodeSelectEvent="nodeChange"
       ref="nodeTree">
 
       <template v-slot:header>
@@ -27,6 +29,8 @@
           :current-module="currentModule"
           :is-read-only="isReadOnly"
           :moduleOptions="data"
+          :options="options"
+          :total="total"
           @exportAPI="exportAPI"
           @saveAsEdit="saveAsEdit"
           @refreshTable="$emit('refreshTable')"
@@ -85,6 +89,13 @@
       relevanceProjectId: String,
       reviewId: String,
       pageSource:String,
+      total: Number,
+      options: {
+        type: Array,
+        default() {
+          return OPTIONS;
+        }
+      }
     },
     computed: {
       isPlanModel() {
@@ -112,8 +123,8 @@
     },
 
     watch: {
-      'condition.filterText'(val) {
-        this.$refs.nodeTree.filter(val);
+      'condition.filterText'() {
+        this.filter();
       },
       'condition.protocol'() {
         this.$emit('protocolChange', this.condition.protocol);
@@ -134,11 +145,20 @@
     },
     methods: {
       initProtocol() {
-        this.$get('/api/module/getUserDefaultApiType/', response => {
-          this.condition.protocol = response.data;
+        if(this.$route.params.type){
+          this.condition.protocol = this.$route.params.type;
           this.$emit('protocolChange', this.condition.protocol);
           this.list();
-        });
+        }else {
+          this.$get('/api/module/getUserDefaultApiType/', response => {
+            this.condition.protocol = response.data;
+            this.$emit('protocolChange', this.condition.protocol);
+            this.list();
+          });
+        }
+      },
+      filter() {
+        this.$refs.nodeTree.filter(this.condition.filterText);
       },
       list(projectId) {
         let url = undefined;
@@ -221,7 +241,7 @@
         }
       },
       exportAPI(type) {
-        this.$emit('exportAPI', type);
+        this.$emit('exportAPI', type, this.data);
       },
       debug() {
         this.$emit('debug');

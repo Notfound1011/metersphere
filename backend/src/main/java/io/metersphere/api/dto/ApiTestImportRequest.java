@@ -1,7 +1,10 @@
 package io.metersphere.api.dto;
 
+import io.metersphere.api.dto.definition.request.auth.MsAuthManager;
+import io.metersphere.api.dto.scenario.KeyValue;
 import lombok.Getter;
 import lombok.Setter;
+import java.util.List;
 
 @Setter
 @Getter
@@ -16,6 +19,7 @@ public class ApiTestImportRequest {
     private Boolean useEnvironment;
     private String swaggerUrl;
     private String fileName;
+    private String resourceId;
     //导入策略
     private String modeId;
     private String userId;
@@ -23,4 +27,9 @@ public class ApiTestImportRequest {
     private String type;
     // 是否开启自定义ID
     private Boolean openCustomNum = false;
+    // 鉴权相关
+    private List<KeyValue> headers;
+    private List<KeyValue> arguments;
+    private MsAuthManager authManager;
+
 }

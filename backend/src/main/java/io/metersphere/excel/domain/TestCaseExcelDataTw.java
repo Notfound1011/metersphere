@@ -81,7 +81,7 @@ public class TestCaseExcelDataTw extends TestCaseExcelData {
     @Pattern(regexp = "(^P0$)|(^P1$)|(^P2$)|(^P3$)", message = "{test_case_priority_validate}")
     private String priority;
 
-    @ExcelProperty("維護人")
+    @ExcelProperty("維護人(ID)")
     private String maintainer;
 
     @Override
@@ -129,16 +129,42 @@ public class TestCaseExcelDataTw extends TestCaseExcelData {
         list9.add("用例等級");
         returnList.add(list9);
 
+        List<String> list10 = new ArrayList<>();
+        list10.add("用例狀態");
+        returnList.add(list10);
+
         if(CollectionUtils.isNotEmpty(customFields)){
             for (CustomFieldDao dto:customFields) {
                 if(StringUtils.equals(dto.getName(),"用例等級")){
                     continue;
                 }
+                if(StringUtils.equals(dto.getName(),"用例状态")){
+                    continue;
+                }
                 List<String> list = new ArrayList<>();
-                list.add(dto.getName());
+                if (StringUtils.equals(dto.getName(), "责任人")) {
+                    list.add("維護人(ID)");
+                } else {
+                    list.add(dto.getName());
+                }
                 returnList.add(list);
             }
         }
         return returnList;
+    }
+
+    @Override
+    public String parseStatus(String parseStatus){
+        String caseStatusValue = "";
+        if(StringUtils.equalsAnyIgnoreCase(parseStatus,"Underway","进行中","進行中")){
+            caseStatusValue = "進行中";
+        }else if(StringUtils.equalsAnyIgnoreCase(parseStatus,"Prepare","未开始","未開始")){
+            caseStatusValue = "未開始";
+        }else if(StringUtils.equalsAnyIgnoreCase(parseStatus,"Completed","已完成","已完成")){
+            caseStatusValue = "已完成";
+        }else if(StringUtils.equalsAnyIgnoreCase(parseStatus,"Trash","废弃","廢棄")){
+            caseStatusValue = "廢棄";
+        }
+        return caseStatusValue;
     }
 }

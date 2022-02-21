@@ -4,10 +4,12 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.annotation.JSONField;
 import com.alibaba.fastjson.annotation.JSONType;
 import io.metersphere.api.dto.RunningParamKeys;
-import io.metersphere.api.dto.definition.request.MsTestElement;
+import io.metersphere.api.dto.definition.request.ElementUtil;
 import io.metersphere.api.dto.definition.request.ParameterConfig;
 import io.metersphere.api.dto.scenario.environment.EnvironmentConfig;
-import io.metersphere.commons.constants.DelimiterConstants;
+import io.metersphere.api.dto.shell.filter.ScriptFilter;
+import io.metersphere.plugin.core.MsParameter;
+import io.metersphere.plugin.core.MsTestElement;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.apache.commons.collections.CollectionUtils;
@@ -26,6 +28,7 @@ import java.util.List;
 @JSONType(typeName = "JSR223Processor")
 public class MsJSR223Processor extends MsTestElement {
     private String type = "JSR223Processor";
+    private String clazzName = "io.metersphere.api.dto.definition.request.processors.MsJSR223Processor";
 
     @JSONField(ordinal = 20)
     private String script;
@@ -34,16 +37,18 @@ public class MsJSR223Processor extends MsTestElement {
     private String scriptLanguage;
 
     @Override
-    public void toHashTree(HashTree tree, List<MsTestElement> hashTree, ParameterConfig config) {
+    public void toHashTree(HashTree tree, List<MsTestElement> hashTree, MsParameter msParameter) {
+        ScriptFilter.verify(this.getScriptLanguage(), this.getName(), script);
+        ParameterConfig config = (ParameterConfig) msParameter;
         //替换Metersphere环境变量
-        if(StringUtils.isEmpty(this.getEnvironmentId())){
-            if(config.getConfig() != null){
-                if(config.getProjectId() != null){
+        if (StringUtils.isEmpty(this.getEnvironmentId())) {
+            if (config.getConfig() != null) {
+                if (config.getProjectId() != null) {
                     String evnId = config.getConfig().get(config.getProjectId()).getApiEnvironmentid();
                     this.setEnvironmentId(evnId);
-                }else {
+                } else {
                     Collection<EnvironmentConfig> evnConfigList = config.getConfig().values();
-                    if(evnConfigList!=null && !evnConfigList.isEmpty()){
+                    if (evnConfigList != null && !evnConfigList.isEmpty()) {
                         for (EnvironmentConfig configItem : evnConfigList) {
                             String evnId = configItem.getApiEnvironmentid();
                             this.setEnvironmentId(evnId);
@@ -54,7 +59,7 @@ public class MsJSR223Processor extends MsTestElement {
 
             }
         }
-        script = StringUtils.replace(script, RunningParamKeys.API_ENVIRONMENT_ID,"\""+RunningParamKeys.RUNNING_PARAMS_PREFIX+this.getEnvironmentId()+".\"");
+        script = StringUtils.replace(script, RunningParamKeys.API_ENVIRONMENT_ID, "\"" + RunningParamKeys.RUNNING_PARAMS_PREFIX + this.getEnvironmentId() + ".\"");
 
         // 非导出操作，且不是启用状态则跳过执行
         if (!config.isOperating() && !this.isEnable()) {
@@ -67,18 +72,15 @@ public class MsJSR223Processor extends MsTestElement {
         } else {
             processor.setName("JSR223Processor");
         }
-        String name = this.getParentName(this.getParent());
-        if (StringUtils.isNotEmpty(name) && !config.isOperating()) {
-            processor.setName(this.getName() + DelimiterConstants.SEPARATOR.toString() + name);
-        }
         processor.setProperty("MS-ID", this.getId());
+        String indexPath = this.getIndex();
+        processor.setProperty("MS-RESOURCE-ID", ElementUtil.getResourceId(this.getResourceId(), config, this.getParent(), indexPath));
         List<String> id_names = new LinkedList<>();
-        this.getScenarioSet(this, id_names);
+        ElementUtil.getScenarioSet(this, id_names);
         processor.setProperty("MS-SCENARIO", JSON.toJSONString(id_names));
 
         processor.setProperty(TestElement.TEST_CLASS, JSR223Sampler.class.getName());
         processor.setProperty(TestElement.GUI_CLASS, SaveService.aliasToClass("TestBeanGUI"));
-        /*processor.setProperty("cacheKey", "true");*/
         processor.setProperty("scriptLanguage", this.getScriptLanguage());
         if (StringUtils.isNotEmpty(this.getScriptLanguage()) && this.getScriptLanguage().equals("nashornScript")) {
             processor.setProperty("scriptLanguage", "nashorn");

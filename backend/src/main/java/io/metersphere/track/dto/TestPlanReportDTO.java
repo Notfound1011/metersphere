@@ -16,6 +16,7 @@ import java.util.List;
 public class TestPlanReportDTO {
     private String id;
     private String testPlanId;
+    private Boolean isNew;
     private String name;
     private String testPlanName;
     private String creator;
@@ -30,6 +31,7 @@ public class TestPlanReportDTO {
     private List<Issues> Issues;
     private List<String> executors;
     private String principal;
+    private String principalName;
     private Long startTime;
     private Long endTime;
     private String projectName;

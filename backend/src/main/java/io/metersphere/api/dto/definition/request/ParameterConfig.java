@@ -1,9 +1,11 @@
 package io.metersphere.api.dto.definition.request;
 
 import io.metersphere.api.dto.definition.request.variable.ScenarioVariable;
+import io.metersphere.api.dto.scenario.KeyValue;
 import io.metersphere.api.dto.scenario.environment.EnvironmentConfig;
 import io.metersphere.api.dto.ssl.MsKeyStore;
-import io.metersphere.commons.utils.ScriptEngineUtils;
+import io.metersphere.jmeter.utils.ScriptEngineUtils;
+import io.metersphere.plugin.core.MsParameter;
 import lombok.Data;
 import org.apache.jmeter.config.Arguments;
 
@@ -13,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 @Data
-public class ParameterConfig {
+public class ParameterConfig extends MsParameter {
     /**
      * 环境配置
      */
@@ -26,6 +28,12 @@ public class ParameterConfig {
      * 公共场景参数
      */
     private List<ScenarioVariable> variables;
+
+    /**
+     * 公共场景参数
+     */
+    private List<KeyValue> headers;
+
     /**
      * 公共Cookie
      */
@@ -44,6 +52,10 @@ public class ParameterConfig {
      */
     private String projectId;
 
+    private String scenarioId;
+
+    private String reportType;
+
     private List<String> csvFilePaths = new ArrayList<>();
 
 
@@ -55,9 +67,9 @@ public class ParameterConfig {
     }
 
     static public Arguments valueSupposeMock(Arguments arguments) {
-        for(int i = 0; i < arguments.getArguments().size(); ++i) {
+        for (int i = 0; i < arguments.getArguments().size(); ++i) {
             String argValue = arguments.getArgument(i).getValue();
-            arguments.getArgument(i).setValue(ScriptEngineUtils.calculate(argValue));
+            arguments.getArgument(i).setValue(ScriptEngineUtils.buildFunctionCallString(argValue));
         }
         return arguments;
     }

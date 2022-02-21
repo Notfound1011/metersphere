@@ -1,13 +1,12 @@
 package io.metersphere.track.issue;
 
 import io.metersphere.commons.constants.IssuesManagePlatform;
+import io.metersphere.commons.utils.LogUtil;
 import io.metersphere.track.request.testcase.IssuesRequest;
 import org.apache.commons.lang3.StringUtils;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.lang.reflect.Constructor;
+import java.util.*;
 
 public class IssueFactory {
     public static AbstractIssuePlatform createPlatform(String platform, IssuesRequest addIssueRequest) {
@@ -17,6 +16,16 @@ public class IssueFactory {
             return new JiraPlatform(addIssueRequest);
         } else if (StringUtils.equals(IssuesManagePlatform.Zentao.toString(), platform)) {
             return new ZentaoPlatform(addIssueRequest);
+        } else if (StringUtils.equals(IssuesManagePlatform.AzureDevops.toString(), platform)) {
+            ClassLoader loader = Thread.currentThread().getContextClassLoader();
+            try {
+                Class clazz = loader.loadClass("io.metersphere.xpack.issue.azuredevops.AzureDevopsPlatform");
+                Constructor cons = clazz.getDeclaredConstructor(new Class[] { IssuesRequest.class });
+                AbstractIssuePlatform azureDevopsPlatform = (AbstractIssuePlatform) cons.newInstance(addIssueRequest);
+                return azureDevopsPlatform;
+            } catch (Throwable e) {
+                LogUtil.error(e);
+            }
         } else if (StringUtils.equalsIgnoreCase(IssuesManagePlatform.Local.toString(), platform)) {
             return new LocalPlatform(addIssueRequest);
         }

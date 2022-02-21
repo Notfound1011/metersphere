@@ -34,7 +34,8 @@
     </el-card>
 
     <!--Modify personal details-->
-    <el-dialog :close-on-click-modal="false" :title="$t('member.modify_personal_info')" :visible.sync="updateVisible" width="40%"
+    <el-dialog :close-on-click-modal="false" :title="$t('member.modify_personal_info')" :visible.sync="updateVisible"
+               width="40%"
                :destroy-on-close="true" @close="handleClose">
       <el-form :model="form" label-position="right" label-width="100px" size="small" :rules="rule"
                ref="updateUserForm">
@@ -54,6 +55,7 @@
       <jira-user-info @auth="handleAuth" v-if="hasJira" :data="currentPlatformInfo"/>
       <tapd-user-info @auth="handleAuth" v-if="hasTapd" :data="currentPlatformInfo"/>
       <zentao-user-info @auth="handleAuth" v-if="hasZentao" :data="currentPlatformInfo"/>
+      <azure-devops-user-info @auth="handleAuth" v-if="hasAzure" :data="currentPlatformInfo"/>
       <template v-slot:footer>
         <ms-dialog-footer
           @cancel="updateVisible = false"
@@ -62,7 +64,8 @@
     </el-dialog>
 
     <!--Change personal password-->
-    <el-dialog :close-on-click-modal="false" :title="$t('member.edit_password')" :visible.sync="editPasswordVisible" width="35%"
+    <el-dialog :close-on-click-modal="false" :title="$t('member.edit_password')" :visible.sync="editPasswordVisible"
+               width="35%"
                :destroy-on-close="true" @close="handleClose" left>
       <el-form :model="ruleForm" :rules="rules" ref="editPasswordForm" label-width="100px" class="demo-ruleForm">
         <el-form-item :label="$t('member.old_password')" prop="password" style="margin-bottom: 29px">
@@ -86,24 +89,21 @@
 </template>
 
 <script>
-import {TokenKey, ZEN_TAO} from "../../../../common/js/constants";
+import {TokenKey} from "@/common/js/constants";
 import MsDialogFooter from "../../common/components/MsDialogFooter";
-import {
-  getCurrentOrganizationId,
-  getCurrentUser,
-  listenGoBack,
-  removeGoBackListener
-} from "../../../../common/js/utils";
+import {getCurrentUser, getCurrentWorkspaceId, listenGoBack, removeGoBackListener} from "@/common/js/utils";
 import MsTableOperatorButton from "../../common/components/MsTableOperatorButton";
 import {EMAIL_REGEX, PHONE_REGEX} from "@/common/js/regex";
 import JiraUserInfo from "@/business/components/settings/personal/JiraUserInfo";
 import TapdUserInfo from "@/business/components/settings/personal/TapdUserInfo";
 import {getIntegrationService} from "@/network/organization";
 import ZentaoUserInfo from "@/business/components/settings/personal/ZentaoUserInfo";
+import AzureDevopsUserInfo from "@/business/components/settings/personal/AzureDevopsUserInfo";
+import {logout} from "@/network/user";
 
 export default {
   name: "MsPersonSetting",
-  components: {ZentaoUserInfo, TapdUserInfo, JiraUserInfo, MsDialogFooter, MsTableOperatorButton},
+  components: {ZentaoUserInfo, TapdUserInfo, JiraUserInfo, AzureDevopsUserInfo, MsDialogFooter, MsTableOperatorButton},
   inject: [
     'reload'
   ],
@@ -122,12 +122,14 @@ export default {
         jiraPassword: '',
         tapdUserName: '',
         zentaoUserName: '',
-        zentaoPassword: ''
+        zentaoPassword: '',
+        azureDevopsPat: ''
       },
       ruleForm: {},
       hasJira: false,
       hasTapd: false,
       hasZentao: false,
+      hasAzure: false,
       rule: {
         name: [
           {required: true, message: this.$t('member.input_name'), trigger: 'blur'},
@@ -179,7 +181,7 @@ export default {
           },
         ]
       }
-    }
+    };
   },
 
   activated() {
@@ -201,7 +203,7 @@ export default {
       } else {
         this.form.platformInfo = {};
       }
-      let orgId = getCurrentOrganizationId();
+      let orgId = getCurrentWorkspaceId();
       if (!this.form.platformInfo[orgId]) {
         this.form.platformInfo[orgId] = {};
       }
@@ -216,6 +218,9 @@ export default {
         }
         if (platforms.indexOf("Zentao") !== -1) {
           this.hasZentao = true;
+        }
+        if (platforms.indexOf("AzureDevops") !== -1) {
+          this.hasAzure = true;
         }
       });
     },
@@ -249,7 +254,7 @@ export default {
         } else {
           return false;
         }
-      })
+      });
     },
     updatePassword(editPasswordForm) {
       this.$refs[editPasswordForm].validate(valid => {
@@ -260,14 +265,12 @@ export default {
           }
           this.result = this.$post(this.updatePasswordPath, this.ruleForm, response => {
             this.$success(this.$t('commons.modify_success'));
-            this.editPasswordVisible = false;
-            this.initTableData();
-            this.reload();
+            logout();
           });
         } else {
           return false;
         }
-      })
+      });
     },
     initTableData() {
       this.result = this.$get("/user/info/" + encodeURIComponent(this.currentUser().id), response => {
@@ -277,7 +280,7 @@ export default {
         dataList[0] = data;
         this.tableData = dataList;
         this.handleRouteOpen();
-      })
+      });
     },
     handleRouteOpen() {
       let params = this.$route.params;
@@ -288,8 +291,8 @@ export default {
     },
     handleAuth(type) {
       let param = {...this.currentPlatformInfo};
-      param.orgId = getCurrentOrganizationId();
-      param.platform = type
+      param.workspaceId = getCurrentWorkspaceId();
+      param.platform = type;
       this.$parent.result = this.$post("issues/user/auth", param, () => {
         this.$success(this.$t('organization.integration.verified'));
       });
@@ -302,7 +305,7 @@ export default {
       this.updateVisible = false;
     }
   }
-}
+};
 </script>
 
 <style scoped>

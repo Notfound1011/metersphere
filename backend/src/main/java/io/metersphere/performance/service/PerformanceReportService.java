@@ -9,6 +9,7 @@ import io.metersphere.base.mapper.ext.ExtLoadTestReportMapper;
 import io.metersphere.commons.constants.PerformanceTestStatus;
 import io.metersphere.commons.constants.ReportKeys;
 import io.metersphere.commons.exception.MSException;
+import io.metersphere.commons.utils.CommonBeanFactory;
 import io.metersphere.commons.utils.LogUtil;
 import io.metersphere.commons.utils.ServiceUtils;
 import io.metersphere.controller.request.OrderRequest;
@@ -28,6 +29,7 @@ import io.metersphere.performance.engine.Engine;
 import io.metersphere.performance.engine.EngineFactory;
 import io.metersphere.service.FileService;
 import io.metersphere.service.TestResourceService;
+import io.metersphere.track.service.TestPlanLoadCaseService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.ibatis.session.SqlSession;
@@ -41,9 +43,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -58,6 +58,10 @@ public class PerformanceReportService {
     private LoadTestMapper loadTestMapper;
     @Resource
     private LoadTestReportResultMapper loadTestReportResultMapper;
+    @Resource
+    private LoadTestReportResultPartMapper loadTestReportResultPartMapper;
+    @Resource
+    private LoadTestReportResultRealtimeMapper loadTestReportResultRealtimeMapper;
     @Resource
     private LoadTestReportLogMapper loadTestReportLogMapper;
     @Resource
@@ -91,14 +95,14 @@ public class PerformanceReportService {
             MSException.throwException("report id cannot be null");
         }
 
-        LoadTestReport loadTestReport = loadTestReportMapper.selectByPrimaryKey(reportId);
+        LoadTestReportWithBLOBs loadTestReport = loadTestReportMapper.selectByPrimaryKey(reportId);
         LoadTestWithBLOBs loadTest = loadTestMapper.selectByPrimaryKey(loadTestReport.getTestId());
 
         LogUtil.info("Delete report started, report ID: %s" + reportId);
 
         if (loadTest != null) {
             try {
-                final Engine engine = EngineFactory.createEngine(loadTest);
+                final Engine engine = EngineFactory.createEngine(loadTestReport);
                 if (engine == null) {
                     MSException.throwException(String.format("Delete report fail. create engine fail，report ID：%s", reportId));
                 }
@@ -123,6 +127,16 @@ public class PerformanceReportService {
         loadTestReportResultExample.createCriteria().andReportIdEqualTo(reportId);
         loadTestReportResultMapper.deleteByExample(loadTestReportResultExample);
 
+        // delete load_test_report_result
+        LoadTestReportResultPartExample loadTestReportResultPartExample = new LoadTestReportResultPartExample();
+        loadTestReportResultPartExample.createCriteria().andReportIdEqualTo(reportId);
+        loadTestReportResultPartMapper.deleteByExample(loadTestReportResultPartExample);
+
+        // delete load_test_report_result
+        LoadTestReportResultRealtimeExample loadTestReportResultRealtimeExample = new LoadTestReportResultRealtimeExample();
+        loadTestReportResultRealtimeExample.createCriteria().andReportIdEqualTo(reportId);
+        loadTestReportResultRealtimeMapper.deleteByExample(loadTestReportResultRealtimeExample);
+
         // delete load_test_report_detail
         LoadTestReportDetailExample example = new LoadTestReportDetailExample();
         example.createCriteria().andReportIdEqualTo(reportId);
@@ -131,6 +145,9 @@ public class PerformanceReportService {
         // delete jtl file
         fileService.deleteFileById(loadTestReport.getFileId());
 
+        //check test_plan_load_case 的 status
+        TestPlanLoadCaseService testPlanLoadCaseService = CommonBeanFactory.getBean(TestPlanLoadCaseService.class);
+        testPlanLoadCaseService.checkStatusByDeleteLoadCaseReportId(reportId);
         loadTestReportMapper.deleteByPrimaryKey(reportId);
     }
 
@@ -329,7 +346,7 @@ public class PerformanceReportService {
     public void downloadJtlZip(String reportId, HttpServletResponse response) {
         LoadTestReportWithBLOBs report = getReport(reportId);
         if (StringUtils.isBlank(report.getFileId())) {
-            throw new RuntimeException(Translator.get("load_test_report_file_not_exist"));
+            MSException.throwException(Translator.get("load_test_report_file_not_exist"));
         }
         response.setHeader("Content-Disposition", "attachment;fileName=" + reportId + ".zip");
         try (SqlSession sqlSession = sqlSessionFactory.openSession()) {
@@ -358,12 +375,13 @@ public class PerformanceReportService {
         return "";
     }
 
-    public LoadTestExportJmx getJmxContent(String reportId) {
+    public List<LoadTestExportJmx> getJmxContent(String reportId) {
         LoadTestReportWithBLOBs loadTestReportWithBLOBs = loadTestReportMapper.selectByPrimaryKey(reportId);
         if (loadTestReportWithBLOBs == null) {
-            return null;
+            return new ArrayList<>();
         }
-        return new LoadTestExportJmx(loadTestReportWithBLOBs.getTestName(), loadTestReportWithBLOBs.getJmxContent());
+        LoadTestExportJmx loadTestExportJmx = new LoadTestExportJmx(loadTestReportWithBLOBs.getTestName(), loadTestReportWithBLOBs.getJmxContent());
+        return Collections.singletonList(loadTestExportJmx);
     }
 
     public void renameReport(RenameReportRequest request) {
@@ -393,5 +411,40 @@ public class PerformanceReportService {
             return JSON.toJSONString(details);
         }
         return null;
+    }
+
+    public List<LoadTestReport> getReportList(List<String> ids) {
+        if (CollectionUtils.isEmpty(ids)) {
+            return new ArrayList<>();
+        }
+        LoadTestReportExample example = new LoadTestReportExample();
+        example.createCriteria().andIdIn(ids);
+        return loadTestReportMapper.selectByExample(example);
+    }
+
+    public List<ChartsData> getReportChart(String reportKey, String reportId) {
+        checkReportStatus(reportId);
+        try {
+            String content = getContent(reportId, ReportKeys.valueOf(reportKey));
+            return JSON.parseArray(content, ChartsData.class);
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
+    }
+
+    public String getLoadConfiguration(String reportId) {
+        LoadTestReportWithBLOBs loadTestReportWithBLOBs = loadTestReportMapper.selectByPrimaryKey(reportId);
+        if (loadTestReportWithBLOBs == null) {
+            return null;
+        }
+        return loadTestReportWithBLOBs.getLoadConfiguration();
+    }
+
+    public String getAdvancedConfiguration(String reportId) {
+        LoadTestReportWithBLOBs loadTestReportWithBLOBs = loadTestReportMapper.selectByPrimaryKey(reportId);
+        if (loadTestReportWithBLOBs == null) {
+            return null;
+        }
+        return loadTestReportWithBLOBs.getAdvancedConfiguration();
     }
 }

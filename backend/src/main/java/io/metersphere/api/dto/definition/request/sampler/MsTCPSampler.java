@@ -1,6 +1,7 @@
 package io.metersphere.api.dto.definition.request.sampler;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.annotation.JSONField;
 import com.alibaba.fastjson.annotation.JSONType;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -8,20 +9,23 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.metersphere.api.dto.automation.EsbDataStruct;
 import io.metersphere.api.dto.automation.TcpTreeTableDataStruct;
-import io.metersphere.api.dto.definition.request.MsTestElement;
+import io.metersphere.api.dto.definition.parse.JMeterScriptUtil;
+import io.metersphere.api.dto.definition.request.ElementUtil;
 import io.metersphere.api.dto.definition.request.ParameterConfig;
 import io.metersphere.api.dto.definition.request.processors.pre.MsJSR223PreProcessor;
 import io.metersphere.api.dto.scenario.KeyValue;
 import io.metersphere.api.dto.scenario.environment.EnvironmentConfig;
+import io.metersphere.api.dto.scenario.environment.GlobalScriptFilterRequest;
 import io.metersphere.api.service.ApiDefinitionService;
 import io.metersphere.api.service.ApiTestCaseService;
 import io.metersphere.base.domain.ApiDefinitionWithBLOBs;
 import io.metersphere.base.domain.ApiTestCaseWithBLOBs;
-import io.metersphere.commons.constants.DelimiterConstants;
 import io.metersphere.commons.constants.MsTestElementConstants;
 import io.metersphere.commons.utils.CommonBeanFactory;
 import io.metersphere.commons.utils.LogUtil;
-import io.metersphere.commons.utils.ScriptEngineUtils;
+import io.metersphere.jmeter.utils.ScriptEngineUtils;
+import io.metersphere.plugin.core.MsParameter;
+import io.metersphere.plugin.core.MsTestElement;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.apache.commons.collections.CollectionUtils;
@@ -51,6 +55,8 @@ import java.util.regex.Pattern;
 public class MsTCPSampler extends MsTestElement {
     @JSONField(ordinal = 20)
     private String type = "TCPSampler";
+    private String clazzName = "io.metersphere.api.dto.definition.request.sampler.MsTCPSampler";
+
     @JSONField(ordinal = 21)
     private String classname = "";
     @JSONField(ordinal = 22)
@@ -98,6 +104,8 @@ public class MsTCPSampler extends MsTestElement {
     @JSONField(ordinal = 44)
     private String rawDataStruct;
 
+    @JSONField(ordinal = 45)
+    private boolean customizeReq;
 
     /**
      * 新加两个参数，场景保存/修改时需要的参数。不会传递JMeter，只是用于最后的保留。
@@ -106,25 +114,29 @@ public class MsTCPSampler extends MsTestElement {
     private List<EsbDataStruct> backEsbDataStruct;
 
     @Override
-    public void toHashTree(HashTree tree, List<MsTestElement> hashTree, ParameterConfig config) {
+    public void toHashTree(HashTree tree, List<MsTestElement> hashTree, MsParameter msParameter) {
+        ParameterConfig config = (ParameterConfig) msParameter;
         // 非导出操作，且不是启用状态则跳过执行
         if (!config.isOperating() && !this.isEnable()) {
             return;
         }
         if (this.getReferenced() != null && MsTestElementConstants.REF.name().equals(this.getReferenced())) {
             this.setRefElement();
+            hashTree = this.getHashTree();
         }
         if (config.getConfig() == null) {
             // 单独接口执行
             this.setProjectId(config.getProjectId());
-            config.setConfig(getEnvironmentConfig(useEnvironment));
+            config.setConfig(ElementUtil.getEnvironmentConfig(useEnvironment, this.getProjectId(), this.isMockEnvironment()));
         }
+        EnvironmentConfig envConfig = null;
         if (config.getConfig() != null) {
-            parseEnvironment(config.getConfig().get(this.projectId));
+            envConfig = config.getConfig().get(this.projectId);
+            parseEnvironment(envConfig);
         }
 
         // 添加环境中的公共变量
-        Arguments arguments = this.addArguments(config);
+        Arguments arguments = ElementUtil.addArguments(config, this.getProjectId(), this.getName());
         if (arguments != null) {
             tree.add(arguments);
         }
@@ -136,10 +148,34 @@ public class MsTCPSampler extends MsTestElement {
         if (tcpPreProcessor != null && StringUtils.isNotBlank(tcpPreProcessor.getScript())) {
             samplerHashTree.add(tcpPreProcessor.getJSR223PreProcessor());
         }
+
+        //处理全局前后置脚本(步骤内)
+        String environmentId = this.getEnvironmentId();
+        if (environmentId == null) {
+            environmentId = this.useEnvironment;
+        }
+        //根据配置将脚本放置在私有脚本之前
+        JMeterScriptUtil.setScript(envConfig, samplerHashTree, GlobalScriptFilterRequest.TCP.name(), environmentId, config, false);
+
         if (CollectionUtils.isNotEmpty(hashTree)) {
             hashTree.forEach(el -> {
                 el.toHashTree(samplerHashTree, el.getHashTree(), config);
             });
+        }
+        //根据配置将脚本放置在私有脚本之后
+        JMeterScriptUtil.setScript(envConfig, samplerHashTree, GlobalScriptFilterRequest.TCP.name(), environmentId, config, true);
+    }
+
+    private void addItemHashTree(MsTestElement element, HashTree samplerHashTree, ParameterConfig config) {
+        if (element != null) {
+            if (element.getEnvironmentId() == null) {
+                if (this.getEnvironmentId() == null) {
+                    element.setEnvironmentId(useEnvironment);
+                } else {
+                    element.setEnvironmentId(this.getEnvironmentId());
+                }
+            }
+            element.toHashTree(samplerHashTree, element.getHashTree(), config);
         }
     }
 
@@ -155,7 +191,9 @@ public class MsTCPSampler extends MsTestElement {
                 if (bloBs != null) {
                     this.setName(bloBs.getName());
                     this.setProjectId(bloBs.getProjectId());
-                    proxy = mapper.readValue(bloBs.getRequest(), new TypeReference<MsTCPSampler>() {
+                    JSONObject element = JSON.parseObject(bloBs.getRequest());
+                    ElementUtil.dataFormatting(element);
+                    proxy = mapper.readValue(element.toJSONString(), new TypeReference<MsTCPSampler>() {
                     });
                 }
             } else {
@@ -168,7 +206,11 @@ public class MsTCPSampler extends MsTestElement {
                 }
             }
             if (proxy != null) {
-                this.setHashTree(proxy.getHashTree());
+                if (StringUtils.equals(this.getRefType(), "CASE")) {
+                    ElementUtil.mergeHashTree(this, proxy.getHashTree());
+                } else {
+                    this.setHashTree(proxy.getHashTree());
+                }
                 this.setClassname(proxy.getClassname());
                 this.setServer(proxy.getServer());
                 this.setPort(proxy.getPort());
@@ -176,22 +218,23 @@ public class MsTCPSampler extends MsTestElement {
             }
         } catch (Exception ex) {
             ex.printStackTrace();
-            LogUtil.error(ex.getMessage());
+            LogUtil.error(ex);
         }
     }
 
     private void parseEnvironment(EnvironmentConfig config) {
-        if (!isCustomizeReq() && config != null && config.getTcpConfig() != null) {
-            this.server = config.getTcpConfig().getServer();
-            this.port = config.getTcpConfig().getPort();
-            if(StringUtils.equals(this.eolByte," ")){
-                this.eolByte = "";
-            }else{
-                if(StringUtils.isEmpty(this.eolByte)){
-                    this.eolByte = config.getTcpConfig().getEolByte();
+        if (!isCustomizeReq() && config != null) {
+            if (!isCustomizeReq() && config != null) {
+                this.server = config.getTcpConfig().getServer();
+                this.port = config.getTcpConfig().getPort();
+                if (StringUtils.equals(this.eolByte, " ")) {
+                    this.eolByte = "";
+                } else {
+                    if (StringUtils.isEmpty(this.eolByte)) {
+                        this.eolByte = config.getTcpConfig().getEolByte();
+                    }
                 }
             }
-
         }
     }
 
@@ -199,13 +242,11 @@ public class MsTCPSampler extends MsTestElement {
         TCPSampler tcpSampler = new TCPSampler();
         tcpSampler.setEnabled(this.isEnable());
         tcpSampler.setName(this.getName());
-        String name = this.getParentName(this.getParent());
-        if (StringUtils.isNotEmpty(name) && !config.isOperating()) {
-            tcpSampler.setName(this.getName() + DelimiterConstants.SEPARATOR.toString() + name);
-        }
         tcpSampler.setProperty("MS-ID", this.getId());
+        String indexPath = this.getIndex();
+        tcpSampler.setProperty("MS-RESOURCE-ID", ElementUtil.getResourceId(this.getId(), config, this.getParent(), indexPath));
         List<String> id_names = new LinkedList<>();
-        this.getScenarioSet(this, id_names);
+        ElementUtil.getScenarioSet(this, id_names);
         tcpSampler.setProperty("MS-SCENARIO", JSON.toJSONString(id_names));
 
         tcpSampler.setProperty(TestElement.TEST_CLASS, TCPSampler.class.getName());
@@ -221,16 +262,16 @@ public class MsTCPSampler extends MsTestElement {
         tcpSampler.setEolByte(this.getEolByte());
 
         String value = this.getRequest();
-        if(StringUtils.isNotEmpty(this.getConnectEncoding())){
-            if(StringUtils.equalsIgnoreCase("utf-8",this.getConnectEncoding())){
+        if (StringUtils.isNotEmpty(this.getConnectEncoding())) {
+            if (StringUtils.equalsIgnoreCase("utf-8", this.getConnectEncoding())) {
                 try {
-                    value = new String(value.getBytes(),StandardCharsets.UTF_8);
-                }catch (Exception e){
+                    value = new String(value.getBytes(), StandardCharsets.UTF_8);
+                } catch (Exception e) {
                 }
-            }else if(StringUtils.equalsIgnoreCase("gbk",this.getConnectEncoding())){
+            } else if (StringUtils.equalsIgnoreCase("gbk", this.getConnectEncoding())) {
                 try {
-                    value = new String(value.getBytes(),"GBK");
-                }catch (Exception e){
+                    value = new String(value.getBytes(), "GBK");
+                } catch (Exception e) {
                 }
 
             }
@@ -255,18 +296,18 @@ public class MsTCPSampler extends MsTestElement {
             this.parameters.forEach(item -> {
                 names.add(new StringProperty(new Integer(new Random().nextInt(1000000)).toString(), item.getName()));
                 String value = item.getValue();
-                if(StringUtils.isNotEmpty(value)){
+                if (StringUtils.isNotEmpty(value)) {
                     value = this.formatMockValue(value);
-                    if(StringUtils.isNotEmpty(this.getConnectEncoding())){
-                        if(StringUtils.equalsIgnoreCase("utf-8",this.getConnectEncoding())){
+                    if (StringUtils.isNotEmpty(this.getConnectEncoding())) {
+                        if (StringUtils.equalsIgnoreCase("utf-8", this.getConnectEncoding())) {
                             try {
-                                value = new String(value.getBytes(),StandardCharsets.UTF_8);
-                            }catch (Exception e){
+                                value = new String(value.getBytes(), StandardCharsets.UTF_8);
+                            } catch (Exception e) {
                             }
-                        }else if(StringUtils.equalsIgnoreCase("gbk",this.getConnectEncoding())){
+                        } else if (StringUtils.equalsIgnoreCase("gbk", this.getConnectEncoding())) {
                             try {
-                                value = new String(value.getBytes(),"GBK");
-                            }catch (Exception e){
+                                value = new String(value.getBytes(), "GBK");
+                            } catch (Exception e) {
                             }
                         }
                     }
@@ -280,29 +321,31 @@ public class MsTCPSampler extends MsTestElement {
         userParameters.setThreadLists(new CollectionProperty(UserParameters.THREAD_VALUES, collectionPropertyList));
         tree.add(userParameters);
     }
+
     private String formatMockValue(String value) {
 
         String patten = ">@[^>@]+</?";
         Pattern r = Pattern.compile(patten);
-        try{
+        try {
             Matcher m = r.matcher(value);
-            while (m.find()){
+            while (m.find()) {
                 String findStr = m.group();
-                if(findStr.length() > 3){
-                    findStr = findStr.substring(1,findStr.length()-2);
-                    String replaceStr = ScriptEngineUtils.calculate(findStr);
-                    if(StringUtils.equals(findStr,replaceStr)){
+                if (findStr.length() > 3) {
+                    findStr = findStr.substring(1, findStr.length() - 2);
+                    String replaceStr = ScriptEngineUtils.buildFunctionCallString(findStr);
+                    if (StringUtils.equals(findStr, replaceStr)) {
                         replaceStr = "";
                     }
-                    value = value.replace(">"+findStr+"</",">"+replaceStr+"</");
-                    m  = r.matcher(value);
+                    value = value.replace(">" + findStr + "</", ">" + replaceStr + "</");
+                    m = r.matcher(value);
                 }
             }
-        }catch (Exception e){
+        } catch (Exception e) {
 
         }
         return value;
     }
+
     private ConfigTestElement tcpConfig() {
         ConfigTestElement configTestElement = new ConfigTestElement();
         configTestElement.setEnabled(true);

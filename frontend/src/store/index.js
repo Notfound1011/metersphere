@@ -9,7 +9,7 @@ Vue.use(Vuex)
 const state = {
   projectId: "",
   test: {},
-  scenarioJmxs:{},
+  scenarioJmxs: {},
   versionSwitch: "new",
   isReadOnly: true,
   theme: undefined,
@@ -20,10 +20,20 @@ const state = {
 
   testReviewSelectNode: {},
   testReviewSelectNodeIds: [],
-  testReviewModuleOptions: [],
-
-  testPlanViewSelectNode: {}
-
+  useEnvironment: "",
+  testPlanViewSelectNode: {},
+  selectStep: {},
+  currentApiCase: {},
+  pluginFiles: [],
+  isTestCaseMinderChanged: false,
+  // 当前项目是否勾选自定义ID
+  currentProjectIsCustomNum: false,
+  testCaseTemplate: {},
+  scenarioMap: new Map(),
+  apiMap: new Map(),
+  apiStatus: new Map(),
+  testCaseMap: new Map(),
+  curTabId: null
 }
 
 const store = new Vuex.Store({

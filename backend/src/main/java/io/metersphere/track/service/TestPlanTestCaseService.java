@@ -7,16 +7,14 @@ import io.metersphere.base.mapper.*;
 import io.metersphere.base.mapper.ext.ExtTestPlanTestCaseMapper;
 import io.metersphere.commons.constants.TestPlanTestCaseStatus;
 import io.metersphere.commons.user.SessionUser;
-import io.metersphere.commons.utils.BeanUtils;
-import io.metersphere.commons.utils.LogUtil;
-import io.metersphere.commons.utils.ServiceUtils;
-import io.metersphere.commons.utils.SessionUtils;
+import io.metersphere.commons.utils.*;
+import io.metersphere.controller.request.OrderRequest;
+import io.metersphere.controller.request.ResetOrderRequest;
 import io.metersphere.controller.request.member.QueryMemberRequest;
 import io.metersphere.log.vo.DetailColumn;
 import io.metersphere.log.vo.OperatingLogDetails;
 import io.metersphere.service.UserService;
-import io.metersphere.track.dto.TestCaseTestDTO;
-import io.metersphere.track.dto.TestPlanCaseDTO;
+import io.metersphere.track.dto.*;
 import io.metersphere.track.request.testcase.TestPlanCaseBatchRequest;
 import io.metersphere.track.request.testcase.TrackCount;
 import io.metersphere.track.request.testplancase.QueryTestPlanCaseRequest;
@@ -65,6 +63,8 @@ public class TestPlanTestCaseService {
     private TestCaseTestMapper testCaseTestMapper;
     @Resource
     private TestCaseCommentService testCaseCommentService;
+    @Resource
+    private TestCaseService testCaseService;
 
     public List<TestPlanTestCaseWithBLOBs> listAll() {
         TestPlanTestCaseExample example = new TestPlanTestCaseExample();
@@ -73,11 +73,11 @@ public class TestPlanTestCaseService {
     }
 
     public void updateIssues(int issuesCount, String id, String caseId, String issues) {
-        extTestPlanTestCaseMapper.update(issuesCount, id, caseId, issues);
+        extTestPlanTestCaseMapper.update(issuesCount, id, caseId, issues);//to
     }
 
     public List<TestPlanCaseDTO> list(QueryTestPlanCaseRequest request) {
-        request.setOrders(ServiceUtils.getDefaultOrder(request.getOrders()));
+        request.setOrders(ServiceUtils.getDefaultSortOrder(request.getOrders()));
         List<TestPlanCaseDTO> list = extTestPlanTestCaseMapper.list(request);
         QueryMemberRequest queryMemberRequest = new QueryMemberRequest();
         queryMemberRequest.setProjectId(request.getProjectId());
@@ -217,14 +217,6 @@ public class TestPlanTestCaseService {
         testPlanTestCaseMapper.deleteByExample(example);
     }
 
-    public List<String> getTestPlanTestCaseIds(String testId) {
-        return extTestPlanTestCaseMapper.getTestPlanTestCaseIds(testId);
-    }
-
-    public int updateTestCaseStates(List<String> ids, String reportStatus) {
-        return extTestPlanTestCaseMapper.updateTestCaseStates(ids, reportStatus);
-    }
-
     /**
      * 更新测试计划关联接口测试的功能用例的状态
      *
@@ -302,7 +294,23 @@ public class TestPlanTestCaseService {
     }
 
     public List<TestPlanCaseDTO> listForMinder(QueryTestPlanCaseRequest request) {
-        return extTestPlanTestCaseMapper.listForMinder(request);
+        List<OrderRequest> orders = ServiceUtils.getDefaultOrder(request.getOrders());
+        orders.forEach(order -> {
+            if (order.getName().equals("create_time")) {
+                order.setPrefix("pc");
+            }
+        });
+        request.setOrders(orders);
+        List<TestPlanCaseDTO> cases = extTestPlanTestCaseMapper.listForMinder(request);
+        List<String> caseIds = cases.stream().map(TestPlanCaseDTO::getCaseId).collect(Collectors.toList());
+        HashMap<String, List<IssuesDao>> issueMap = testCaseService.buildMinderIssueMap(caseIds);
+        for (TestPlanCaseDTO item : cases) {
+            List<IssuesDao> issues = issueMap.get(item.getCaseId());
+            if (issues != null) {
+                item.setIssueList(issues);
+            }
+        }
+        return cases;
     }
 
     public void editTestCaseForMinder(List<TestPlanTestCaseWithBLOBs> testPlanTestCases) {
@@ -368,5 +376,61 @@ public class TestPlanTestCaseService {
             }
         }
         return null;
+    }
+
+    public void calculatePlanReport(String planId, TestPlanSimpleReportDTO report) {
+        List<PlanReportCaseDTO> planReportCaseDTOS = extTestPlanTestCaseMapper.selectForPlanReport(planId);
+        TestPlanFunctionResultReportDTO functionResult = report.getFunctionResult();
+        List<TestCaseReportStatusResultDTO> statusResult = new ArrayList<>();
+        Map<String, TestCaseReportStatusResultDTO> statusResultMap = new HashMap<>();
+
+        TestPlanUtils.buildStatusResultMap(planReportCaseDTOS, statusResultMap, report, TestPlanTestCaseStatus.Pass.name());
+        TestPlanUtils.addToReportCommonStatusResultList(statusResultMap, statusResult);
+
+        TestPlanUtils.addToReportStatusResultList(statusResultMap, statusResult, TestPlanTestCaseStatus.Blocking.name());
+        TestPlanUtils.addToReportStatusResultList(statusResultMap, statusResult, TestPlanTestCaseStatus.Skip.name());
+        TestPlanUtils.addToReportStatusResultList(statusResultMap, statusResult, TestPlanTestCaseStatus.Underway.name());
+        functionResult.setCaseData(statusResult);
+    }
+
+    public List<TestPlanCaseDTO> getFailureCases(String planId) {
+        List<TestPlanCaseDTO> allCases = extTestPlanTestCaseMapper.getCases(planId, "Failure");
+        return buildCaseInfo(allCases);
+    }
+
+    public List<TestPlanCaseDTO> getAllCases(String planId) {
+        List<TestPlanCaseDTO> allCases = extTestPlanTestCaseMapper.getCases(planId, null);
+        return buildCaseInfo(allCases);
+    }
+
+    public List<TestPlanCaseDTO> buildCaseInfo(List<TestPlanCaseDTO> cases) {
+        Map<String, Project> projectMap = ServiceUtils.getProjectMap(
+                cases.stream().map(TestPlanCaseDTO::getProjectId).collect(Collectors.toList()));
+        Map<String, String> userNameMap = ServiceUtils.getUserNameMap(
+                cases.stream().map(TestPlanCaseDTO::getExecutor).collect(Collectors.toList()));
+        cases.forEach(item -> {
+            item.setProjectName(projectMap.get(item.getProjectId()).getName());
+            item.setIsCustomNum(projectMap.get(item.getProjectId()).getCustomNum());
+            item.setExecutorName(userNameMap.get(item.getExecutor()));
+        });
+        return cases;
+    }
+
+    public void initOrderField() {
+        ServiceUtils.initOrderField(TestPlanTestCaseWithBLOBs.class, TestPlanTestCaseMapper.class,
+                extTestPlanTestCaseMapper::selectPlanIds,
+                extTestPlanTestCaseMapper::getIdsOrderByUpdateTime);
+    }
+
+    /**
+     * 用例自定义排序
+     * @param request
+     */
+    public void updateOrder(ResetOrderRequest request) {
+        ServiceUtils.updateOrderField(request, TestPlanTestCaseWithBLOBs.class,
+                testPlanTestCaseMapper::selectByPrimaryKey,
+                extTestPlanTestCaseMapper::getPreOrder,
+                extTestPlanTestCaseMapper::getLastOrder,
+                testPlanTestCaseMapper::updateByPrimaryKeySelective);
     }
 }

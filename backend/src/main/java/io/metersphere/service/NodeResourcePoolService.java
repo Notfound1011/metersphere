@@ -16,9 +16,11 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.Resource;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -27,6 +29,7 @@ import java.util.stream.Collectors;
 import static io.metersphere.commons.constants.ResourceStatusEnum.VALID;
 
 @Service
+@Transactional(rollbackFor = Exception.class)
 public class NodeResourcePoolService {
     private final static String nodeControllerUrl = "http://%s:%s/status";
 
@@ -78,9 +81,12 @@ public class NodeResourcePoolService {
     }
 
     private void deleteTestResources(Collection<String> ids) {
-        for (String deletedResourceId : ids) {
-            testResourceMapper.deleteByPrimaryKey(deletedResourceId);
+        if (CollectionUtils.isEmpty(ids)) {
+            return;
         }
+        TestResourceExample example = new TestResourceExample();
+        example.createCriteria().andIdIn(new ArrayList<>(ids));
+        testResourceMapper.deleteByExample(example);
     }
 
     private List<TestResource> getResourcesFromDB(TestResourcePoolDTO testResourcePool) {

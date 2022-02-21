@@ -44,9 +44,11 @@ name: "TestReviewMinder",
     reviewId: {
       type: String
     },
-    projectId: String
+    projectId: String,
+    condition: Object
   },
   mounted() {
+    this.setIsChange(false);
     if (this.selectNode && this.selectNode.data) {
       if (this.$refs.minder) {
         let importJson = this.$refs.minder.getImportJsonBySelectNode(this.selectNode.data);
@@ -73,30 +75,30 @@ name: "TestReviewMinder",
   methods: {
     handleAfterMount() {
       listenNodeSelected(() => {
-        let param = {
-          request: {
-            reviewId: this.reviewId,
-          },
-          result: this.result,
-          isDisable: true
-        }
-        loadSelectNodes(param,  getReviewCasesForMinder, this.setParamCallback);
+        loadSelectNodes(this.getParam(),  getReviewCasesForMinder, this.setParamCallback);
       });
       listenBeforeExecCommand((even) => {
         if (even.commandName === 'expandtolevel') {
           let level = Number.parseInt(even.commandArgs);
-          let param = {
-            request: {
-              reviewId: this.reviewId,
-            },
-            result: this.result,
-            isDisable: true
-          }
-          handleExpandToLevel(level, even.minder.getRoot(), param, getReviewCasesForMinder, this.setParamCallback);
+          handleExpandToLevel(level, even.minder.getRoot(), this.getParam(), getReviewCasesForMinder, this.setParamCallback);
+        }
+
+        if (even.commandName.toLocaleLowerCase() === 'resource') {
+          this.setIsChange(true);
         }
       });
 
       tagBatch([...this.tags, this.$t('test_track.plan.plan_status_prepare')]);
+    },
+    getParam() {
+      return {
+        request: {
+          reviewId: this.reviewId,
+          orders: this.condition.orders
+        },
+        result: this.result,
+        isDisable: true
+      }
     },
     setParamCallback(data, item) {
       if (item.reviewStatus === 'Pass') {
@@ -111,8 +113,9 @@ name: "TestReviewMinder",
     save(data) {
       let saveCases = [];
       this.buildSaveCase(data.root, saveCases);
-      this.result = this.$post('/test/review/case/minder/edit', saveCases, () => {
+      this.result = this.$post('/test/review/case/minder/edit/' + this.reviewId, saveCases, () => {
         this.$success(this.$t('commons.save_success'));
+        this.setIsChange(false);
       });
     },
     buildSaveCase(root, saveCases) {
@@ -146,6 +149,9 @@ name: "TestReviewMinder",
       }
       saveCases.push(testCase);
     },
+    setIsChange(isChanged) {
+      this.$store.commit('setIsTestCaseMinderChanged', isChanged);
+    }
   }
 }
 </script>

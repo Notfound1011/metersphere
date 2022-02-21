@@ -3,9 +3,13 @@ package io.metersphere.track.service;
 import com.alibaba.fastjson.JSON;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
+import io.metersphere.api.dto.EnvironmentType;
+import io.metersphere.api.dto.automation.TestPlanFailureApiDTO;
 import io.metersphere.api.dto.definition.ApiTestCaseDTO;
 import io.metersphere.api.dto.definition.ApiTestCaseRequest;
+import io.metersphere.api.dto.definition.BatchRunDefinitionRequest;
 import io.metersphere.api.dto.definition.TestPlanApiCaseDTO;
+import io.metersphere.api.exec.api.ApiCaseExecuteService;
 import io.metersphere.api.service.ApiDefinitionExecResultService;
 import io.metersphere.api.service.ApiTestCaseService;
 import io.metersphere.base.domain.*;
@@ -13,12 +17,22 @@ import io.metersphere.base.mapper.ApiTestCaseMapper;
 import io.metersphere.base.mapper.TestPlanApiCaseMapper;
 import io.metersphere.base.mapper.TestPlanMapper;
 import io.metersphere.base.mapper.ext.ExtTestPlanApiCaseMapper;
-import io.metersphere.commons.utils.PageUtils;
-import io.metersphere.commons.utils.Pager;
-import io.metersphere.commons.utils.ServiceUtils;
-import io.metersphere.commons.utils.SessionUtils;
+import io.metersphere.commons.utils.*;
+import io.metersphere.controller.request.ResetOrderRequest;
+import io.metersphere.dto.MsExecResponseDTO;
+import io.metersphere.dto.RunModeConfigDTO;
 import io.metersphere.log.vo.OperatingLogDetails;
+import io.metersphere.service.EnvironmentGroupProjectService;
+import io.metersphere.track.dto.PlanReportCaseDTO;
+import io.metersphere.track.dto.TestCaseReportStatusResultDTO;
+import io.metersphere.track.dto.TestPlanApiResultReportDTO;
+import io.metersphere.track.dto.TestPlanSimpleReportDTO;
 import io.metersphere.track.request.testcase.TestPlanApiCaseBatchRequest;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.ibatis.session.ExecutorType;
+import org.apache.ibatis.session.SqlSession;
+import org.apache.ibatis.session.SqlSessionFactory;
+import org.mybatis.spring.SqlSessionUtils;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +59,15 @@ public class TestPlanApiCaseService {
     private TestPlanMapper testPlanMapper;
     @Resource
     ApiTestCaseMapper apiTestCaseMapper;
+    @Resource
+    private ApiCaseExecuteService testPlanApiCaseExecuteService;
+    @Resource
+    SqlSessionFactory sqlSessionFactory;
+    @Resource
+    @Lazy
+    private TestPlanService testPlanService;
+    @Resource
+    private EnvironmentGroupProjectService environmentGroupProjectService;
 
     public TestPlanApiCase getInfo(String caseId, String testPlanId) {
         TestPlanApiCaseExample example = new TestPlanApiCaseExample();
@@ -54,7 +77,7 @@ public class TestPlanApiCaseService {
 
     public List<TestPlanApiCaseDTO> list(ApiTestCaseRequest request) {
         request.setProjectId(null);
-        request.setOrders(ServiceUtils.getDefaultOrder(request.getOrders()));
+        request.setOrders(ServiceUtils.getDefaultSortOrder(request.getOrders()));
         List<TestPlanApiCaseDTO> apiTestCases = extTestPlanApiCaseMapper.list(request);
         if (CollectionUtils.isEmpty(apiTestCases)) {
             return apiTestCases;
@@ -80,7 +103,7 @@ public class TestPlanApiCaseService {
 
     public List<String> selectIds(ApiTestCaseRequest request) {
         request.setProjectId(null);
-        request.setOrders(ServiceUtils.getDefaultOrder(request.getOrders()));
+        request.setOrders(ServiceUtils.getDefaultSortOrder(request.getOrders()));
         List<String> idList = extTestPlanApiCaseMapper.selectIds(request);
         return idList;
     }
@@ -90,12 +113,14 @@ public class TestPlanApiCaseService {
     }
 
     public Pager<List<ApiTestCaseDTO>> relevanceList(int goPage, int pageSize, ApiTestCaseRequest request) {
-        List<String> ids = apiTestCaseService.selectIdsNotExistsInPlan(request.getProjectId(), request.getPlanId());
-        Page<Object> page = PageHelper.startPage(goPage, pageSize, true);
-        if (CollectionUtils.isEmpty(ids)) {
-            return PageUtils.setPageInfo(page, new ArrayList<>());
+        if (StringUtils.isNotBlank(request.getPlanId()) && !testPlanService.isAllowedRepeatCase(request.getPlanId())) { // 不允许重复关联
+            List<String> ids = apiTestCaseService.selectIdsNotExistsInPlan(request.getProjectId(), request.getPlanId());
+            if (CollectionUtils.isEmpty(ids)) {
+                return PageUtils.setPageInfo(PageHelper.startPage(goPage, pageSize, true), new ArrayList<>());
+            }
+            request.setIds(ids);
         }
-        request.setIds(ids);
+        Page<Object> page = PageHelper.startPage(goPage, pageSize, true);
         request.setWorkspaceId(SessionUtils.getCurrentWorkspaceId());
         return PageUtils.setPageInfo(page, apiTestCaseService.listSimple(request));
     }
@@ -144,6 +169,12 @@ public class TestPlanApiCaseService {
         return testPlanApiCaseMapper.selectByExample(example);
     }
 
+    public List<TestPlanApiCase> getCases(String planId) {
+        TestPlanApiCaseExample example = new TestPlanApiCaseExample();
+        example.createCriteria().andTestPlanIdEqualTo(planId);
+        return testPlanApiCaseMapper.selectByExample(example);
+    }
+
     public TestPlanApiCase getById(String id) {
         return testPlanApiCaseMapper.selectByPrimaryKey(id);
     }
@@ -172,12 +203,20 @@ public class TestPlanApiCaseService {
         Map<String, String> rows = request.getSelectRows();
         Set<String> ids = rows.keySet();
         request.setIds(new ArrayList<>(ids));
-        Map<String, String> env = request.getProjectEnvMap();
+        Map<String, String> env = new HashMap<>();
+        String environmentType = request.getEnvironmentType();
+        String environmentGroupId = request.getEnvironmentGroupId();
+        if (StringUtils.equals(environmentType, EnvironmentType.JSON.name())) {
+            env = request.getProjectEnvMap();
+        } else if (StringUtils.equals(environmentType, EnvironmentType.GROUP.name()) && StringUtils.isNotBlank(environmentGroupId)) {
+            env = environmentGroupProjectService.getEnvMap(environmentGroupId);
+        }
         if (env != null && !env.isEmpty()) {
+            Map<String, String> finalEnv = env;
             ids.forEach(id -> {
                 TestPlanApiCase apiCase = new TestPlanApiCase();
                 apiCase.setId(id);
-                apiCase.setEnvironmentId(env.get(rows.get(id)));
+                apiCase.setEnvironmentId(finalEnv.get(rows.get(id)));
                 testPlanApiCaseMapper.updateByPrimaryKeySelective(apiCase);
             });
         }
@@ -235,6 +274,69 @@ public class TestPlanApiCaseService {
         return null;
     }
 
+    /**
+     * 测试执行
+     *
+     * @param request
+     * @return
+     */
+    public List<MsExecResponseDTO> run(BatchRunDefinitionRequest request) {
+        if (request.getConfig() != null) {
+            RunModeConfigDTO config = request.getConfig();
+            if (config != null) {
+                String envType = config.getEnvironmentType();
+                String envGroupId = config.getEnvironmentGroupId();
+                Map<String, String> envMap = config.getEnvMap();
+                if ((StringUtils.equals(envType, EnvironmentType.JSON.toString()) && envMap != null && !envMap.isEmpty())) {
+                    setApiCaseEnv(request.getPlanIds(), envMap);
+                } else if ((StringUtils.equals(envType, EnvironmentType.GROUP.toString()) && StringUtils.isNotBlank(envGroupId))) {
+                    Map<String, String> map = environmentGroupProjectService.getEnvMap(envGroupId);
+                    setApiCaseEnv(request.getPlanIds(), map);
+                }
+            }
+            return testPlanApiCaseExecuteService.run(request);
+        }
+        return null;
+    }
+
+    public void setApiCaseEnv(List<String> planIds, Map<String, String> map) {
+        if (CollectionUtils.isEmpty(planIds) || (map != null && map.isEmpty())) {
+            return;
+        }
+
+        TestPlanApiCaseExample caseExample = new TestPlanApiCaseExample();
+        caseExample.createCriteria().andIdIn(planIds);
+        List<TestPlanApiCase> testPlanApiCases = testPlanApiCaseMapper.selectByExample(caseExample);
+        List<String> apiCaseIds = testPlanApiCases.stream().map(TestPlanApiCase::getApiCaseId).collect(Collectors.toList());
+        if (CollectionUtils.isEmpty(apiCaseIds)) {
+            return;
+        }
+
+        ApiTestCaseExample example = new ApiTestCaseExample();
+        example.createCriteria().andIdIn(apiCaseIds);
+        List<ApiTestCase> apiTestCases = apiTestCaseMapper.selectByExample(example);
+        Map<String, String> projectCaseIdMap = new HashMap<>(16);
+        apiTestCases.forEach(c -> projectCaseIdMap.put(c.getId(), c.getProjectId()));
+
+        SqlSession sqlSession = sqlSessionFactory.openSession(ExecutorType.BATCH);
+        TestPlanApiCaseMapper mapper = sqlSession.getMapper(TestPlanApiCaseMapper.class);
+
+        testPlanApiCases.forEach(testPlanApiCase -> {
+            String caseId = testPlanApiCase.getApiCaseId();
+            String projectId = projectCaseIdMap.get(caseId);
+            String envId = map.get(projectId);
+            if (StringUtils.isNotBlank(envId)) {
+                testPlanApiCase.setEnvironmentId(envId);
+                mapper.updateByPrimaryKey(testPlanApiCase);
+            }
+        });
+
+        sqlSession.flushStatements();
+        if (sqlSession != null && sqlSessionFactory != null) {
+            SqlSessionUtils.closeSqlSession(sqlSession, sqlSessionFactory);
+        }
+    }
+
     public Boolean hasFailCase(String planId, List<String> apiCaseIds) {
         if (CollectionUtils.isEmpty(apiCaseIds)) {
             return false;
@@ -245,5 +347,92 @@ public class TestPlanApiCaseService {
                 .andApiCaseIdIn(apiCaseIds)
                 .andStatusEqualTo("error");
         return testPlanApiCaseMapper.countByExample(example) > 0 ? true : false;
+    }
+
+    public ApiTestCaseWithBLOBs getApiTestCaseById(String testPlanApiCaseId) {
+        return extTestPlanApiCaseMapper.getApiTestCaseById(testPlanApiCaseId);
+    }
+
+    public void calculatePlanReport(String planId, TestPlanSimpleReportDTO report) {
+        List<PlanReportCaseDTO> planReportCaseDTOS = extTestPlanApiCaseMapper.selectForPlanReport(planId);
+        calculatePlanReport(report, planReportCaseDTOS);
+    }
+
+    public void calculatePlanReport(List<String> apiReportIds, TestPlanSimpleReportDTO report) {
+        List<PlanReportCaseDTO> planReportCaseDTOS = apiDefinitionExecResultService.selectForPlanReport(apiReportIds);
+        calculatePlanReport(report, planReportCaseDTOS);
+    }
+
+    private void calculatePlanReport(TestPlanSimpleReportDTO report, List<PlanReportCaseDTO> planReportCaseDTOS) {
+        TestPlanApiResultReportDTO apiResult = report.getApiResult();
+        List<TestCaseReportStatusResultDTO> statusResult = new ArrayList<>();
+        Map<String, TestCaseReportStatusResultDTO> statusResultMap = new HashMap<>();
+
+        TestPlanUtils.buildStatusResultMap(planReportCaseDTOS, statusResultMap, report, "success");
+
+        TestPlanUtils.addToReportCommonStatusResultList(statusResultMap, statusResult);
+
+        apiResult.setApiCaseData(statusResult);
+    }
+
+    public List<TestPlanFailureApiDTO> getFailureCases(String planId) {
+        List<TestPlanFailureApiDTO> apiTestCases = extTestPlanApiCaseMapper.getFailureList(planId, "error");
+        return buildCases(apiTestCases);
+    }
+
+    public List<TestPlanFailureApiDTO> getAllCases(String planId) {
+        List<TestPlanFailureApiDTO> apiTestCases = extTestPlanApiCaseMapper.getFailureList(planId, null);
+        return buildCases(apiTestCases);
+    }
+
+    public List<TestPlanFailureApiDTO> buildCases(List<TestPlanFailureApiDTO> apiTestCases) {
+        if (CollectionUtils.isEmpty(apiTestCases)) {
+            return apiTestCases;
+        }
+        buildUserInfo(apiTestCases);
+        return apiTestCases;
+    }
+
+    public void initOrderField() {
+        ServiceUtils.initOrderField(TestPlanApiCase.class, TestPlanApiCaseMapper.class,
+                extTestPlanApiCaseMapper::selectPlanIds,
+                extTestPlanApiCaseMapper::getIdsOrderByUpdateTime);
+    }
+
+    /**
+     * 用例自定义排序
+     *
+     * @param request
+     */
+    public void updateOrder(ResetOrderRequest request) {
+        ServiceUtils.updateOrderField(request, TestPlanApiCase.class,
+                testPlanApiCaseMapper::selectByPrimaryKey,
+                extTestPlanApiCaseMapper::getPreOrder,
+                extTestPlanApiCaseMapper::getLastOrder,
+                testPlanApiCaseMapper::updateByPrimaryKeySelective);
+    }
+
+    public List<TestPlanFailureApiDTO> getByApiExecReportIds(Map<String, String> testPlanApiCaseReportMap) {
+        if (testPlanApiCaseReportMap.isEmpty()) {
+            return new ArrayList<>();
+        }
+        String defaultStatus = "error";
+        List<TestPlanFailureApiDTO> apiTestCases = extTestPlanApiCaseMapper.getFailureListByIds(testPlanApiCaseReportMap.keySet(), null);
+        Map<String, String> reportResult = apiDefinitionExecResultService.selectReportResultByReportIds(testPlanApiCaseReportMap.values());
+        for (TestPlanFailureApiDTO dto : apiTestCases) {
+            String testPlanApiCaseId = dto.getId();
+            String reportId = testPlanApiCaseReportMap.get(testPlanApiCaseId);
+            dto.setReportId(reportId);
+            if (StringUtils.isEmpty(reportId)) {
+                dto.setExecResult(defaultStatus);
+            } else {
+                String status = reportResult.get(reportId);
+                if (status == null) {
+                    status = defaultStatus;
+                }
+                dto.setExecResult(status);
+            }
+        }
+        return buildCases(apiTestCases);
     }
 }

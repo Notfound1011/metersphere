@@ -26,7 +26,7 @@
             {{ $t('test_track.issue.issue_management') }}
           </el-menu-item>
 
-          <el-menu-item :index="'/track/testPlan/reportList'" popper-class="submenu">
+          <el-menu-item :index="'/track/testPlan/reportList'" popper-class="submenu" v-permission="['PROJECT_TRACK_REPORT:READ']">
             {{ $t("commons.report") }}
           </el-menu-item>
         </el-menu>
@@ -41,13 +41,12 @@
 import MsShowAll from "../../common/head/ShowAll";
 import MsRecentList from "../../common/head/RecentList";
 import MsCreateButton from "../../common/head/CreateButton";
-import SearchList from "@/business/components/common/head/SearchList";
 import ProjectChange from "@/business/components/common/head/ProjectSwitch";
 import {getCurrentProjectID} from "@/common/js/utils";
 
 export default {
   name: "TrackHeaderMenus",
-  components: {ProjectChange, SearchList, MsShowAll, MsRecentList, MsCreateButton},
+  components: {ProjectChange, MsShowAll, MsRecentList, MsCreateButton},
   data() {
     return {
       testPlanViewPath: '',

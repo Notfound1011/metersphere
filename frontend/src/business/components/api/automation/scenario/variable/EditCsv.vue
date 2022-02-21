@@ -8,6 +8,7 @@
       <el-input class="ms-http-textarea"
                 v-model="editData.description"
                 type="textarea"
+                :disabled="disabled"
                 :placeholder="$t('commons.input_content')"
                 :autosize="{ minRows: 2, maxRows: 10}"
                 :rows="2" size="small"/>
@@ -15,38 +16,50 @@
     <el-tabs v-model="activeName" @tab-click="handleClick" style="margin-left: 40px">
       <el-tab-pane :label="$t('variables.config')" name="config">
         <el-row>
-          <el-col :span="4" style="margin-top: 5px">
+          <el-col :span="5" style="margin-top: 5px">
             <span>{{$t('variables.add_file')}}</span>
           </el-col>
-          <el-col :span="20">
+          <el-col :span="19">
             <ms-csv-file-upload :parameter="editData"/>
           </el-col>
         </el-row>
         <el-row style="margin-top: 10px">
-          <el-col :span="4" style="margin-top: 5px">
+          <el-col :span="5" style="margin-top: 5px">
             <span>Encoding</span>
           </el-col>
-          <el-col :span="20">
+          <el-col :span="19">
             <el-autocomplete
               size="small"
               style="width: 100%"
               v-model="editData.encoding"
+              :disabled="disabled"
               :fetch-suggestions="querySearch"
               :placeholder="$t('commons.input_content')"
             ></el-autocomplete>
           </el-col>
         </el-row>
         <el-row style="margin-top: 10px">
-          <el-col :span="4" style="margin-top: 5px">
+          <el-col :span="5" style="margin-top: 5px">
             <span>{{$t('variables.delimiter')}}</span>
           </el-col>
-          <el-col :span="20">
-            <el-input v-model="editData.delimiter" size="small"/>
+          <el-col :span="19">
+            <el-input v-model="editData.delimiter" size="small" :disabled="disabled"/>
           </el-col>
         </el-row>
-
+        <el-row style="margin-top: 10px">
+          <el-col :span="5" style="margin-top: 5px">
+            <span>{{$t('variables.quoted_data')}}</span>
+          </el-col>
+          <el-col :span="19">
+            <el-select v-model="editData.quotedData" size="small" :disabled="disabled">
+              <el-option label="True" :value="true"/>
+              <el-option label="False" :value="false"/>
+            </el-select>
+          </el-col>
+        </el-row>
       </el-tab-pane>
       <el-tab-pane :label="$t('schema.preview')" name="preview">
+        <div v-if="showMessage">{{ $t('variables.csv_message') }}</div>
         <el-table
           :data="previewData"
           style="width: 100%"
@@ -84,12 +97,18 @@
         editFlag: false,
         previewData: [],
         columns: [],
-        allDatas: [],
+        allData: [],
+        showMessage: false,
         rules: {
           name: [
             {required: true, message: this.$t('test_track.case.input_name'), trigger: 'blur'},
           ],
         },
+      }
+    },
+    computed: {
+      disabled() {
+        return !(this.editData.name && this.editData.name !== "");
       }
     },
     methods: {
@@ -98,20 +117,24 @@
           this.$error(results.errors);
           return;
         }
-        if (this.allDatas) {
-          this.columns = this.allDatas[0];
-          this.allDatas.splice(0, 1);
-          this.previewData = this.allDatas;
+        if (this.allData) {
+          this.columns = this.allData[0];
+          this.allData.splice(0, 1);
+          this.previewData = this.allData;
         }
         this.loading = false;
       },
       step(results, parser) {
-        this.allDatas.push(results.data);
+        if(this.allData.length < 2000) {
+          this.allData.push(results.data);
+        }else{
+          this.showMessage = true;
+        }
       },
 
       handleClick() {
         let config = {complete: this.complete, step: this.step, delimiter: this.editData.delimiter ? this.editData.delimiter : ","};
-        this.allDatas = [];
+        this.allData = [];
         // 本地文件
         if (this.editData.files && this.editData.files.length > 0 && this.editData.files[0].file) {
           this.loading = true;
@@ -141,7 +164,7 @@
       },
 
       querySearch(queryString, cb) {
-        let restaurants = [{value: "UTF-8"}, {value: "UTF-16"}, {value: "ISO-8859-15"}, {value: "US-ASCll"}];
+        let restaurants = [{value: "UTF-8"}, {value: "UTF-16"},{value: "GB2312"}, {value: "ISO-8859-15"}, {value: "US-ASCll"}];
         let results = queryString ? restaurants.filter(this.createFilter(queryString)) : restaurants;
         // 调用 callback 返回建议列表的数据
         cb(results);

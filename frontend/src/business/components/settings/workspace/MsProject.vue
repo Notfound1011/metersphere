@@ -4,9 +4,9 @@
       <template v-slot:header>
         <ms-table-header :create-permission="['WORKSPACE_PROJECT_MANAGER:READ+CREATE']" :condition.sync="condition"
                          @search="search" @create="create"
-                         :create-tip="btnTips" :title="$t('commons.project')">
+                         :create-tip="btnTips" :title="$t('project.manager')">
           <template v-slot:button>
-            <ms-table-button icon="el-icon-box"
+            <ms-table-button icon="el-icon-box" v-permission="['WORKSPACE_PROJECT_MANAGER:READ+UPLOAD_JAR']"
                              :content="$t('api_test.jar_config.title')" @click="openJarConfig"/>
           </template>
         </ms-table-header>
@@ -16,7 +16,13 @@
                 @filter-change="filter"
                 :height="screenHeight"
       >
-        <el-table-column prop="name" :label="$t('commons.name')" min-width="100" show-overflow-tooltip/>
+        <el-table-column prop="name" :label="$t('commons.name')" min-width="100" show-overflow-tooltip>
+          <template v-slot:default="scope">
+            <el-link type="primary" class="member-size" @click="jumpPage(scope.row)">
+              {{ scope.row.name }}
+            </el-link>
+          </template>
+        </el-table-column>
         <el-table-column prop="description" :label="$t('commons.description')" show-overflow-tooltip>
           <template v-slot:default="scope">
             <pre>{{ scope.row.description }}</pre>
@@ -87,65 +93,7 @@
                            :total="total"/>
     </el-card>
 
-    <el-dialog :close-on-click-modal="false" :title="title" :visible.sync="createVisible" destroy-on-close
-               @close="handleClose">
-      <el-form :model="form" :rules="rules" ref="form" label-position="right" label-width="80px" size="small">
-        <el-form-item :label-width="labelWidth" :label="$t('commons.name')" prop="name">
-          <el-input v-model="form.name" autocomplete="off"></el-input>
-        </el-form-item>
-
-
-        <el-form-item :label-width="labelWidth" :label="$t('用例模板')" prop="caseTemplateId">
-          <template-select :data="form" scene="API_CASE" prop="caseTemplateId" ref="caseTemplate"/>
-        </el-form-item>
-        <el-form-item :label-width="labelWidth" :label="$t('缺陷模板')" prop="issueTemplateId">
-          <template-select :data="form" scene="ISSUE" prop="issueTemplateId" ref="issueTemplate"/>
-        </el-form-item>
-
-
-        <el-form-item :label-width="labelWidth" :label="$t('commons.description')" prop="description">
-          <el-input :autosize="{ minRows: 2, maxRows: 4}" type="textarea" v-model="form.description"></el-input>
-        </el-form-item>
-        <el-form-item :label-width="labelWidth" :label="$t('project.tapd_id')" v-if="tapd">
-          <el-input v-model="form.tapdId" autocomplete="off"></el-input>
-        </el-form-item>
-        <el-form-item :label-width="labelWidth" :label="$t('project.jira_key')" v-if="jira">
-          <el-input v-model="form.jiraKey" autocomplete="off"/>
-          <ms-instructions-icon effect="light">
-            <template>
-              <img class="jira-image" src="../../../../assets/jira-key.png"/>
-            </template>
-          </ms-instructions-icon>
-        </el-form-item>
-        <el-form-item :label-width="labelWidth" :label="$t('project.zentao_id')" v-if="zentao">
-          <el-input v-model="form.zentaoId" autocomplete="off"></el-input>
-          <ms-instructions-icon effect="light">
-            <template>
-              禅道流程：产品-项目 | 产品-迭代 | 产品-冲刺 | 项目-迭代 | 项目-冲刺 <br/><br/>
-              根据 "后台 -> 自定义 -> 流程" 查看对应流程，根据流程填写ID <br/><br/>
-              产品-项目 | 产品-迭代 | 产品-冲刺 需要填写产品ID <br/><br/>
-              项目-迭代 | 项目-冲刺 需要填写项目ID
-            </template>
-          </ms-instructions-icon>
-        </el-form-item>
-        <el-form-item :label-width="labelWidth" :label="$t('project.repeatable')" prop="repeatable">
-          <el-switch v-model="form.repeatable"></el-switch>
-        </el-form-item>
-        <el-form-item :label-width="labelWidth" label="测试用例自定义ID" prop="customNum">
-          <el-switch v-model="form.customNum"></el-switch>
-        </el-form-item>
-        <el-form-item :label-width="labelWidth" label="场景自定义ID" prop="scenarioCustomNum">
-          <el-switch v-model="form.scenarioCustomNum"></el-switch>
-        </el-form-item>
-      </el-form>
-      <template v-slot:footer>
-        <div class="dialog-footer">
-          <ms-dialog-footer
-            @cancel="createVisible = false"
-            @confirm="submit('form')"/>
-        </div>
-      </template>
-    </el-dialog>
+    <edit-project ref="editProject"/>
 
     <el-dialog :close-on-click-modal="false" :visible.sync="memberVisible" width="70%" :destroy-on-close="true"
                @close="close"
@@ -189,19 +137,21 @@
                @close="handleClose">
       <el-form :model="form" label-position="right" label-width="100px" size="small" ref="updateUserForm">
         <el-form-item label="ID" prop="id">
-          <el-input v-model="form.id" autocomplete="off" :disabled="true"/>
+          <el-input v-model="form.id" autocomplete="off" :disabled="true" />
         </el-form-item>
         <el-form-item :label="$t('commons.username')" prop="name">
-          <el-input v-model="form.name" autocomplete="off" :disabled="true"/>
+          <el-input v-model="form.name" autocomplete="off" :disabled="true" />
         </el-form-item>
         <el-form-item :label="$t('commons.email')" prop="email">
           <el-input v-model="form.email" autocomplete="off" :disabled="true"/>
         </el-form-item>
         <el-form-item :label="$t('commons.phone')" prop="phone">
-          <el-input v-model="form.phone" autocomplete="off" :disabled="true"/>
+          <el-input v-model="form.phone" autocomplete="off" :disabled="true" />
         </el-form-item>
-        <el-form-item :label="$t('commons.group')" prop="groupIds" :rules="{required: true, message: $t('group.please_select_group'), trigger: 'change'}">
-          <el-select v-model="form.groupIds" multiple :placeholder="$t('group.please_select_group')" style="width: 100%">
+        <el-form-item :label="$t('commons.group')" prop="groupIds"
+                      :rules="{required: true, message: $t('group.please_select_group'), trigger: 'change'}">
+          <el-select v-model="form.groupIds" multiple :placeholder="$t('group.please_select_group')"
+                     style="width: 100%">
             <el-option
               v-for="item in form.allgroups"
               :key="item.id"
@@ -218,7 +168,7 @@
       </template>
     </el-dialog>
 
-    <add-member :group-type="'PROJECT'" :group-scope-id="orgId" ref="addMember" @submit="submitForm"/>
+    <add-member :group-type="'PROJECT'" :group-scope-id="workspaceId" ref="addMember" @submit="submitForm"/>
 
     <ms-delete-confirm :title="$t('project.delete')" @delete="_handleDelete" ref="deleteConfirm"/>
 
@@ -231,18 +181,16 @@
 </template>
 
 <script>
-import MsCreateBox from "../CreateBox";
 import {Message} from "element-ui";
 import MsTablePagination from "../../common/pagination/TablePagination";
 import MsTableHeader from "../../common/components/MsTableHeader";
 import MsTableOperator from "../../common/components/MsTableOperator";
 import MsDialogFooter from "../../common/components/MsDialogFooter";
 import {
-  getCurrentOrganizationId,
   getCurrentProjectID,
-  getCurrentUser, getCurrentUserId,
+  getCurrentUser,
+  getCurrentUserId,
   getCurrentWorkspaceId,
-  listenGoBack,
   removeGoBackListener
 } from "@/common/js/utils";
 import MsContainer from "../../common/components/MsContainer";
@@ -252,7 +200,7 @@ import MsTableOperatorButton from "../../common/components/MsTableOperatorButton
 import ApiEnvironmentConfig from "../../api/test/components/ApiEnvironmentConfig";
 import TemplateComponent from "../../track/plan/view/comonents/report/TemplateComponent/TemplateComponent";
 import {GROUP_PROJECT, PROJECT_ID} from "@/common/js/constants";
-import MsJarConfig from "../../api/test/components/jar/JarConfig";
+import MsJarConfig from "@/business/components/settings/workspace/JarConfig";
 import MsTableButton from "../../common/components/MsTableButton";
 import {_filter, _sort} from "@/common/js/tableUtils";
 import MsResourceFiles from "@/business/components/performance/test/components/ResourceFiles";
@@ -261,10 +209,12 @@ import {PROJECT_CONFIGS} from "@/business/components/common/components/search/se
 import MsRolesTag from "@/business/components/common/components/MsRolesTag";
 import AddMember from "@/business/components/settings/common/AddMember";
 import MsInstructionsIcon from "@/business/components/common/components/MsInstructionsIcon";
+import EditProject from "@/business/components/project/menu/EditProject";
 
 export default {
   name: "MsProject",
   components: {
+    EditProject,
     MsInstructionsIcon,
     TemplateSelect,
     MsResourceFiles,
@@ -275,15 +225,15 @@ export default {
     MsTableOperatorButton,
     MsDeleteConfirm,
     MsMainContainer, MsRolesTag,
-    MsContainer, MsTableOperator, MsCreateBox, MsTablePagination, MsTableHeader, MsDialogFooter,
+    MsContainer, MsTableOperator, MsTablePagination, MsTableHeader, MsDialogFooter,
     AddMember
   },
   inject: [
+    'reload',
     'reloadTopMenus'
   ],
   data() {
     return {
-      createVisible: false,
       updateVisible: false,
       dialogMemberVisible: false,
       result: {},
@@ -291,9 +241,6 @@ export default {
       title: this.$t('project.create'),
       condition: {components: PROJECT_CONFIGS},
       items: [],
-      tapd: false,
-      jira: false,
-      zentao: false,
       form: {},
       currentPage: 1,
       pageSize: 10,
@@ -307,8 +254,6 @@ export default {
         description: [
           {max: 250, message: this.$t('commons.input_limit', [0, 250]), trigger: 'blur'}
         ],
-        // caseTemplateId: [{required: true}],
-        // issueTemplateId: [{required: true}],
       },
       screenHeight: 'calc(100vh - 195px)',
       dialogCondition: {},
@@ -341,22 +286,39 @@ export default {
     this.list();
   },
   computed: {
-    currentUser: () => {
-      return getCurrentUser();
-    },
     projectId() {
       return getCurrentProjectID();
     },
-    orgId() {
-      return getCurrentOrganizationId();
+    workspaceId() {
+      return getCurrentWorkspaceId();
     }
   },
-  destroyed() {
-    this.createVisible = false;
-  },
   methods: {
+    jumpPage(row) {
+      this.currentWorkspaceRow = row;
+      this.currentProjectId = row.id;
+      let param = {
+        name: '',
+        projectId: row.id
+      };
+      this.result = this.$post("/user/project/member/list", param, res => {
+        this.memberLineData = res.data;
+        let arr = this.memberLineData.filter(item => item.id === getCurrentUserId());
+        if (arr.length > 0) {
+          window.sessionStorage.setItem(PROJECT_ID, row.id);
+          this.$router.push('/track/home').then(() => {
+            this.reload();
+            this.reloadTopMenus();
+            if (!getCurrentUser().lastProjectId) {
+              window.location.reload();
+            }
+          });
+        } else {
+          this.$warning(this.$t("commons.project_permission"));
+        }
+      });
+    },
     getMaintainerOptions() {
-      let workspaceId = getCurrentWorkspaceId();
       this.$post('/user/project/member/tester/list', {projectId: getCurrentProjectID()}, response => {
         this.userFilters = response.data.map(u => {
           return {text: u.name, value: u.id};
@@ -365,70 +327,17 @@ export default {
     },
     create() {
       let workspaceId = getCurrentWorkspaceId();
-      this.getOptions();
       if (!workspaceId) {
         this.$warning(this.$t('project.please_choose_workspace'));
         return false;
       }
       this.title = this.$t('project.create');
       // listenGoBack(this.handleClose);
-      this.createVisible = true;
       this.form = {};
-    },
-    getOptions() {
-
-      if (this.$refs.issueTemplate) {
-        this.$refs.issueTemplate.getTemplateOptions();
-      }
-      if (this.$refs.caseTemplate) {
-        this.$refs.caseTemplate.getTemplateOptions();
-      }
+      this.$refs.editProject.edit();
     },
     edit(row) {
-      this.title = this.$t('project.edit');
-      this.getOptions();
-      this.createVisible = true;
-      listenGoBack(this.handleClose);
-      this.form = Object.assign({}, row);
-      this.$get("/service/integration/all/" + getCurrentOrganizationId(), response => {
-        let data = response.data;
-        let platforms = data.map(d => d.platform);
-        if (platforms.indexOf("Tapd") !== -1) {
-          this.tapd = true;
-        }
-        if (platforms.indexOf("Jira") !== -1) {
-          this.jira = true;
-        }
-        if (platforms.indexOf("Zentao") !== -1) {
-          this.zentao = true;
-        }
-      });
-    },
-    submit(formName) {
-      this.$refs[formName].validate((valid) => {
-        if (valid) {
-          let saveType = "add";
-          if (this.form.id) {
-            saveType = "update";
-          }
-          var protocol = document.location.protocol;
-          protocol = protocol.substring(0, protocol.indexOf(":"));
-          this.form.protocal = protocol;
-          this.form.workspaceId = getCurrentWorkspaceId();
-          this.form.createUser = getCurrentUserId();
-          this.result = this.$post("/project/" + saveType, this.form, () => {
-            this.createVisible = false;
-            Message.success(this.$t('commons.save_success'));
-            if (saveType === 'add') {
-              this.reloadTopMenus();
-            } else {
-              this.list();
-            }
-          });
-        } else {
-          return false;
-        }
-      });
+      this.$refs.editProject.edit(row);
     },
     openJarConfig() {
       this.$refs.jarConfig.open();
@@ -462,10 +371,6 @@ export default {
     },
     handleClose() {
       removeGoBackListener(this.handleClose);
-      this.createVisible = false;
-      this.tapd = false;
-      this.jira = false;
-      this.zentao = false;
     },
     search() {
       this.list();
@@ -513,7 +418,6 @@ export default {
         name: '',
         projectId: row.id
       };
-      this.wsId = row.id;
       let path = "/user/project/member/list";
       this.result = this.$post(this.buildPagePath(path), param, res => {
         let data = res.data;
@@ -556,7 +460,10 @@ export default {
       this.updateVisible = true;
       this.form = Object.assign({}, row);
       let groupIds = this.form.groups.map(r => r.id);
-      this.result = this.$post('/user/group/list', {type: GROUP_PROJECT, resourceId: getCurrentOrganizationId()}, response => {
+      this.result = this.$post('/user/group/list', {
+        type: GROUP_PROJECT,
+        resourceId: getCurrentWorkspaceId()
+      }, response => {
         this.$set(this.form, "allgroups", response.data);
       });
       // 编辑使填充角色信息
@@ -626,6 +533,14 @@ export default {
         return (user.email.indexOf(queryString.toLowerCase()) === 0 || user.id.indexOf(queryString.toLowerCase()) === 0);
       };
     },
+    chengeMockTcpSwitch(value) {
+      if (value && this.form.mockTcpPort === 0) {
+        this.result = this.$get('/project/genTcpMockPort/' + this.form.id, res => {
+          let port = res.data;
+          this.form.mockTcpPort = port;
+        });
+      }
+    },
   },
   created() {
     document.addEventListener('keydown', this.handleEvent);
@@ -661,7 +576,8 @@ pre {
   font-size: 13px;
 }
 
-.el-input,.el-textarea {
-  width: 95%;
+.el-input, .el-textarea {
+  width: 80%;
 }
+
 </style>

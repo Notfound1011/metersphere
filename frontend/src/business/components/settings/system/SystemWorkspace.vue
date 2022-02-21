@@ -12,10 +12,9 @@
       >
         <el-table-column prop="name" :label="$t('commons.name')"/>
         <el-table-column prop="description" :label="$t('commons.description')"/>
-        <el-table-column prop="organizationName" :label="$t('workspace.organization_name')"/>
         <el-table-column :label="$t('commons.member')">
           <template v-slot:default="scope">
-            <el-link type="primary" class="member-size" @click="cellClick(scope.row)">
+            <el-link type="primary" class="member-size" @click="cellClick(scope.row)" :disabled="disabledEditWorkspaceMember">
               {{ scope.row.memberSize }}
             </el-link>
           </template>
@@ -41,21 +40,10 @@
                width="30%" @close="close">
       <el-form :model="form" :rules="rules" ref="form" label-position="right" label-width="100px" size="small">
         <el-form-item :label="$t('commons.name')" prop="name">
-          <el-input v-model="form.name" autocomplete="off"/>
+          <el-input v-model="form.name" autocomplete="off" class="form-input"/>
         </el-form-item>
         <el-form-item :label="$t('commons.description')" prop="description">
-          <el-input type="textarea" v-model="form.description"></el-input>
-        </el-form-item>
-        <el-form-item :label="$t('workspace.organization_name')" prop="organizationId">
-          <el-select filterable v-model="form.organizationId" :placeholder="$t('organization.select_organization')"
-                     class="select-width">
-            <el-option
-              v-for="item in form.orgList"
-              :key="item.id"
-              :label="item.name"
-              :value="item.id">
-            </el-option>
-          </el-select>
+          <el-input type="textarea" v-model="form.description" class="form-input"></el-input>
         </el-form-item>
       </el-form>
       <template v-slot:footer>
@@ -70,21 +58,10 @@
                width="30%" @close="close">
       <el-form :model="form" :rules="rules" ref="updateForm" label-position="right" label-width="100px" size="small">
         <el-form-item :label="$t('commons.name')" prop="name">
-          <el-input v-model="form.name" autocomplete="off"/>
+          <el-input v-model="form.name" autocomplete="off" class="form-input"/>
         </el-form-item>
         <el-form-item :label="$t('commons.description')" prop="description">
-          <el-input type="textarea" v-model="form.description"></el-input>
-        </el-form-item>
-        <el-form-item :label="$t('workspace.organization_name')" prop="organizationId">
-          <el-select filterable v-model="form.organizationId" :placeholder="$t('organization.select_organization')"
-                     class="select-width">
-            <el-option
-              v-for="item in form.orgList1"
-              :key="item.id"
-              :label="item.name"
-              :value="item.id">
-            </el-option>
-          </el-select>
+          <el-input type="textarea" v-model="form.description" class="form-input"></el-input>
         </el-form-item>
       </el-form>
       <template v-slot:footer>
@@ -97,7 +74,7 @@
 
     <!-- dialog of workspace member -->
     <el-dialog :close-on-click-modal="false" :visible.sync="dialogWsMemberVisible" width="70%" :destroy-on-close="true"
-               @close="closeWsMemberDialog" class="dialog-css">
+               @close="closeWsMemberDialog" class="dialog-css" top="15vh">
       <template v-slot:title>
         <ms-table-header :condition.sync="dialogCondition" @create="addMember" @search="dialogSearch"
                          :create-tip="$t('member.create')" :title="$t('commons.member')"/>
@@ -137,16 +114,16 @@
                @close="handleClose">
       <el-form :model="memberForm" label-position="right" label-width="100px" size="small" ref="updateUserForm">
         <el-form-item label="ID" prop="id">
-          <el-input v-model="memberForm.id" autocomplete="off" :disabled="true"/>
+          <el-input v-model="memberForm.id" autocomplete="off" :disabled="true" class="form-input"/>
         </el-form-item>
         <el-form-item :label="$t('commons.username')" prop="name">
-          <el-input v-model="memberForm.name" autocomplete="off" :disabled="true"/>
+          <el-input v-model="memberForm.name" autocomplete="off" :disabled="true" class="form-input"/>
         </el-form-item>
         <el-form-item :label="$t('commons.email')" prop="email">
-          <el-input v-model="memberForm.email" autocomplete="off" :disabled="true"/>
+          <el-input v-model="memberForm.email" autocomplete="off" :disabled="true" class="form-input"/>
         </el-form-item>
         <el-form-item :label="$t('commons.phone')" prop="phone">
-          <el-input v-model="memberForm.phone" autocomplete="off" :disabled="true"/>
+          <el-input v-model="memberForm.phone" autocomplete="off" :disabled="true" class="form-input"/>
         </el-form-item>
         <el-form-item :label="$t('commons.group')" prop="groupIds"
                       :rules="{required: true, message: $t('group.please_select_group'), trigger: 'change'}">
@@ -175,7 +152,6 @@
 </template>
 
 <script>
-import MsCreateBox from "../CreateBox";
 import {Message} from "element-ui";
 import MsTablePagination from "../../common/pagination/TablePagination";
 import MsTableHeader from "../../common/components/MsTableHeader";
@@ -184,7 +160,7 @@ import MsTableOperator from "../../common/components/MsTableOperator";
 import MsTableOperatorButton from "../../common/components/MsTableOperatorButton";
 import MsDialogFooter from "../../common/components/MsDialogFooter";
 import {
-  getCurrentWorkspaceId,
+  getCurrentWorkspaceId, hasPermission,
   listenGoBack,
   removeGoBackListener
 } from "@/common/js/utils";
@@ -196,7 +172,6 @@ export default {
   name: "MsSystemWorkspace",
   components: {
     MsDeleteConfirm,
-    MsCreateBox,
     MsTablePagination,
     MsTableHeader,
     MsRolesTag,
@@ -215,9 +190,6 @@ export default {
     create() {
       this.dialogWsAddVisible = true;
       this.form = {};
-      this.$get("/organization/list", response => {
-        this.$set(this.form, "orgList", response.data);
-      });
       listenGoBack(this.close);
     },
     dataFilter(val) {
@@ -260,7 +232,6 @@ export default {
         name: '',
         workspaceId: row.id
       };
-      this.orgId = row.organizationId;
       let path = "/user/special/ws/member/list";
       this.result = this.$post(path + "/" + this.dialogCurrentPage + "/" + this.dialogPageSize, param, res => {
         let data = res.data;
@@ -286,7 +257,7 @@ export default {
       this.result = this.$post(path + "/" + this.dialogCurrentPage + "/" + this.dialogPageSize, param, res => {
         let data = res.data;
         this.memberLineData = data.listObject;
-        let url = "/userrole/list/ws/" + row.id;
+        let url = "/user/group/list/ws/" + row.id;
         // 填充角色信息
         for (let i = 0; i < this.memberLineData.length; i++) {
           this.$get(url + "/" + encodeURIComponent(this.memberLineData[i].id), response => {
@@ -301,9 +272,6 @@ export default {
       this.dialogWsUpdateVisible = true;
       // copy user
       this.form = Object.assign({}, row);
-      this.$get("/organization/list", response => {
-        this.$set(this.form, "orgList1", response.data);
-      });
       listenGoBack(this.close);
     },
     close() {
@@ -430,6 +398,9 @@ export default {
   computed: {
     workspaceId() {
       return getCurrentWorkspaceId();
+    },
+    disabledEditWorkspaceMember() {
+      return !hasPermission('SYSTEM_WORKSPACE:READ+EDIT');
     }
   },
   data() {
@@ -470,9 +441,6 @@ export default {
         description: [
           {max: 50, message: this.$t('commons.input_limit', [0, 50]), trigger: 'blur'}
         ],
-        organizationId: [
-          {required: true, message: this.$t('organization.select_organization'), trigger: ['blur']}
-        ]
       },
       wsMemberRule: {
         userIds: [
@@ -496,7 +464,6 @@ export default {
 }
 
 .member-size {
-  text-decoration: underline;
   cursor: pointer;
 }
 
@@ -513,10 +480,11 @@ export default {
 .select-width {
   width: 100%;
 }
-
-/*.dialog-css >>> .el-dialog__header {*/
-/*  padding: 0;*/
-/*}*/
-
+.form-input{
+  width: 80%;
+}
+.dialog-css >>> .el-dialog__body {
+  padding-top: 0;
+}
 </style>
 

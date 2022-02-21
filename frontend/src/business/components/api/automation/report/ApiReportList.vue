@@ -42,6 +42,11 @@
               <span>{{ scope.row.createTime | timestampFormatDate }}</span>
             </template>
           </el-table-column>
+          <el-table-column prop="endTime" width="250" :label="$t('report.test_end_time')" sortable>
+            <template v-slot:default="scope">
+              <span>{{ scope.row.endTime | timestampFormatDate }}</span>
+            </template>
+          </el-table-column>
           <el-table-column prop="triggerMode" width="150" :label="$t('commons.trigger_mode.name')"
                            column-key="triggerMode" :filters="triggerFilters">
             <template v-slot:default="scope">
@@ -75,23 +80,20 @@
 </template>
 
 <script>
-import MsTablePagination from "../../../common/pagination/TablePagination";
-import MsTableHeader from "../../../common/components/MsTableHeader";
-import MsContainer from "../../../common/components/MsContainer";
-import MsMainContainer from "../../../common/components/MsMainContainer";
-import MsApiReportStatus from "./ApiReportStatus";
 import {getCurrentProjectID} from "@/common/js/utils";
-import MsTableOperatorButton from "../../../common/components/MsTableOperatorButton";
-import ReportTriggerModeItem from "../../../common/tableItem/ReportTriggerModeItem";
 import {REPORT_CONFIGS} from "../../../common/components/search/search-components";
-import ShowMoreBtn from "../../../track/case/components/ShowMoreBtn";
 import {_filter, _sort} from "@/common/js/tableUtils";
 
 export default {
   components: {
-    ReportTriggerModeItem,
-    MsTableOperatorButton,
-    MsApiReportStatus, MsMainContainer, MsContainer, MsTableHeader, MsTablePagination, ShowMoreBtn
+    ReportTriggerModeItem: () => import("../../../common/tableItem/ReportTriggerModeItem"),
+    MsTableOperatorButton: () => import("../../../common/components/MsTableOperatorButton"),
+    MsApiReportStatus: () => import("./ApiReportStatus"),
+    MsMainContainer: () => import("../../../common/components/MsMainContainer"),
+    MsContainer: () => import("../../../common/components/MsContainer"),
+    MsTableHeader: () => import("../../../common/components/MsTableHeader"),
+    MsTablePagination: () => import("../../../common/pagination/TablePagination"),
+    ShowMoreBtn: () => import("../../../track/case/components/ShowMoreBtn")
   },
   data() {
     return {
@@ -121,11 +123,14 @@ export default {
         {text: this.$t('commons.trigger_mode.manual'), value: 'MANUAL'},
         {text: this.$t('commons.trigger_mode.schedule'), value: 'SCHEDULE'},
         {text: this.$t('commons.trigger_mode.api'), value: 'API'},
-        {text: this.$t('commons.trigger_mode.case'), value: 'CASE'},
+        {text: this.$t('api_test.automation.batch_execute'), value: 'BATCH'},
+
       ],
       buttons: [
         {
-          name: this.$t('api_report.batch_delete'), handleClick: this.handleBatchDelete
+          name: this.$t('api_report.batch_delete'),
+          handleClick: this.handleBatchDelete,
+          permissions: ['PROJECT_API_REPORT:READ+DELETE']
         }
       ],
       selectRows: new Set(),
@@ -135,7 +140,6 @@ export default {
       screenHeight: 'calc(100vh - 200px)',
     }
   },
-
   watch: {
     '$route': 'init',
   },
@@ -163,14 +167,14 @@ export default {
     },
     handleView(report) {
       this.reportId = report.id;
-      if(report.status ==='Running'){
-        this.$warning("正在运行中，请稍后查看")
+      if (report.status === 'Running') {
+        this.$warning(this.$t('commons.run_warning'))
         return;
       }
       this.currentProjectId = report.projectId;
-        this.$router.push({
-          path: 'report/view/' + report.id,
-        })
+      this.$router.push({
+        path: 'report/view/' + report.id,
+      })
 
     },
     handleDelete(report) {

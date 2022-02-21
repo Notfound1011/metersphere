@@ -29,7 +29,7 @@
                     <el-col class="head-right" :span="20">
                       <ms-previous-next-button :index="index" @pre="handlePre" @next="saveCase(true, true)" :list="testCases"/>
                       <el-button class="save-btn" type="primary" size="mini" :disabled="isReadOnly" @click="saveCase(true)">
-                        {{$t('test_track.save')}} & 下一条
+                        {{$t('test_track.save')}} & {{$t('test_track.next')}}
                       </el-button>
                     </el-col>
 
@@ -62,7 +62,7 @@
                       <el-col :span="10">
                         <test-plan-test-case-status-button class="status-button"
                                                            @statusChange="statusChange"
-                                                           :is-read-only="isReadOnly"
+                                                           :is-read-only="statusReadOnly"
                                                            :status="testCase.status"/>
                       </el-col>
                     </el-row>
@@ -72,21 +72,38 @@
                              class="case-form">
                       <el-row>
                         <el-col :span="7" v-for="(item, index) in testCaseTemplate.customFields" :key="index">
-                          <el-form-item :label-width="formLabelWidth" :label="item.system ? $t(systemNameMap[item.name]) : item.name" :prop="item.name">
+                          <el-form-item :label-width="formLabelWidth"
+                                        :label="item.system ? $t(systemNameMap[item.name]) : item.name"
+                                        :prop="item.name">
                             <custom-filed-component :disabled="true" :data="item" :form="{}" prop="defaultValue"/>
                           </el-form-item>
                         </el-col>
                       </el-row>
                     </el-form>
 
-                    <form-rich-text-item :label-width="formLabelWidth" :disabled="true" :title="$t('test_track.case.prerequisite')" :data="testCase" prop="prerequisite"/>
+                    <form-rich-text-item :label-width="formLabelWidth" :disabled="true"
+                                         :title="$t('test_track.case.prerequisite')" :data="testCase"
+                                         prop="prerequisite"/>
                     <step-change-item :disable="true" :label-width="formLabelWidth" :form="testCase"/>
-                    <test-plan-case-step-results-item :label-width="formLabelWidth" :is-read-only="isReadOnly" v-if="testCase.stepModel === 'STEP'" :test-case="testCase"/>
-                    <form-rich-text-item :label-width="formLabelWidth" v-if="testCase.stepModel === 'TEXT'" :disabled="true" :title="$t('test_track.case.step_desc')" :data="testCase" prop="stepDescription"/>
-                    <form-rich-text-item :label-width="formLabelWidth" v-if="testCase.stepModel === 'TEXT'" :disabled="true" :title="$t('test_track.case.expected_results')" :data="testCase" prop="expectedResult"/>
-                    <form-rich-text-item :label-width="formLabelWidth" v-if="testCase.stepModel === 'TEXT'" :title="$t('test_track.plan_view.actual_result')" :data="testCase" prop="actualResult"/>
+                    <test-plan-case-step-results-item :label-width="formLabelWidth" :is-read-only="isReadOnly"
+                                                      v-if="testCase.stepModel === 'STEP'" :test-case="testCase"/>
+                    <form-rich-text-item :label-width="formLabelWidth" v-if="testCase.stepModel === 'TEXT'"
+                                         :disabled="true" :title="$t('test_track.case.step_desc')" :data="testCase"
+                                         prop="stepDescription"/>
+                    <form-rich-text-item :label-width="formLabelWidth" v-if="testCase.stepModel === 'TEXT'"
+                                         :disabled="true" :title="$t('test_track.case.expected_results')"
+                                         :data="testCase" prop="expectedResult"/>
+                    <form-rich-text-item :label-width="formLabelWidth" v-if="testCase.stepModel === 'TEXT'"
+                                         :title="$t('test_track.plan_view.actual_result')"
+                                         :data="testCase" prop="actualResult"/>
 
-                    <test-case-edit-other-info :plan-id="testCase.planId" v-if="otherInfoActive" @openTest="openTest" :read-only="true" :is-test-plan="true" :project-id="testCase.projectId" :form="testCase" :case-id="testCase.caseId" ref="otherInfo"/>
+
+                    <el-form-item :label="$t('test_track.case.other_info')" :label-width="formLabelWidth">
+                      <test-case-edit-other-info :plan-id="testCase.planId" v-if="otherInfoActive" @openTest="openTest"
+                                                 :read-only="true" :is-test-plan="true" :project-id="testCase.projectId"
+                                                 :form="testCase" :case-id="testCase.caseId" ref="otherInfo"/>
+                    </el-form-item >
+
                   </el-form>
                 </div>
 
@@ -206,6 +223,9 @@ export default {
     },
     systemNameMap() {
       return SYSTEM_FIELD_NAME_MAP;
+    },
+    statusReadOnly() {
+      return !hasPermission('PROJECT_TRACK_PLAN:READ+RUN');
     }
   },
   methods: {
@@ -371,7 +391,7 @@ export default {
           }
         }
         this.testCase = item;
-        parseCustomField(this.testCase, this.testCaseTemplate, null, null, buildTestCaseOldFields(this.testCase));
+        parseCustomField(this.testCase, this.testCaseTemplate, null, buildTestCaseOldFields(this.testCase));
         this.isCustomFiledActive = true;
         if (!this.testCase.actualResult) {
           // 如果没值,使用模板的默认值
@@ -501,15 +521,11 @@ export default {
 }
 
 .container >>> .el-card__body {
-  height: calc(100vh - 50px);
+  height: calc(100vh - 60px);
 }
 
 .comment-card >>> .el-card__header {
   padding: 0 20px;
-}
-
-.comment-card >>> .el-card__body {
-  height: calc(100vh - 100px);
 }
 
 .case_container > .el-row {

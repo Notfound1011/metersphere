@@ -159,10 +159,17 @@ public class XmindCaseParser {
         data.setNodePath(nodePath);
 
 
-        if (data.getName().length() > 200) {
+        //用例名称判断
+        if (StringUtils.isEmpty(data.getName())) {
             validatePass = false;
-            process.add(Translator.get("test_case") + Translator.get("test_track.length_less_than") + "200", nodePath + data.getName());
+            process.add("name" + Translator.get("cannot_be_null"), nodePath + "");
+        } else {
+            if (data.getName().length() > 200) {
+                validatePass = false;
+                process.add(Translator.get("test_case") + Translator.get("test_track.length_less_than") + "200", nodePath + data.getName());
+            }
         }
+
 
         if (!StringUtils.isEmpty(nodePath)) {
             String[] nodes = nodePath.split("/");
@@ -356,7 +363,7 @@ public class XmindCaseParser {
         TestCaseWithBLOBs testCase = new TestCaseWithBLOBs();
         testCase.setProjectId(projectId);
         testCase.setMaintainer(maintainer);
-        testCase.setPriority(priorityList.get(0));
+        testCase.setPriority(priorityList.get(1));
         testCase.setMethod("manual");
         testCase.setType("functional");
 
@@ -397,7 +404,10 @@ public class XmindCaseParser {
                     rc.append(replace(item.getTitle(), RC_REGEX));
                     rc.append("\n");
                 } else if (isAvailable(item.getTitle(), TAG_REGEX)) {
-                    tags.add(replace(item.getTitle(), TAG_REGEX));
+                    String tag = replace(item.getTitle(), TAG_REGEX);
+                    if (StringUtils.isNotEmpty(tag)) {
+                        tags.add(tag);
+                    }
                 } else if (isAvailable(item.getTitle(), ID_REGEX)) {
                     customId.append(replace(item.getTitle(), ID_REGEX));
                 } else {
@@ -410,7 +420,13 @@ public class XmindCaseParser {
             testCase.setCustomNum(customId.toString());
         }
 
-        testCase.setTags(JSON.toJSONString(tags));
+        List<String> tagsNew = new ArrayList();
+        if (CollectionUtils.isNotEmpty(tags)) {
+            String tagsData = tags.get(0);
+            String[] array = tagsData.split("[, ，]");
+            Arrays.asList(array).stream().forEach(x -> tagsNew.add(x));
+        }
+        testCase.setTags(JSON.toJSONString(tagsNew));
         testCase.setSteps(this.getSteps(steps));
         // 校验合规性
         if (validate(testCase)) {

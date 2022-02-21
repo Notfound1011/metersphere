@@ -24,7 +24,7 @@ import MsRequestMetric from "../../../definition/components/response/RequestMetr
 export default {
   name: "ApiResponseComponent",
   components: {ElCollapseTransition, MsRequestResultTail, ApiBaseComponent, MsRequestMetric},
-  props: {apiItem: {}, result: {}, currentProtocol: String},
+  props: {apiItem: {}, result: {}, currentProtocol: String, apiActive:{type:Boolean,default:false}},
   data() {
     return {
       isActive: false,
@@ -34,22 +34,21 @@ export default {
   created() {
     if (!this.result || !this.result.responseResult) {
       this.getExecResult();
-      if (this.apiItem.isActive) {
-        // this.isActive = true;
-      }
     } else {
       this.response = this.result;
-      // this.isActive = true;
+    }
+    if(this.apiActive){
+      this.isActive = false
     }
   },
   watch: {
     result() {
-      if (this.result.responseResult) {
+      if (this.result && this.result.responseResult) {
         this.response = this.result;
       } else {
         this.getExecResult();
       }
-      this.isActive = true;
+      this.isActive = false;
     },
     apiItem() {
       this.getExecResult();
@@ -61,11 +60,15 @@ export default {
       if (this.apiItem && this.apiItem.id) {
         let url = "/api/definition/report/getReport/" + this.apiItem.id;
         this.$get(url, response => {
-          if (response.data) {
-            let data = JSON.parse(response.data.content);
-            this.response = data;
-            this.$set(this.apiItem, 'responseData', data);
-            this.isActive = true;
+          if (response.data && response.data.content) {
+            try {
+              let data = JSON.parse(response.data.content);
+              this.response = data;
+              this.$set(this.apiItem, 'responseData', data);
+              this.isActive = true;
+            }catch (error){
+              this.isActive = true;
+            }
           }
         });
       }

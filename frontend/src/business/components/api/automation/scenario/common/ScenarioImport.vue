@@ -61,6 +61,14 @@
       <div>
         <span>{{ $t('api_test.api_import.export_tip') }}：{{ selectedPlatform.exportTip }}</span>
       </div>
+      <div>
+        <span>
+          {{ $t('api_test.api_import.import_cover_tip') }}<br/>
+          {{ $t('api_test.api_import.cover_tip_1') }}<br/>
+          {{ $t('api_test.api_import.cover_tip_2') }}<br/>
+          {{ $t('api_test.api_import.cover_tip_3') }}
+        </span>
+      </div>
     </div>
   </el-dialog>
 </template>
@@ -185,7 +193,6 @@
         this.currentModule = module;
         this.visible = true;
         listenGoBack(this.close);
-
       },
       upload(file) {
         this.formData.file = file.file;
@@ -202,7 +209,7 @@
           this.$warning(this.$t('api_test.api_import.suffixFormatErr'));
           return false;
         }
-        if (file.size / 1024 / 1024 > 20) {
+        if (file.size / 1024 / 1024 > 100) {
           this.$warning(this.$t('test_track.case.import.upload_limit_size'));
           return false;
         }
@@ -255,7 +262,8 @@
       close() {
         this.formData = {
           file: undefined,
-          swaggerUrl: ''
+          swaggerUrl: '',
+          modeId: this.formData.modeId,
         };
         this.fileList = [];
         removeGoBackListener(this.close);

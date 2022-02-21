@@ -5,17 +5,22 @@ import com.github.pagehelper.PageHelper;
 import io.metersphere.base.domain.FileMetadata;
 import io.metersphere.base.domain.LoadTest;
 import io.metersphere.base.domain.Schedule;
+import io.metersphere.commons.constants.NoticeConstants;
 import io.metersphere.commons.constants.OperLogConstants;
 import io.metersphere.commons.constants.PermissionConstants;
 import io.metersphere.commons.utils.PageUtils;
 import io.metersphere.commons.utils.Pager;
 import io.metersphere.commons.utils.SessionUtils;
+import io.metersphere.consul.CacheNode;
 import io.metersphere.controller.request.QueryScheduleRequest;
+import io.metersphere.controller.request.ResetOrderRequest;
 import io.metersphere.controller.request.ScheduleRequest;
 import io.metersphere.dto.DashboardTestDTO;
 import io.metersphere.dto.LoadTestDTO;
 import io.metersphere.dto.ScheduleDao;
 import io.metersphere.log.annotation.MsAuditLog;
+import io.metersphere.notice.annotation.SendNotice;
+import io.metersphere.performance.dto.LoadModuleDTO;
 import io.metersphere.performance.dto.LoadTestExportJmx;
 import io.metersphere.performance.request.*;
 import io.metersphere.performance.service.PerformanceTestService;
@@ -74,7 +79,10 @@ public class PerformanceTestController {
     @PostMapping(value = "/save", consumes = {"multipart/form-data"})
     @MsAuditLog(module = "performance_test", type = OperLogConstants.CREATE, title = "#request.name", content = "#msClass.getLogDetails(#request.id)", msClass = PerformanceTestService.class)
     @RequiresPermissions(PermissionConstants.PROJECT_PERFORMANCE_TEST_READ_CREATE)
-    public String save(
+    @CacheNode // 把监控节点缓存起来
+    @SendNotice(taskType = NoticeConstants.TaskType.PERFORMANCE_TEST_TASK, event = NoticeConstants.Event.CREATE,
+            mailTemplate = "performance/TestCreate", subject = "性能测试通知")
+    public LoadTest save(
             @RequestPart("request") SaveTestPlanRequest request,
             @RequestPart(value = "file", required = false) List<MultipartFile> files
     ) {
@@ -86,18 +94,26 @@ public class PerformanceTestController {
     @PostMapping(value = "/sync/scenario")
     @RequiresPermissions(PermissionConstants.PROJECT_PERFORMANCE_TEST_READ_CREATE)
     public void syncScenario(@RequestBody EditTestPlanRequest request) {
-        performanceTestService.syncScenario(request);
+        performanceTestService.syncApi(request);
     }
 
     @PostMapping(value = "/edit", consumes = {"multipart/form-data"})
     @MsAuditLog(module = "performance_test", type = OperLogConstants.UPDATE, beforeEvent = "#msClass.getLogDetails(#request.id)", title = "#request.name", content = "#msClass.getLogDetails(#request.id)", msClass = PerformanceTestService.class)
     @RequiresPermissions(PermissionConstants.PROJECT_PERFORMANCE_TEST_READ_EDIT)
-    public String edit(
+    @CacheNode // 把监控节点缓存起来
+    @SendNotice(taskType = NoticeConstants.TaskType.PERFORMANCE_TEST_TASK, event = NoticeConstants.Event.UPDATE, mailTemplate = "performance/TestUpdate", subject = "性能测试通知")
+    public LoadTest edit(
             @RequestPart("request") EditTestPlanRequest request,
             @RequestPart(value = "file", required = false) List<MultipartFile> files
     ) {
         checkPermissionService.checkPerformanceTestOwner(request.getId());
         return performanceTestService.edit(request, files);
+    }
+
+
+    @PostMapping("/edit/order")
+    public void orderCase(@RequestBody ResetOrderRequest request) {
+        performanceTestService.updateOrder(request);
     }
 
     @GetMapping("/get/{testId}")
@@ -141,6 +157,9 @@ public class PerformanceTestController {
     @PostMapping("/delete")
     @MsAuditLog(module = "performance_test", type = OperLogConstants.DELETE, beforeEvent = "#msClass.getLogDetails(#request.id)", msClass = PerformanceTestService.class)
     @RequiresPermissions(PermissionConstants.PROJECT_PERFORMANCE_TEST_READ_DELETE)
+    @CacheNode // 把监控节点缓存起来
+    @SendNotice(taskType = NoticeConstants.TaskType.PERFORMANCE_TEST_TASK, event = NoticeConstants.Event.DELETE,
+            target = "#targetClass.get(#request.id)", targetClass = PerformanceTestService.class, mailTemplate = "performance/TestDelete", subject = "性能测试通知")
     public void delete(@RequestBody DeleteTestPlanRequest request) {
         checkPermissionService.checkPerformanceTestOwner(request.getId());
         performanceTestService.delete(request);
@@ -179,7 +198,7 @@ public class PerformanceTestController {
         byte[] bytes = fileService.loadFileAsBytes(fileOperationRequest.getId());
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("application/octet-stream"))
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileOperationRequest.getName() + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileOperationRequest.getId()+".jmx" + "\"")
                 .body(bytes);
     }
 
@@ -191,6 +210,7 @@ public class PerformanceTestController {
     @PostMapping(value = "/copy")
     @MsAuditLog(module = "performance_test", type = OperLogConstants.COPY, content = "#msClass.getLogDetails(#request.id)", msClass = PerformanceTestService.class)
     @RequiresPermissions(PermissionConstants.PROJECT_PERFORMANCE_TEST_READ_COPY)
+    @CacheNode // 把监控节点缓存起来
     public void copy(@RequestBody SaveTestPlanRequest request) {
         performanceTestService.copy(request);
     }
@@ -222,5 +242,20 @@ public class PerformanceTestController {
     @GetMapping("test/report-count/{testId}")
     public Long getReportCount(@PathVariable String testId) {
         return performanceTestService.getReportCountByTestId(testId);
+    }
+
+    @GetMapping("test/follow/{testId}")
+    public List<String> getFollows(@PathVariable String testId) {
+        return performanceTestService.getFollows(testId);
+    }
+
+    @PostMapping("test/update/follows/{testId}")
+    public void saveFollows(@PathVariable String testId, @RequestBody List<String> follows) {
+        performanceTestService.saveFollows(testId, follows);
+    }
+
+    @GetMapping("module/list/plan/{planId}")
+    public List<LoadModuleDTO> getNodeByPlanId(@PathVariable String planId) {
+        return performanceTestService.getNodeByPlanId(planId);
     }
 }

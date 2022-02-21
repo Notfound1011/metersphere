@@ -19,6 +19,10 @@
         @handlePageChange="search"
         :fields.sync="fields"
         :field-key="tableHeaderKey"
+        :enable-order-drag="enableOrderDrag"
+        row-key="id"
+        :row-order-func="editTestPlanScenarioCaseOrder"
+        :row-order-group-id="planId"
         @refresh="search"
         ref="table">
         <span v-for="(item) in fields" :key="item.key">
@@ -41,9 +45,41 @@
                            prop="level" :label="$t('api_test.automation.case_level')" min-width="120px"
                            column-key="level"
                            sortable
-                           :filters="LEVEL_FILTERS">
+                           :filters="apiscenariofilters.LEVEL_FILTERS">
             <template v-slot:default="scope">
               <priority-table-item :value="scope.row.level" ref="level"/>
+            </template>
+          </ms-table-column>
+
+          <ms-table-column
+            :field="item"
+            :fields-width="fieldsWidth"
+            prop="envs"
+            :label="$t('commons.environment')"
+            min-width="150">
+            <template v-slot:default="{row}">
+              <div v-if="row.envs">
+                <span v-for="(k, v, index) in row.envs" :key="index">
+                  <span v-if="index===0 || index===1">
+                    <span class="project-name" :title="v">{{v}}</span>:
+                    <el-tag type="success" size="mini" effect="plain">
+                      {{k}}
+                    </el-tag>
+                    <br/>
+                  </span>
+                  <el-popover
+                    placement="top"
+                    width="350"
+                    trigger="click">
+                    <div v-for="(k, v, index) in row.envs" :key="index">
+                      <span class="plan-case-env">{{v}}:
+                        <el-tag type="success" size="mini" effect="plain">{{k}}</el-tag><br/>
+                      </span>
+                    </div>
+                    <el-link v-if="index === 2" slot="reference" type="info" :underline="false" icon="el-icon-more"/>
+                  </el-popover>
+                </span>
+              </div>
             </template>
           </ms-table-column>
 
@@ -97,7 +133,7 @@
           <ms-table-column :field="item"
                            :fields-width="fieldsWidth"
                            prop="lastResult" min-width="100px"
-                           :filters="RESULT_FILTERS"
+                           :filters="apiscenariofilters.RESULT_FILTERS"
                            :label="$t('api_test.automation.last_result')">
             <template v-slot:default="{row}">
               <el-link type="success" @click="showReport(row)" v-if="row.lastResult === 'Success'">
@@ -121,7 +157,7 @@
         <!-- 执行结果 -->
         <el-drawer :visible.sync="runVisible" :destroy-on-close="true" direction="ltr" :withHeader="true" :modal="false"
                    size="90%">
-          <ms-api-report-detail @refresh="search" :infoDb="infoDb" :report-id="reportId" :currentProjectId="projectId"/>
+          <ms-api-report-detail @invisible="runVisible = false" @refresh="search" :infoDb="infoDb" :report-id="reportId" :currentProjectId="projectId"/>
         </el-drawer>
       </div>
     </el-card>
@@ -129,7 +165,8 @@
     <!-- 批量编辑 -->
     <batch-edit :dialog-title="$t('test_track.case.batch_edit_case')" :type-arr="typeArr" :value-arr="valueArr"
                 :select-row="this.$refs.table ? this.$refs.table.selectRows : new Set()" ref="batchEdit" @batchEdit="batchEdit"/>
-    <ms-plan-run-mode @handleRunBatch="handleRunBatch" ref="runMode"/>
+    <ms-plan-run-mode @handleRunBatch="handleRunBatch" ref="runMode" :plan-case-ids="planCaseIds" :type="'apiScenario'"/>
+    <ms-task-center ref="taskCenter" :show-menu="false"/>
   </div>
 </template>
 
@@ -145,19 +182,20 @@ import MsTestPlanList from "../../../../../api/automation/scenario/testplan/Test
 import TestPlanScenarioListHeader from "./TestPlanScenarioListHeader";
 import {
   initCondition,
-  buildBatchParam,
-  checkTableRowIsSelect, getCustomTableHeader, getCustomTableWidth
+  buildBatchParam, getCustomTableHeader, getCustomTableWidth
 } from "../../../../../../../common/js/tableUtils";
-import {TEST_PLAN_SCENARIO_CASE} from "@/common/js/constants";
+import {ENV_TYPE, TEST_PLAN_SCENARIO_CASE} from "@/common/js/constants";
 import HeaderLabelOperate from "@/business/components/common/head/HeaderLabelOperate";
 import BatchEdit from "@/business/components/track/case/components/BatchEdit";
-import MsPlanRunMode from "../../../common/PlanRunMode";
+import MsPlanRunMode from "@/business/components/track/plan/common/PlanRunModeWithEnv";
 import PriorityTableItem from "@/business/components/track/common/tableItems/planview/PriorityTableItem";
 import {API_SCENARIO_FILTERS} from "@/common/js/table-constants";
+import MsTaskCenter from "../../../../../task/TaskCenter";
 import MsTable from "@/business/components/common/components/table/MsTable";
 import MsTableColumn from "@/business/components/common/components/table/MsTableColumn";
 import MsUpdateTimeColumn from "@/business/components/common/components/table/MsUpdateTimeColumn";
 import MsCreateTimeColumn from "@/business/components/common/components/table/MsCreateTimeColumn";
+import {editTestPlanScenarioCaseOrder} from "@/network/test-plan";
 
 export default {
   name: "MsTestPlanApiScenarioList",
@@ -178,6 +216,7 @@ export default {
     MsTestPlanList,
     BatchEdit,
     MsPlanRunMode,
+    MsTaskCenter
   },
   props: {
     referenced: {
@@ -212,7 +251,7 @@ export default {
       infoDb: false,
       runVisible: false,
       runData: [],
-      ...API_SCENARIO_FILTERS,
+      enableOrderDrag: true,
       operators: [
         {
           tip: this.$t('api_test.run'), icon: "el-icon-video-play",
@@ -244,14 +283,20 @@ export default {
       valueArr: {
         projectEnv: []
       },
+      planCaseIds: [],
+      apiscenariofilters:{},
     }
   },
   computed: {
     projectId() {
       return getCurrentProjectID();
     },
+    editTestPlanScenarioCaseOrder() {
+      return editTestPlanScenarioCaseOrder;
+    }
   },
   created() {
+    this.apiscenariofilters = API_SCENARIO_FILTERS();
     this.search();
 
   },
@@ -277,6 +322,8 @@ export default {
         }
         this.status = 'all';
       }
+      this.enableOrderDrag = (this.condition.orders && this.condition.orders.length) > 0 ? false : true;
+
       if (this.planId) {
         this.condition.planId = this.planId;
         let url = "/test/plan/scenario/case/list/" + this.currentPage + "/" + this.pageSize;
@@ -289,14 +336,31 @@ export default {
               item.tags = JSON.parse(item.tags);
             }
           });
+          this.tableData.forEach(item => {
+            try {
+              let envs;
+              const type = item.environmentType;
+              if (type === ENV_TYPE.GROUP && item.environmentGroupId) {
+                this.$get("/environment/group/project/map/name/" + item.environmentGroupId, res => {
+                  let data = res.data;
+                  if (data) {
+                    envs = new Map(Object.entries(data));
+                    this.$set(item, 'envs', res.data);
+                  }
+                })
+              } else if (type === ENV_TYPE.JSON) {
+                envs = JSON.parse(item.environment);
+                if (envs) {
+                  this.$post("/test/plan/scenario/case/env", envs, res => {
+                    this.$set(item, 'envs', res.data);
+                  });
+                }
+              }
+            } catch (error) {
+              this.$set(item, 'envs', {});
+            }
+          })
           this.loading = false;
-          if (this.$refs.table) {
-            this.$refs.table.selectRows.clear();
-            setTimeout(this.$refs.table.doLayout, 200);
-            this.$nextTick(() => {
-              checkTableRowIsSelect(this, this.condition, this.tableData, this.$refs.table, this.$refs.table.selectRows);
-            });
-          }
         });
       }
       if (this.reviewId) {
@@ -312,12 +376,6 @@ export default {
             }
           });
           this.loading = false;
-          if (this.$refs.table) {
-            setTimeout(this.$refs.table.doLayout, 200);
-            this.$nextTick(() => {
-              checkTableRowIsSelect(this, this.condition, this.tableData, this.$refs.table, this.$refs.table.selectRows);
-            });
-          }
         });
       }
     },
@@ -330,6 +388,11 @@ export default {
       })
     },
     handleBatchExecute() {
+      let rows = this.orderBySelectRows(this.$refs.table.selectRows);
+      this.planCaseIds = [];
+      rows.forEach(row => {
+        this.planCaseIds.push(row.id);
+      })
       this.$refs.runMode.open('API');
     },
     orderBySelectRows(rows){
@@ -350,7 +413,8 @@ export default {
           this.buildExecuteParam(param,row);
         });
         this.$post("/test/case/review/scenario/case/run", param, response => {
-          this.$message('任务执行中，请稍后刷新查看结果');
+          this.$message(this.$t('commons.run_message'));
+          this.$refs.taskCenter.open();
         });
       }
       if (this.planId) {
@@ -361,21 +425,34 @@ export default {
           this.buildExecuteParam(param, row);
         });
         param.condition = selectParam.condition;
+        param.triggerMode = "BATCH";
+        param.requestOriginator = "TEST_PLAN";
         this.$post("/test/plan/scenario/case/run", param, response => {
-          this.$message('任务执行中，请稍后刷新查看结果');
+          this.$message(this.$t('commons.run_message'));
+          this.$refs.taskCenter.open();
+          this.search();
+        }, () => {
+          this.search();
         });
       }
-      this.search();
+
     },
     execute(row) {
       this.infoDb = false;
       let param ={planCaseIds: []};
       this.reportId = "";
       this.buildExecuteParam(param,row);
+      param.triggerMode = "MANUAL";
+      param.requestOriginator = "TEST_PLAN";
+      param.config = {
+        mode: "serial"
+      };
       if (this.planId) {
         this.$post("/test/plan/scenario/case/run", param, response => {
           this.runVisible = true;
-          this.reportId = response.data;
+          if (response.data && response.data.length > 0) {
+            this.reportId = response.data[0].reportId;
+          }
         });
       }
       if (this.reviewId) {
@@ -462,7 +539,8 @@ export default {
       let param = {};
       param.mapping = strMapToObj(form.map);
       param.envMap = strMapToObj(form.projectEnvMap);
-
+      param.environmentType = form.environmentType;
+      param.envGroupId = form.envGroupId;
       if (this.planId) {
         this.$post('/test/plan/scenario/case/batch/update/env', param, () => {
           this.$success(this.$t('commons.save_success'));
@@ -478,5 +556,25 @@ export default {
 /*/deep/ .el-drawer__header {*/
 /*  margin-bottom: 0px;*/
 /*}*/
+
+.plan-case-env {
+  display: inline-block;
+  padding: 0 0;
+  max-width: 350px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+  margin-left: 5px;
+}
+
+.project-name {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 80px;
+  vertical-align: middle;
+}
 
 </style>

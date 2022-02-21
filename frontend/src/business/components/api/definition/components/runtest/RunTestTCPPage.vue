@@ -1,13 +1,13 @@
 <template>
 
   <div class="card-container">
-    <el-card class="card-content" v-loading="loading">
+    <el-card class="card-content">
 
       <el-form :model="api" :rules="rules" ref="apiData" :inline="true" label-position="right">
 
         <!-- 操作按钮 -->
         <el-dropdown split-button type="primary" class="ms-api-buttion" @click="handleCommand('add')"
-                     @command="handleCommand" size="small" style="float: right;margin-right: 20px">
+                     @command="handleCommand" size="small" style="float: right;margin-right: 20px" v-if="!runLoading">
           {{$t('commons.test')}}
           <el-dropdown-menu slot="dropdown">
             <el-dropdown-item command="load_case">{{$t('api_test.definition.request.load_case')}}
@@ -18,6 +18,7 @@
             <el-dropdown-item command="save_as_api">{{$t('api_test.definition.request.save_as')}}</el-dropdown-item>
           </el-dropdown-menu>
         </el-dropdown>
+        <el-button size="small" type="primary" v-else @click.once="stop" style="float: right;margin-right: 20px">{{ $t('report.stop_btn') }}</el-button>
 
         <p class="tip">{{$t('test_track.plan_view.base_info')}} </p>
         <!-- 执行环境 -->
@@ -31,7 +32,7 @@
         <!--        <p class="tip">{{$t('api_test.definition.request.req_param')}} </p>-->
         <!--        <ms-basis-parameters :request="api.request" @callback="runTest" ref="requestForm"/>-->
 
-        <div v-if="api.method=='TCP'">
+        <div v-if="api.method=='TCP'" v-loading="loading">
           <p class="tip">{{ $t('api_test.definition.request.req_param') }} </p>
 <!--          <ms-basis-parameters :request="api.request" @callback="runTest" ref="requestForm"/>-->
           <ms-tcp-format-parameters :request="api.request" @callback="runTest" ref="requestForm"/>
@@ -40,13 +41,13 @@
           <p class="tip">{{$t('api_test.definition.request.res_param')}} </p>
           <ms-request-result-tail :response="responseData" ref="runResult"/>
         </div>
-        <div v-else-if="api.method=='ESB'">
+        <div v-else-if="api.method=='ESB'" v-loading="loading">
           <p class="tip">{{ $t('api_test.definition.request.req_param') }} </p>
           <esb-definition v-xpack v-if="showXpackCompnent" :show-script="true" :request="api.request"  @callback="runTest" ref="requestForm"/>
         </div>
       </el-form>
 
-      <ms-jmx-step :request="api.request" :response="responseData"/>
+      <ms-jmx-step :request="api.request" :apiId="api.id" :response="responseData"/>
 
       <div v-if="api.method=='ESB'">
         <p class="tip">{{$t('api_test.definition.request.res_param')}}</p>
@@ -62,7 +63,7 @@
 
     <!-- 执行组件 -->
     <ms-run :debug="false" :environment="api.environment" :reportId="reportId" :run-data="runData"
-            @runRefresh="runRefresh" ref="runTest"/>
+            @runRefresh="runRefresh" @errorRefresh="errorRefresh" ref="runTest"/>
 
   </div>
 </template>
@@ -79,6 +80,7 @@ import MsTcpFormatParameters from "@/business/components/api/definition/componen
 import {REQ_METHOD} from "../../model/JsonData";
 import EnvironmentSelect from "../environment/EnvironmentSelect";
 import MsJmxStep from "../step/JmxStep";
+import {TYPE_TO_C} from "@/business/components/api/automation/scenario/Setting";
 const requireComponent = require.context('@/business/components/xpack/', true, /\.vue$/);
 const esbDefinition = (requireComponent!=null&&requireComponent.keys().length) > 0 ? requireComponent("./apidefinition/EsbDefinition.vue") : {};
 const esbDefinitionResponse = (requireComponent!=null&&requireComponent.keys().length) > 0 ? requireComponent("./apidefinition/EsbDefinitionResponse.vue") : {};
@@ -115,6 +117,7 @@ export default {
       runData: [],
       reportId: "",
       showXpackCompnent:false,
+      runLoading: false
     }
   },
   props: {apiData: {}, currentProtocol: String,syncTabs: Array, projectId: String},
@@ -139,6 +142,7 @@ export default {
     runTest() {
       this.$refs['apiData'].validate((valid) => {
         if (valid) {
+          this.runLoading = true;
           this.loading = true;
           this.api.request.name = this.api.id;
           this.api.protocol = this.currentProtocol;
@@ -152,6 +156,11 @@ export default {
     runRefresh(data) {
       this.responseData = data;
       this.loading = false;
+      this.runLoading = false;
+    },
+    errorRefresh() {
+      this.loading = false;
+      this.runLoading = false;
     },
     saveAs() {
       this.$emit('saveAs', this.api);
@@ -186,9 +195,7 @@ export default {
       return bodyUploadFiles;
     },
     saveAsCase() {
-      this.createCase = getUUID();
-      this.$refs.caseList.open();
-      this.loaded = false;
+      this.$emit('saveAsCase', this.api);
     },
     saveAsApi() {
       let data = {};
@@ -202,12 +209,35 @@ export default {
       this.$emit('saveAsApi', data);
       this.$emit('refresh');
     },
+    compatibleHistory(stepArray) {
+      if (stepArray) {
+        for (let i in stepArray) {
+          if (!stepArray[i].clazzName) {
+            stepArray[i].clazzName = TYPE_TO_C.get(stepArray[i].type);
+          }
+          if (stepArray[i].hashTree && stepArray[i].hashTree.length > 0) {
+            this.compatibleHistory(stepArray[i].hashTree);
+          }
+        }
+      }
+    },
     updateApi() {
       let url = "/api/definition/update";
       let bodyFiles = this.getBodyUploadFiles();
+      if (Object.prototype.toString.call(this.api.response).match(/\[object (\w+)\]/)[1].toLowerCase() !== 'object') {
+        this.api.response = JSON.parse(this.api.response);
+      }
+      if (this.api.tags instanceof  Array) {
+        this.api.tags = JSON.stringify(this.api.tags);
+      }
       if(this.api.method==='ESB'){
         this.api.esbDataStruct = JSON.stringify(this.api.request.esbDataStruct);
         this.api.backEsbDataStruct = JSON.stringify(this.api.request.backEsbDataStruct);
+      }
+      // 历史数据兼容处理
+      if (this.api.request) {
+        this.api.request.clazzName = TYPE_TO_C.get(this.api.request.type);
+        this.compatibleHistory(this.api.request.hashTree);
       }
       this.$fileUpload(url, null, bodyFiles, this.api, () => {
         this.$success(this.$t('commons.save_success'));
@@ -232,13 +262,22 @@ export default {
           this.responseData = data;
         }
       });
-    }
+    },
+    stop() {
+      let url = "/api/automation/stop/" + this.reportId;
+      this.$get(url, () => {
+        this.runLoading = false;
+        this.loading = false;
+        this.$success(this.$t('report.test_stop_success'));
+      });
+    },
   },
   created() {
     // 深度复制
     this.api = JSON.parse(JSON.stringify(this.apiData));
     this.api.protocol = this.currentProtocol;
     this.currentRequest = this.api.request;
+    this.runLoading = false;
     this.getResult();
     if (requireComponent != null && JSON.stringify(esbDefinition) !== '{}') {
       this.showXpackCompnent = true;

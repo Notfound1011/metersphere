@@ -98,8 +98,10 @@
 
                     <test-case-step-item :label-width="formLabelWidth" :read-only="true" v-if="testCase.stepModel === 'STEP'" :form="testCase"/>
 
-                    <test-case-edit-other-info @openTest="openTest" :read-only="true" :is-test-plan="true"
-                                               :project-id="projectId" :form="testCase" :case-id="testCase.caseId" ref="otherInfo"/>
+                    <el-form-item :label="$t('test_track.case.other_info')" :label-width="formLabelWidth">
+                      <test-case-edit-other-info @openTest="openTest" :read-only="true" :is-test-plan="true"
+                                                 :project-id="projectId" :form="testCase" :case-id="testCase.caseId" ref="otherInfo"/>
+                    </el-form-item >
 
                   </el-form>
                 </div>
@@ -272,7 +274,7 @@ export default {
             }
           });
         } else {
-         /* this.$refs.reviewComment.inputLight();*/
+          this.$refs.reviewComment.inputLight();
           this.$warning(this.$t('test_track.comment.description_is_null'));
         }
       } else {
@@ -325,7 +327,7 @@ export default {
         if (!item.stepModel) {
           item.stepModel = 'STEP';
         }
-        parseCustomField(item, this.testCaseTemplate, null, null, buildTestCaseOldFields(item));
+        parseCustomField(item, this.testCaseTemplate, null, buildTestCaseOldFields(item));
         this.isCustomFiledActive = true;
         this.testCase = item;
         if (!this.testCase.actualResult) {
@@ -334,6 +336,7 @@ export default {
         }
         // this.getRelatedTest();
         this.getComments(item);
+        this.$refs.reviewComment.resetInputLight();
         /*  this.initTest();*/
         //this.getFileMetaData(data);
       })

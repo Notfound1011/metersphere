@@ -73,6 +73,13 @@
           <el-form-item :label="$t('commons.image')" prop="image">
             <el-input v-model="form.image"/>
           </el-form-item>
+          <el-form-item :label="$t('test_resource_pool.backend_listener')" prop="backendListener" v-xpack>
+            <el-switch v-model="form.backendListener"/>
+          </el-form-item>
+          <el-form-item :label="$t('test_resource_pool.usage')" prop="usage">
+            <el-checkbox :label="$t('commons.api')" v-model="form.api"></el-checkbox>
+            <el-checkbox :label="$t('commons.performance')" v-model="form.performance"></el-checkbox>
+          </el-form-item>
           <el-form-item label="JMeter HEAP" prop="HEAP">
             <el-input v-model="form.heap" placeholder="-Xms1g -Xmx1g -XX:MaxMetaspaceSize=256m"/>
           </el-form-item>
@@ -114,16 +121,28 @@
                 </el-col>
               </el-row>
               <el-row>
-                <el-col :span="12">
+                <el-col>
+                  <el-form-item label="API Image">
+                    <el-input v-model="item.apiImage" type="text"/>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              <el-row>
+                <el-col :span="8">
                   <el-form-item :label="$t('test_resource_pool.max_threads')"
                                 :rules="requiredRules">
                     <el-input-number v-model="item.maxConcurrency" :min="1" :max="1000000000"/>
                   </el-form-item>
                 </el-col>
-                <el-col :span="12">
+                <el-col :span="8">
                   <el-form-item :label="$t('test_resource_pool.pod_thread_limit')"
                                 :rules="requiredRules">
                     <el-input-number v-model="item.podThreadLimit" :min="1" :max="1000000"/>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item :label="$t('test_resource_pool.sync_jar')">
+                    <el-checkbox v-model="item.enable"/>
                   </el-form-item>
                 </el-col>
               </el-row>
@@ -134,10 +153,9 @@
                   </el-form-item>
                 </el-col>
               </el-row>
-
-
             </div>
           </div>
+
           <div class="node-line" v-if="form.type === 'NODE'">
             <el-row>
               <el-col :span="22" :offset="2">
@@ -147,9 +165,14 @@
                                @click="addResourceInfo()">
                       {{ $t('commons.add') }}
                     </el-button>
+                    <el-button icon="el-icon-circle-plus-outline" plain size="mini"
+                               @click="batchAddResource">
+                      {{ $t('commons.batch_add') }}
+                    </el-button>
                   </el-col>
                 </el-row>
                 <el-table :data="infoList" class="tb-edit" align="center" border highlight-current-row>
+                  <el-table-column type="index" width="50"/>
                   <el-table-column
                     align="center"
                     prop="ip"
@@ -183,6 +206,14 @@
                                        :max="1000000000"></el-input-number>
                     </template>
                   </el-table-column>
+                  <el-table-column
+                    align="center"
+                    prop="enable"
+                    :label="$t('test_resource_pool.sync_jar')">
+                    <template v-slot:default="{row}">
+                      <el-checkbox size="small" v-model="row.enable"/>
+                    </template>
+                  </el-table-column>
                   <el-table-column align="center" :label="$t('commons.operating')">
                     <template v-slot:default="{row, $index}">
                       <el-button @click="removeResourceInfo($index)" type="danger" icon="el-icon-delete" size="mini"
@@ -194,6 +225,7 @@
               </el-col>
             </el-row>
           </div>
+          <batch-add-resource ref="batchAddResource" @batchSave="batchSave"/>
         </el-form>
       </div>
       <template v-slot:footer>
@@ -211,16 +243,16 @@
 </template>
 
 <script>
-import MsCreateBox from "../CreateBox";
 import MsTablePagination from "../../common/pagination/TablePagination";
 import MsTableHeader from "../../common/components/MsTableHeader";
 import MsTableOperator from "../../common/components/MsTableOperator";
 import MsDialogFooter from "../../common/components/MsDialogFooter";
 import {listenGoBack, removeGoBackListener} from "@/common/js/utils";
+import BatchAddResource from "@/business/components/settings/system/components/BatchAddResource";
 
 export default {
   name: "MsTestResourcePool",
-  components: {MsCreateBox, MsTablePagination, MsTableHeader, MsTableOperator, MsDialogFooter},
+  components: {BatchAddResource, MsTablePagination, MsTableHeader, MsTableOperator, MsDialogFooter},
   data() {
     return {
       result: {},
@@ -232,7 +264,7 @@ export default {
       currentPage: 1,
       pageSize: 10,
       total: 0,
-      form: {},
+      form: {performance: true, api: true, backendListener: true},
       screenHeight: 'calc(100vh - 195px)',
       requiredRules: [{required: true, message: this.$t('test_resource_pool.fill_the_data'), trigger: 'blur'}],
       rule: {
@@ -290,7 +322,11 @@ export default {
     },
 
     addResourceInfo() {
-      this.infoList.push({});
+      this.infoList.push({
+        port: '8082',
+        monitorPort: '9100',
+        maxConcurrency: 100
+      });
     },
     removeResourceInfo(index) {
       if (this.infoList.length > 1) {
@@ -298,6 +334,32 @@ export default {
       } else {
         this.$warning(this.$t('test_resource_pool.cannot_remove_all_node'));
       }
+    },
+    batchAddResource() {
+      this.$refs.batchAddResource.open();
+    },
+    batchSave(resources) {
+      let targets = this._handleBatchVars(resources);
+      targets.forEach(row => {
+        this.infoList.push(row);
+      });
+    },
+    _handleBatchVars(data) {
+      let params = data.split("\n");
+      let keyValues = [];
+      params.forEach(item => {
+        let line = item.split(/，|,/);
+        if (line.length < 3) {
+          return;
+        }
+        keyValues.push({
+          ip: line[0],
+          port: line[1],
+          monitorPort: line[2],
+          maxConcurrency: line[3],
+        });
+      });
+      return keyValues;
     },
     validateResourceInfo() {
       if (this.infoList.length <= 0) {
@@ -308,7 +370,7 @@ export default {
       this.infoList.forEach(info => {
         for (let key in info) {
           // 排除非必填项
-          if (key === 'nodeSelector') {
+          if (key === 'nodeSelector' || key === 'apiImage') {
             continue;
           }
           if (info[key] != '0' && !info[key]) {
@@ -436,7 +498,7 @@ export default {
       });
     },
     closeFunc() {
-      this.form = {};
+      this.form = {performance: true, api: true, backendListener: true};
       this.dialogVisible = false;
       removeGoBackListener(this.closeFunc);
     },

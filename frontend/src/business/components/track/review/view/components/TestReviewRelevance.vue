@@ -6,10 +6,10 @@
                top="50px">
 
       <el-container class="main-content">
-        <el-aside class="tree-aside" width="250px">
+        <el-aside class="tree-aside" width="270px">
           <select-menu
             :data="projects"
-            width="160px"
+            width="173px"
             :current-data="currentProject"
             :title="$t('test_track.switch_project')"
             @dataChange="changeProject"/>
@@ -77,7 +77,7 @@
 
             </el-table>
             <div v-if="!lineStatus" style="text-align: center">{{$t('test_track.review_view.last_page')}}</div>
-            <div style="text-align: center">共 {{total}} 条</div>
+            <div style="text-align: center">{{$t('test_track.total_size', [total])}}</div>
           </el-main>
         </el-container>
       </el-container>
@@ -108,7 +108,7 @@ import ReviewStatus from "@/business/components/track/case/components/ReviewStat
 import elTableInfiniteScroll from 'el-table-infinite-scroll';
 import SelectMenu from "../../../common/SelectMenu";
 import {_filter} from "@/common/js/tableUtils";
-import {getCurrentProjectID, getCurrentUserId} from "@/common/js/utils";
+import {getCurrentProjectID, getCurrentUserId, getCurrentWorkspaceId} from "@/common/js/utils";
 
 
 export default {
@@ -313,7 +313,7 @@ export default {
       },
       getProject() {
         if (this.reviewId) {
-          this.$post("/project/list/related", {userId: getCurrentUserId()}, res => {
+          this.$post("/project/list/related", {userId: getCurrentUserId(), workspaceId: getCurrentWorkspaceId()}, res => {
             let data = res.data;
             if (data) {
               this.projects = data;
@@ -388,6 +388,9 @@ export default {
 
   .node-tree {
     margin-right: 10px;
+    height: 52vh;
+    overflow-y: auto;
+    padding-right: 4px;
   }
 
   .el-header {

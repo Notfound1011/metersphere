@@ -1,5 +1,5 @@
 <template>
-  <el-card>
+  <el-card class="table-card">
 
     <template v-slot:header>
       <ms-table-header :condition.sync="condition" @search="initTableData" @create="handleCreate"
@@ -17,7 +17,8 @@
       :screen-height="tableHeight"
       :enable-selection="false"
       @handlePageChange="initTableData"
-      @refresh="initTableData">
+      @refresh="initTableData"
+      ref="table">
 
       <ms-table-column
         :label="$t('commons.name')"
@@ -104,10 +105,11 @@ export default {
       currentPage: 1,
       result: {},
       issuePlatformMap:{
-        metersphere: 'Metersphere',
+        Local: 'Metersphere',
         Jira: 'JIRA',
         Tapd: 'Tapd',
         Zentao: '禅道',
+        AzureDevops: 'Azure Devops',
       },
       operators: [
         {
@@ -147,6 +149,7 @@ export default {
           let data = response.data;
           this.total = data.itemCount;
           this.tableData = data.listObject;
+          this.$refs.table.reloadTable();
         });
     },
     handleEdit(data) {
@@ -178,7 +181,4 @@ export default {
 </script>
 
 <style scoped>
-/deep/ .el-table__fixed-body-wrapper {
-  top: 47PX !IMPORTANT;
-}
 </style>

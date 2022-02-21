@@ -43,8 +43,6 @@ public class TestCase implements Serializable {
 
     private String demandName;
 
-    private String followPeople;
-
     private String status;
 
     private String customNum;
@@ -52,6 +50,16 @@ public class TestCase implements Serializable {
     private String stepModel;
 
     private String createUser;
+
+    private String originalStatus;
+
+    private Long deleteTime;
+
+    private String deleteUserId;
+
+    private Long order;
+
+    private Boolean casePublic;
 
     private static final long serialVersionUID = 1L;
 }

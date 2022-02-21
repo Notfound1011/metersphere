@@ -18,5 +18,8 @@ public class LoadCaseRequest extends TestPlanLoadCase {
     private String status;
     private Map<String, List<String>> filters;
     private List<OrderRequest> orders;
+    private Map<String, Object> combine;
 
+    // 测试计划是否允许重复
+    private boolean repeatCase;
 }

@@ -26,16 +26,20 @@
                          @click="rerun(testId)">
                 {{ $t('report.test_execute_again') }}
               </el-button>
-              <el-button :disabled="isReadOnly" type="info" plain size="mini" @click="handleExport(reportName)" v-permission="['PROJECT_PERFORMANCE_REPORT:READ+EXPORT']">
+              <el-button :disabled="isReadOnly" type="info" plain size="mini" @click="handleExport(reportName)"
+                         v-permission="['PROJECT_PERFORMANCE_REPORT:READ+EXPORT']">
                 {{ $t('test_track.plan_view.export_report') }}
               </el-button>
               <el-button :disabled="report.status !== 'Completed'" type="default" plain
-                         size="mini"
+                         size="mini" v-permission="['PROJECT_PERFORMANCE_REPORT:READ+COMPARE']"
                          @click="compareReports()">
                 {{ $t('report.compare') }}
               </el-button>
               <el-button type="warning" plain size="mini" @click="downloadJtl()">
                 {{ $t('report.downloadJtl') }}
+              </el-button>
+              <el-button type="default" :disabled="testDeleted" plain size="mini" @click="downloadZipFile()">
+                {{ $t('report.downloadZipFile') }}
               </el-button>
             </el-row>
           </el-col>
@@ -78,11 +82,11 @@
         <el-divider/>
         <div ref="resume">
           <el-tabs v-model="active">
-            <el-tab-pane :label="$t('load_test.pressure_config')">
-              <ms-performance-pressure-config :is-read-only="true" :report="report"/>
-            </el-tab-pane>
             <el-tab-pane :label="$t('report.test_overview')">
               <ms-report-test-overview :report="report" ref="testOverview"/>
+            </el-tab-pane>
+            <el-tab-pane :label="$t('report.test_details')">
+              <ms-report-test-details :report="report" ref="testDetails"/>
             </el-tab-pane>
             <el-tab-pane :label="$t('report.test_request_statistics')">
               <ms-report-request-statistics :report="report" ref="requestStatistics"/>
@@ -93,8 +97,11 @@
             <el-tab-pane :label="$t('report.test_log_details')">
               <ms-report-log-details :report="report"/>
             </el-tab-pane>
-            <el-tab-pane :label="$t('report.test_monitor_details')" v-if="poolType === 'NODE'">
+            <el-tab-pane :label="$t('report.test_monitor_details')">
               <monitor-card :report="report"/>
+            </el-tab-pane>
+            <el-tab-pane :label="$t('report.test_config')">
+              <ms-test-configuration :test="test" :report-id="reportId"/>
             </el-tab-pane>
           </el-tabs>
         </div>
@@ -122,8 +129,8 @@
 import MsReportErrorLog from './components/ErrorLog';
 import MsReportLogDetails from './components/LogDetails';
 import MsReportRequestStatistics from './components/RequestStatistics';
+import MsReportTestDetails from './components/TestDetails';
 import MsReportTestOverview from './components/TestOverview';
-import MsPerformancePressureConfig from "./components/PerformancePressureConfig";
 import MsContainer from "../../common/components/MsContainer";
 import MsMainContainer from "../../common/components/MsMainContainer";
 
@@ -133,11 +140,13 @@ import MsPerformanceReportExport from "./PerformanceReportExport";
 import {Message} from "element-ui";
 import SameTestReports from "@/business/components/performance/report/components/SameTestReports";
 import MonitorCard from "@/business/components/performance/report/components/MonitorCard";
+import MsTestConfiguration from "@/business/components/performance/report/components/TestConfiguration";
 
 
 export default {
   name: "PerformanceReportView",
   components: {
+    MsTestConfiguration,
     MonitorCard,
     SameTestReports,
     MsPerformanceReportExport,
@@ -147,12 +156,15 @@ export default {
     MsReportTestOverview,
     MsContainer,
     MsMainContainer,
-    MsPerformancePressureConfig
+    MsReportTestDetails,
+  },
+  props: {
+    perReportId: String
   },
   data() {
     return {
       result: {},
-      active: '1',
+      active: '0',
       reportId: '',
       status: '',
       reportName: '',
@@ -170,7 +182,7 @@ export default {
       websocket: null,
       dialogFormVisible: false,
       reportExportVisible: false,
-      testPlan: {testResourcePoolId: null},
+      test: {testResourcePoolId: null},
       refreshTime: localStorage.getItem("reportRefreshTime") || "10",
       refreshTimes: [
         {value: '1', label: '1s'},
@@ -182,7 +194,6 @@ export default {
         {value: '60', label: '1m'},
         {value: '300', label: '5m'}
       ],
-      poolType: "",
       testDeleted: false,
     };
   },
@@ -231,7 +242,7 @@ export default {
       if (window.location.protocol === 'https:') {
         protocol = "wss://";
       }
-      const uri = protocol + window.location.host + "/performance/report/" + this.reportId;
+      const uri = protocol + window.location.host + ":8081" + "/performance/report/" + this.reportId;
       this.websocket = new WebSocket(uri);
       this.websocket.onmessage = this.onMessage;
       this.websocket.onopen = this.onOpen;
@@ -322,10 +333,14 @@ export default {
 
       this.$nextTick(function () {
         setTimeout(() => {
-          html2canvas(document.getElementById('performanceReportExport'), {
-            scale: 2
-          }).then(function (canvas) {
-            exportPdf(name, [canvas]);
+          let ids = ['testOverview', 'testDetails', 'requestStatistics', 'errorLog', 'monitorCard'];
+          let promises = [];
+          ids.forEach(id => {
+            let promise = html2canvas(document.getElementById(id), {scale: 2});
+            promises.push(promise);
+          });
+          Promise.all(promises).then(function (canvas) {
+            exportPdf(name, canvas);
             reset();
           });
         }, 1000);
@@ -363,6 +378,33 @@ export default {
         });
       });
     },
+    downloadZipFile() {
+      let testId = this.report.testId;
+      let reportId = this.report.id;
+      let resourceIndex = 0;
+      let ratio = "-1";
+      let config = {
+        url: `/jmeter/download?testId=${testId}&ratio=${ratio}&reportId=${reportId}&resourceIndex=${resourceIndex}`,
+        method: 'get',
+        responseType: 'blob'
+      };
+      this.result = this.$request(config).then(response => {
+        const filename = testId + ".zip";
+        const blob = new Blob([response.data]);
+        if ("download" in document.createElement("a")) {
+          // 非IE下载
+          //  chrome/firefox
+          let aTag = document.createElement('a');
+          aTag.download = filename;
+          aTag.href = URL.createObjectURL(blob);
+          aTag.click();
+          URL.revokeObjectURL(aTag.href);
+        } else {
+          // IE10+下载
+          navigator.msSaveBlob(blob, filename);
+        }
+      });
+    },
     compareReports() {
       this.$refs.compareReports.open(this.report);
     },
@@ -371,12 +413,8 @@ export default {
         let data = res.data;
         if (data) {
           this.status = data.status;
-          this.$set(this.report, "id", data.id);
-          this.$set(this.report, "status", data.status);
-          this.$set(this.report, "testId", data.testId);
-          this.$set(this.report, "name", data.name);
-          this.$set(this.report, "createTime", data.createTime);
-          this.$set(this.report, "loadConfiguration", data.loadConfiguration);
+          this.$set(this, "report", data);
+          this.$set(this.test, "testResourcePoolId", data.testResourcePoolId);
           this.checkReportStatus(data.status);
           if (this.status === "Completed" || this.status === "Running") {
             this.initReportTimeInfo();
@@ -400,26 +438,23 @@ export default {
         }
       }
       localStorage.setItem("reportRefreshTime", this.refreshTime);
-    },
-    getPoolType(reportId) {
-      this.$get("/performance/report/pool/type/" + reportId, result => {
-        let data = result.data;
-        if (data) {
-          this.poolType = data;
-        }
-      });
     }
   },
   created() {
     this.isReadOnly = !hasPermission('PROJECT_PERFORMANCE_REPORT:READ+DELETE');
     this.reportId = this.$route.path.split('/')[4];
+    if (this.perReportId) {
+      this.reportId = this.perReportId;
+    }
     this.getReport(this.reportId);
-    this.getPoolType(this.reportId);
   },
   watch: {
     '$route'(to) {
       if (to.name === "perReportView") {
         this.reportId = to.path.split('/')[4];
+        if (this.perReportId) {
+          this.reportId = this.perReportId;
+        }
         this.getReport(this.reportId);
         this.initBreadcrumb((response) => {
           this.initReportTimeInfo();
@@ -428,6 +463,9 @@ export default {
         // console.log("close socket.");
         this.websocket.close(); //离开路由之后断开websocket连接
       }
+    },
+    perReportId() {
+      this.getReport(this.perReportId);
     }
   }
 };

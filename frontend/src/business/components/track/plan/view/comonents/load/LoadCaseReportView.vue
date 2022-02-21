@@ -4,7 +4,7 @@
       <el-card v-loading="result.loading" v-if="show">
         <el-row>
           <el-col :span="16">
-            <el-row>
+            <el-row v-if="!isPlanReport">
               <el-breadcrumb separator-class="el-icon-arrow-right">
                 <el-breadcrumb-item :to="{ path: '/performance/test/' + this.projectId }">{{ projectName }}
                 </el-breadcrumb-item>
@@ -13,7 +13,7 @@
                 <el-breadcrumb-item>{{ reportName }}</el-breadcrumb-item>
               </el-breadcrumb>
             </el-row>
-            <el-row class="ms-report-view-btns">
+            <el-row class="ms-report-view-btns" v-if="!isPlanReport">
               <el-button :disabled="isReadOnly || report.status !== 'Running'" type="primary" plain size="mini"
                          @click="dialogFormVisible=true">
                 {{ $t('report.test_stop_now') }}
@@ -48,32 +48,44 @@
         <el-divider/>
         <div ref="resume">
           <el-tabs v-model="active">
-            <el-tab-pane :label="$t('load_test.pressure_config')">
-              <ms-performance-pressure-config :is-read-only="true" :report="report"/>
-            </el-tab-pane>
             <el-tab-pane :label="$t('report.test_overview')">
-              <ms-report-test-overview :report="report" ref="testOverview"/>
+              <ms-report-test-overview :report="report" :is-share="isShare" :plan-report-template="planReportTemplate"
+                                       :share-id="shareId" ref="testOverview"/>
+            </el-tab-pane>
+            <el-tab-pane :label="$t('report.test_details')">
+              <ms-report-test-details :report="report" :is-share="isShare" :plan-report-template="planReportTemplate"
+                                      :share-id="shareId" ref="testDetails"/>
             </el-tab-pane>
             <el-tab-pane :label="$t('report.test_request_statistics')">
-              <ms-report-request-statistics :report="report" ref="requestStatistics"/>
+              <ms-report-request-statistics :report="report" :is-share="isShare"
+                                            :plan-report-template="planReportTemplate"
+                                            :share-id="shareId" ref="requestStatistics"/>
             </el-tab-pane>
             <el-tab-pane :label="$t('report.test_error_log')">
-              <ms-report-error-log :report="report" ref="errorLog"/>
+              <ms-report-error-log :report="report" :is-share="isShare" :plan-report-template="planReportTemplate"
+                                   :share-id="shareId" ref="errorLog"/>
             </el-tab-pane>
             <el-tab-pane :label="$t('report.test_log_details')">
-              <ms-report-log-details :report="report"/>
+              <ms-report-log-details :report="report" :is-share="isShare" :plan-report-template="planReportTemplate"
+                                     :share-id="shareId"/>
             </el-tab-pane>
-            <el-tab-pane :label="$t('report.test_monitor_details')" v-if="poolType === 'NODE'">
-              <monitor-card :report="report"/>
+            <el-tab-pane :label="$t('report.test_monitor_details')">
+              <monitor-card :report="report" :is-share="isShare" :plan-report-template="planReportTemplate"
+                            :share-id="shareId"/>
+            </el-tab-pane>
+            <el-tab-pane :label="$t('report.test_config')">
+              <ms-test-configuration :report-id="reportId"/>
             </el-tab-pane>
           </el-tabs>
         </div>
 
-        <ms-performance-report-export :title="reportName" id="performanceReportExport" v-show="reportExportVisible"
+        <ms-performance-report-export v-if="!isShare && !planReportTemplate" :title="reportName"
+                                      id="performanceReportExport" v-show="reportExportVisible"
                                       :report="report"/>
 
       </el-card>
-      <el-dialog :title="$t('report.test_stop_now_confirm')" :visible.sync="dialogFormVisible" width="30%" :append-to-body="true">
+      <el-dialog :title="$t('report.test_stop_now_confirm')" :visible.sync="dialogFormVisible" width="30%"
+                 :append-to-body="true">
         <p v-html="$t('report.force_stop_tips')"/>
         <p v-html="$t('report.stop_tips')"/>
         <div slot="footer" class="dialog-footer">
@@ -99,27 +111,35 @@ import MsReportRequestStatistics from "@/business/components/performance/report/
 import MsReportTestOverview from "@/business/components/performance/report/components/TestOverview";
 import MsContainer from "@/business/components/common/components/MsContainer";
 import MsMainContainer from "@/business/components/common/components/MsMainContainer";
-import MsPerformancePressureConfig from "@/business/components/performance/report/components/PerformancePressureConfig";
 import MonitorCard from "@/business/components/performance/report/components/MonitorCard";
+import MsReportTestDetails from '@/business/components/performance/report/components/TestDetails';
+import {
+  getPerformanceReport,
+  getPerformanceReportTime,
+  getSharePerformanceReport,
+  getSharePerformanceReportTime
+} from "@/network/load-test";
+import MsTestConfiguration from "@/business/components/performance/report/components/TestConfiguration";
 
 
 export default {
   name: "LoadCaseReportView",
   components: {
+    MsTestConfiguration,
     MonitorCard,
     MsPerformanceReportExport,
     MsReportErrorLog,
     MsReportLogDetails,
     MsReportRequestStatistics,
     MsReportTestOverview,
+    MsReportTestDetails,
     MsContainer,
     MsMainContainer,
-    MsPerformancePressureConfig
   },
   data() {
     return {
       result: {},
-      active: '1',
+      active: '0',
       status: '',
       reportName: '',
       testId: '',
@@ -137,8 +157,8 @@ export default {
       reportExportVisible: false,
       testPlan: {testResourcePoolId: null},
       show: true,
-      poolType: "",
-    }
+      test: {testResourcePoolId: null},
+    };
   },
   props: {
     reportId: String,
@@ -146,6 +166,10 @@ export default {
       type: Boolean,
       default: false
     },
+    isPlanReport: Boolean,
+    isShare: Boolean,
+    shareId: String,
+    planReportTemplate: Object
   },
   watch: {
     reportId() {
@@ -154,6 +178,9 @@ export default {
   },
   methods: {
     initBreadcrumb(callback) {
+      if (this.isPlanReport) {
+        return;
+      }
       if (this.reportId) {
         this.result = this.$get("/performance/report/test/pro/info/" + this.reportId, res => {
           let data = res.data;
@@ -167,7 +194,7 @@ export default {
           } else {
             this.$error(this.$t('report.not_exist'));
           }
-        })
+        });
       }
     },
     initReportTimeInfo() {
@@ -175,28 +202,45 @@ export default {
         this.clearData();
         return;
       }
-      if (this.reportId) {
-        this.result = this.$get("/performance/report/content/report_time/" + this.reportId)
-          .then(res => {
-            let data = res.data.data;
-            if (data) {
-              this.startTime = data.startTime;
-              this.endTime = data.endTime;
-              let duration = data.duration;
-              this.minutes = Math.floor(duration / 60);
-              this.seconds = duration % 60;
-            }
+      if (this.planReportTemplate) {
+        this.handleInitReportTimeInfo(this.planReportTemplate);
+      } else if (this.isShare) {
+        if (this.reportId) {
+          this.result = getSharePerformanceReportTime(this.shareId, this.reportId)
+            .then((res) => {
+              this.handleInitReportTimeInfo(res.data.data);
+            }).catch(() => {
+              this.clearData();
+            });
+        }
+      } else {
+        if (this.reportId) {
+          this.result = getPerformanceReportTime(this.reportId).then(res => {
+            this.handleInitReportTimeInfo(res.data.data);
           }).catch(() => {
             this.clearData();
           });
+        }
+      }
+    },
+    handleInitReportTimeInfo(data) {
+      if (data) {
+        this.startTime = data.startTime;
+        this.endTime = data.endTime;
+        let duration = data.duration;
+        this.minutes = Math.floor(duration / 60);
+        this.seconds = duration % 60;
       }
     },
     initWebSocket() {
+      if (this.isPlanReport) {
+        return;
+      }
       let protocol = "ws://";
       if (window.location.protocol === 'https:') {
         protocol = "wss://";
       }
-      const uri = protocol + window.location.host + "/performance/report/" + this.reportId;
+      const uri = protocol + window.location.host + ":8081" + "/performance/report/" + this.reportId;
       this.websocket = new WebSocket(uri);
       this.websocket.onmessage = this.onMessage;
       this.websocket.onopen = this.onOpen;
@@ -286,10 +330,14 @@ export default {
 
       this.$nextTick(function () {
         setTimeout(() => {
-          html2canvas(document.getElementById('performanceReportExport'), {
-            scale: 2
-          }).then(function (canvas) {
-            exportPdf(name, [canvas]);
+          let ids = ['testOverview', 'testDetails', 'requestStatistics', 'errorLog'];
+          let promises = [];
+          ids.forEach(id => {
+            let promise = html2canvas(document.getElementById(id), {scale: 2});
+            promises.push(promise);
+          });
+          Promise.all(promises).then(function (canvas) {
+            exportPdf(name, canvas);
             reset();
           });
         }, 1000);
@@ -315,10 +363,10 @@ export default {
           aTag.download = this.reportName + ".jtl";
           aTag.href = URL.createObjectURL(blob);
           aTag.click();
-          URL.revokeObjectURL(aTag.href)
+          URL.revokeObjectURL(aTag.href);
         } else {
           // IE10+下载
-          navigator.msSaveBlob(blob, this.filename)
+          navigator.msSaveBlob(blob, this.filename);
         }
       }).catch(e => {
         let text = e.response.data.text();
@@ -329,39 +377,38 @@ export default {
     },
     init() {
       this.clearData();
-      this.result = this.$get("/performance/report/" + this.reportId, res => {
-        let data = res.data;
-        if (data) {
-          this.status = data.status;
-          this.$set(this.report, "id", this.reportId);
-          this.$set(this.report, "status", data.status);
-          this.$set(this.report, "testId", data.testId);
-          this.$set(this.report, "loadConfiguration", data.loadConfiguration);
-          this.checkReportStatus(data.status);
-          if (this.status === "Completed" || this.status === "Running") {
-            this.initReportTimeInfo();
-          }
-          this.initBreadcrumb();
-          this.initWebSocket();
-        } else {
-          this.$error(this.$t('report.not_exist'));
-        }
-      });
+      if (this.planReportTemplate) {
+        this.handleInit(this.planReportTemplate);
+      } else if (this.isShare) {
+        this.result = getSharePerformanceReport(this.shareId, this.reportId, data => {
+          this.handleInit(data);
+        });
+      } else {
+        this.result = getPerformanceReport(this.reportId, data => {
+          this.handleInit(data);
+        });
+      }
     },
-    getPoolType(reportId) {
-      this.$get("/performance/report/pool/type/" + reportId, result => {
-        let data = result.data;
-        if (data) {
-          this.poolType = data;
+    handleInit(data) {
+      if (data) {
+        this.status = data.status;
+        this.$set(this, "report", data);
+        this.$set(this.test, "testResourcePoolId", data.testResourcePoolId);
+        this.checkReportStatus(data.status);
+        if (this.status === "Completed" || this.status === "Running") {
+          this.initReportTimeInfo();
         }
-      });
+        this.initBreadcrumb();
+        this.initWebSocket();
+      } else {
+        this.$error(this.$t('report.not_exist'));
+      }
     }
   },
   created() {
     this.init();
-    this.getPoolType(this.reportId);
   }
-}
+};
 </script>
 
 <style scoped>

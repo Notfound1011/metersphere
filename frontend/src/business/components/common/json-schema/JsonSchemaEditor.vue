@@ -2,12 +2,14 @@
   <div id="app" v-loading="loading">
     <el-tabs v-model="activeName" @tab-click="handleClick">
       <el-tab-pane :label="$t('organization.message.template')" name="apiTemplate">
-        <el-button type="primary" size="mini" style="margin: 10px 10px 0px" @click="openOneClickOperation">导入</el-button>
+        <el-button type="primary" size="mini" style="margin: 10px 10px 0px" @click="openOneClickOperation">
+          {{ this.$t('commons.import') }}
+        </el-button>
         <div style="min-height: 200px">
           <json-schema-editor class="schema" :value="schema" lang="zh_CN" custom/>
         </div>
       </el-tab-pane>
-      <el-tab-pane :label="$t('schema.preview')" name="preview">
+      <el-tab-pane v-if="showPreview" :label="$t('schema.preview')" name="preview">
         <div style="min-height: 200px">
           <pre>{{this.preview}}</pre>
         </div>
@@ -29,6 +31,10 @@
     components: {MsImportJson},
     props: {
       body: {},
+      showPreview: {
+        type: Boolean,
+        default: true
+      },
     },
     created() {
       if (!this.body.jsonSchema && this.body.raw && this.checkIsJson(this.body.raw)) {
@@ -43,6 +49,19 @@
     watch: {
       schema: {
         handler(newValue, oldValue) {
+          this.body.jsonSchema = this.schema.root;
+        },
+        deep: true
+      },
+      body: {
+        handler(newValue, oldValue) {
+          if (!this.body.jsonSchema && this.body.raw && this.checkIsJson(this.body.raw)) {
+            let obj = {"root": MsConvert.format(JSON.parse(this.body.raw))}
+            this.schema = obj;
+          }
+          else if (this.body.jsonSchema) {
+            this.schema = {"root": this.body.jsonSchema};
+          }
           this.body.jsonSchema = this.schema.root;
         },
         deep: true
@@ -85,9 +104,11 @@
         }
       },
       jsonData(data) {
-        let obj = {"root": data}
-        this.schema = obj;
-        this.body.jsonSchema = this.schema.root
+        this.schema.root = {};
+        this.$nextTick(() => {
+          this.schema.root = data;
+          this.body.jsonSchema = this.schema.root;
+        })
       }
     }
   }

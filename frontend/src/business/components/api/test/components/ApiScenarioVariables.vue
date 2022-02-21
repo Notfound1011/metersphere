@@ -76,7 +76,13 @@ export default {
     change: function () {
       let isNeedCreate = true;
       let removeIndex = -1;
+      let repeatKey = "";
       this.items.forEach((item, index) => {
+        this.items.forEach((row, rowIndex) => {
+          if (item.name === row.name && index !== rowIndex) {
+            repeatKey = item.name;
+          }
+        });
         if (!item.name && !item.value) {
           // 多余的空行
           if (index !== this.items.length - 1) {
@@ -86,11 +92,15 @@ export default {
           isNeedCreate = false;
         }
       });
-      if (isNeedCreate) {
+      if (repeatKey !== "") {
+        this.$warning(this.$t('api_test.environment.common_config') + "【" + repeatKey + "】" + this.$t('load_test.param_is_duplicate'));
+      }
+      if (isNeedCreate && !repeatKey) {
         this.items.push(new KeyValue({enable: true}));
       }
       this.$emit('change', this.items);
       // TODO 检查key重复
+
     },
     isDisable: function (index) {
       return this.items.length - 1 === index;
@@ -99,16 +109,13 @@ export default {
       let params = data.split("\n");
       let keyValues = [];
       params.forEach(item => {
-        let line = item.split(/，|,/);
+        let line = item.split(/：|:/);
         let required = false;
-        if (line[1] === '必填' || line[1] === 'true') {
-          required = true;
-        }
-        keyValues.push(new KeyValue({
+        keyValues.unshift(new KeyValue({
           name: line[0],
           required: required,
-          value: line[2],
-          description: line[3],
+          value: line[1],
+          description: line[2],
           type: "text",
           valid: false,
           file: false,
@@ -125,9 +132,19 @@ export default {
     batchSave(data) {
       if (data) {
         let keyValues = this._handleBatchVars(data);
-        keyValues.forEach(item => {
-          this.items.unshift(item);
-        });
+        keyValues.forEach(keyValue => {
+          let isAdd = true;
+          for (let i in this.items) {
+            let item = this.items[i];
+            if (item.name === keyValue.name) {
+              item.value = keyValue.value;
+              isAdd = false;
+            }
+          }
+          if (isAdd) {
+            this.items.unshift(keyValue);
+          }
+        })
       }
     },
   },

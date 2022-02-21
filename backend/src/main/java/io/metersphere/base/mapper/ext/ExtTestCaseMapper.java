@@ -3,9 +3,11 @@ package io.metersphere.base.mapper.ext;
 import io.metersphere.base.domain.TestCase;
 import io.metersphere.base.domain.TestCaseWithBLOBs;
 import io.metersphere.controller.request.BaseQueryRequest;
+import io.metersphere.dto.RelationshipGraphData;
 import io.metersphere.track.dto.TestCaseDTO;
 import io.metersphere.track.request.testcase.QueryTestCaseRequest;
 import io.metersphere.track.request.testcase.TestCaseBatchRequest;
+import io.metersphere.track.request.testcase.TrackCountBatchRequest;
 import io.metersphere.track.response.TrackCountResult;
 import org.apache.ibatis.annotations.Param;
 
@@ -18,6 +20,8 @@ public interface ExtTestCaseMapper {
     List<TestCase> getTestCaseNames(@Param("request") QueryTestCaseRequest request);
 
     List<TestCaseDTO> list(@Param("request") QueryTestCaseRequest request);
+
+    List<TestCaseDTO> publicList(@Param("request") QueryTestCaseRequest request);
 
     int moduleCount(@Param("request") QueryTestCaseRequest request);
 
@@ -90,7 +94,7 @@ public interface ExtTestCaseMapper {
     int getTestPlanPassCase(@Param("planId") String planId);
 
 
-    List<TestCaseWithBLOBs> listForMinder(@Param("request") QueryTestCaseRequest request);
+    List<TestCaseDTO> listForMinder(@Param("request") QueryTestCaseRequest request);
 
     List<TestCaseDTO> getTestCaseByIds(@Param("ids")List<String> ids);
 
@@ -98,7 +102,43 @@ public interface ExtTestCaseMapper {
 
     List<String> selectRelateIdsByQuery(@Param("request") BaseQueryRequest query);
 
-    List<Map<String, Object>> moduleCountByCollection(@Param("request")QueryTestCaseRequest request);
+    List<Map<String, Object>> moduleCountByCollection(@Param("request") QueryTestCaseRequest request);
 
     List<TestCaseWithBLOBs> getCustomFieldsByIds(@Param("ids") List<String> ids);
+
+    int deleteToGc(@Param("request") TestCase testCase);
+
+    int deletePublic(@Param("request") TestCase testCase);
+
+    int reduction(@Param("ids") List<String> ids);
+
+    void checkOriginalStatusByIds(@Param("ids") List<String> ids);
+
+    List<String> selectIdsByNodeIds(@Param("ids") List<String> nodeIds);
+
+    TestCaseWithBLOBs getTestCaseStep(@Param("id") String id);
+
+    List<String> selectProjectIds();
+
+    List<String> getIdsOrderByUpdateTime(@Param("projectId") String projectId);
+
+    Long getLastOrder(@Param("projectId")String projectId, @Param("baseOrder") Long baseOrder);
+
+    Long getPreOrder(@Param("projectId") String projectId, @Param("baseOrder") Long baseOrder);
+
+    List<TestCase> getTestCase(@Param("request") QueryTestCaseRequest request);
+
+    List<RelationshipGraphData.Node> getTestCaseForGraph(@Param("ids") Set<String> ids);
+
+    int countByIds(@Param("ids") List<String> ids);
+
+    String getLastExecStatusById(String id);
+
+    int countByWorkSpaceId(String workSpaceId);
+
+    List<TrackCountResult> countCase(@Param("request") TrackCountBatchRequest request);
+
+    int countTotal();
+
+    int countTotalByUser(@Param("createUser") String createUser);
 }

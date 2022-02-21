@@ -5,7 +5,6 @@ import com.github.pagehelper.PageHelper;
 import io.metersphere.base.domain.User;
 import io.metersphere.commons.constants.OperLogConstants;
 import io.metersphere.commons.exception.MSException;
-import io.metersphere.commons.user.SessionUser;
 import io.metersphere.commons.utils.PageUtils;
 import io.metersphere.commons.utils.Pager;
 import io.metersphere.commons.utils.SessionUtils;
@@ -13,28 +12,20 @@ import io.metersphere.controller.request.member.AddMemberRequest;
 import io.metersphere.controller.request.member.EditPassWordRequest;
 import io.metersphere.controller.request.member.QueryMemberRequest;
 import io.metersphere.controller.request.member.UserRequest;
-import io.metersphere.controller.request.organization.AddOrgMemberRequest;
-import io.metersphere.controller.request.organization.QueryOrgMemberRequest;
 import io.metersphere.controller.request.resourcepool.UserBatchProcessRequest;
 import io.metersphere.dto.*;
 import io.metersphere.excel.domain.ExcelResponse;
 import io.metersphere.i18n.Translator;
 import io.metersphere.log.annotation.MsAuditLog;
-import io.metersphere.service.CheckPermissionService;
-import io.metersphere.service.OrganizationService;
 import io.metersphere.service.UserService;
-import io.metersphere.service.WorkspaceService;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @RequestMapping("user")
 @RestController
@@ -42,12 +33,6 @@ public class UserController {
 
     @Resource
     private UserService userService;
-    @Resource
-    private OrganizationService organizationService;
-    @Resource
-    private WorkspaceService workspaceService;
-    @Resource
-    private CheckPermissionService checkPermissionService;
 
     @PostMapping("/special/add")
     @MsAuditLog(module = "system_user", type = OperLogConstants.CREATE, content = "#msClass.getLogDetails(#user)", msClass = UserService.class)
@@ -59,11 +44,6 @@ public class UserController {
     public Pager<List<User>> getUserList(@PathVariable int goPage, @PathVariable int pageSize, @RequestBody io.metersphere.controller.request.UserRequest request) {
         Page<Object> page = PageHelper.startPage(goPage, pageSize, true);
         return PageUtils.setPageInfo(page, userService.getUserListWithRequest(request));
-    }
-
-    @GetMapping("/special/user/role/{userId}")
-    public UserRoleDTO getUserRole(@PathVariable("userId") String userId) {
-        return userService.getUserRole(userId);
     }
 
     @GetMapping("/special/user/group/{userId}")
@@ -114,29 +94,6 @@ public class UserController {
         userService.deleteMember(workspaceId, userId);
     }
 
-    @PostMapping("/special/org/member/add")
-    @MsAuditLog(module = "organization_member", type = OperLogConstants.CREATE, content = "#msClass.getLogDetails(#request.userIds,#request.organizationId)", msClass = UserService.class)
-    public void addOrganizationMemberByAdmin(@RequestBody AddOrgMemberRequest request) {
-        userService.addOrganizationMember(request);
-    }
-
-    @GetMapping("/special/org/member/delete/{organizationId}/{userId}")
-    @MsAuditLog(module = "organization_member", type = OperLogConstants.DELETE, beforeEvent = "#msClass.getLogDetails(#userId)", msClass = UserService.class)
-    public void delOrganizationMemberByAdmin(@PathVariable String organizationId, @PathVariable String userId) {
-        userService.delOrganizationMember(organizationId, userId);
-    }
-
-    @PostMapping("/special/org/member/list/{goPage}/{pageSize}")
-    public Pager<List<User>> getOrgMemberListByAdmin(@PathVariable int goPage, @PathVariable int pageSize, @RequestBody QueryOrgMemberRequest request) {
-        Page<Object> page = PageHelper.startPage(goPage, pageSize, true);
-        return PageUtils.setPageInfo(page, userService.getOrgMemberList(request));
-    }
-
-    @PostMapping("/special/org/member/list/all")
-    public List<User> getOrgMemberListByAdmin(@RequestBody QueryOrgMemberRequest request) {
-        return userService.getOrgMemberList(request);
-    }
-
     @GetMapping("/list")
     public List<User> getUserList() {
         return userService.getUserList();
@@ -148,15 +105,14 @@ public class UserController {
         return userService.updateCurrentUser(user);
     }
 
-    @PostMapping("/switch/source/org/{sourceId}")
-    public UserDTO switchOrganization(@PathVariable(value = "sourceId") String sourceId) {
-        userService.switchUserRole("organization", sourceId);
-        return SessionUtils.getUser();
+    @GetMapping("/update/currentByResourceId/{resourceId}")
+    public void updateCurrentUserByResourceId(@PathVariable String resourceId) {
+        userService.updateCurrentUserByResourceId(resourceId);
     }
 
     @PostMapping("/switch/source/ws/{sourceId}")
     public UserDTO switchWorkspace(@PathVariable(value = "sourceId") String sourceId) {
-        userService.switchUserRole("workspace", sourceId);
+        userService.switchUserResource("workspace", sourceId);
         return SessionUtils.getUser();
     }
 
@@ -184,6 +140,11 @@ public class UserController {
     public Pager<List<User>> getProjectMemberList(@PathVariable int goPage, @PathVariable int pageSize, @RequestBody QueryMemberRequest request) {
         Page<Object> page = PageHelper.startPage(goPage, pageSize, true);
         return PageUtils.setPageInfo(page, userService.getProjectMemberList(request));
+    }
+
+    @PostMapping("/project/member/list")
+    public List<User> getProjectMemberListAll(@RequestBody QueryMemberRequest request) {
+        return userService.getProjectMemberList(request);
     }
 
     /**
@@ -236,50 +197,13 @@ public class UserController {
         userService.deleteProjectMember(projectId, userId);
     }
 
-    /**
-     * 添加组织成员
-     */
-    @PostMapping("/org/member/add")
-    @MsAuditLog(module = "organization_member", type = OperLogConstants.CREATE, title = "'添加组织成员-'+#request.userIds")
-    public void addOrganizationMember(@RequestBody AddOrgMemberRequest request) {
-        organizationService.checkOrgOwner(request.getOrganizationId());
-        userService.addOrganizationMember(request);
-    }
 
     /**
-     * 删除组织成员
+     * ws 下所有相关人员
      */
-    @GetMapping("/org/member/delete/{organizationId}/{userId}")
-    @MsAuditLog(module = "organization_member", type = OperLogConstants.DELETE, title = "删除组织成员")
-    public void delOrganizationMember(@PathVariable String organizationId, @PathVariable String userId) {
-        organizationService.checkOrgOwner(organizationId);
-        String currentUserId = SessionUtils.getUser().getId();
-        if (StringUtils.equals(userId, currentUserId)) {
-            MSException.throwException(Translator.get("cannot_remove_current"));
-        }
-        userService.delOrganizationMember(organizationId, userId);
-    }
-
-    /**
-     * 查询组织成员列表
-     */
-    @PostMapping("/org/member/list/{goPage}/{pageSize}")
-    public Pager<List<User>> getOrgMemberList(@PathVariable int goPage, @PathVariable int pageSize, @RequestBody QueryOrgMemberRequest request) {
-        Page<Object> page = PageHelper.startPage(goPage, pageSize, true);
-        return PageUtils.setPageInfo(page, userService.getOrgMemberList(request));
-    }
-
-    /**
-     * 组织下所有相关人员
-     */
-    @PostMapping("/org/member/list/all")
-    public List<User> getOrgMemberList(@RequestBody QueryOrgMemberRequest request) {
-        return userService.getOrgAllMember(request);
-    }
-
-    @GetMapping("/besideorg/list/{orgId}")
-    public List<User> getBesideOrgMemberList(@PathVariable String orgId) {
-        return userService.getBesideOrgMemberList(orgId);
+    @GetMapping("/ws/member/list/{workspaceId}")
+    public List<User> getWsMemberList(@PathVariable String workspaceId) {
+        return userService.getWsAllMember(workspaceId);
     }
 
     /*
@@ -296,14 +220,6 @@ public class UserController {
     @MsAuditLog(module = "system_user", type = OperLogConstants.UPDATE, beforeEvent = "#msClass.getLogDetails(#request.id)", content = "#msClass.getLogDetails(#request.id)", msClass = UserService.class)
     public int updateUserPassword(@RequestBody EditPassWordRequest request) {
         return userService.updateUserPassword(request);
-    }
-
-    /**
-     * 获取工作空间成员用户 不分页
-     */
-    @PostMapping("/ws/member/tester/list")
-    public List<User> getTestManagerAndTestUserList(@RequestBody QueryMemberRequest request) {
-        return userService.getTestManagerAndTestUserList(request);
     }
 
     @PostMapping("/project/member/tester/list")
@@ -335,44 +251,11 @@ public class UserController {
         return returnString;
     }
 
-    @GetMapping("/getWorkspaceDataStruct/{organizationId}")
-    public List<CascaderDTO> getWorkspaceDataStruct(@PathVariable String organizationId) {
-        List<OrganizationMemberDTO> organizationList = organizationService.findIdAndNameByOrganizationId(organizationId);
-        List<WorkspaceDTO> workspaceDTOList = workspaceService.findIdAndNameByOrganizationId(organizationId);
-        if (!workspaceDTOList.isEmpty()) {
-            Map<String, List<WorkspaceDTO>> orgIdWorkspaceMap = workspaceDTOList.stream().collect(Collectors.groupingBy(WorkspaceDTO::getOrganizationId));
-            List<CascaderDTO> returnList = CascaderParse.parseWorkspaceDataStruct(organizationList, orgIdWorkspaceMap);
-            return returnList;
-        } else {
-            return new ArrayList<>();
-        }
+    /**
+     * 根据userId 获取 user 所属工作空间和所属工作项目
+     */
+    @GetMapping("/get/ws_pj/{userId}")
+    public Map<Object,Object> getWSAndProjectByUserId(@PathVariable String userId) {
+        return userService.getWSAndProjectByUserId(userId);
     }
-
-    @GetMapping("/getUserRoleDataStruct/{organizationId}")
-    public List<CascaderDTO> getUserRoleDataStruct(@PathVariable String organizationId) {
-        List<OrganizationMemberDTO> organizationList = organizationService.findIdAndNameByOrganizationId(organizationId);
-        List<WorkspaceDTO> workspaceDTOList = workspaceService.findIdAndNameByOrganizationId(organizationId);
-        if (!workspaceDTOList.isEmpty()) {
-            Map<String, List<WorkspaceDTO>> orgIdWorkspaceMap = workspaceDTOList.stream().collect(Collectors.groupingBy(WorkspaceDTO::getOrganizationId));
-            List<CascaderDTO> returnList = CascaderParse.parseUserRoleDataStruct(organizationList, orgIdWorkspaceMap, false);
-            return returnList;
-        } else {
-            return new ArrayList<>();
-        }
-    }
-
-    @GetMapping("/getWorkspaceUserRoleDataStruct/{organizationId}")
-    public List<CascaderDTO> getWorkspaceUserRoleDataStruct(@PathVariable String organizationId) {
-        List<OrganizationMemberDTO> organizationList = organizationService.findIdAndNameByOrganizationId(organizationId);
-        List<WorkspaceDTO> workspaceDTOList = workspaceService.findIdAndNameByOrganizationId(organizationId);
-        if (!workspaceDTOList.isEmpty()) {
-            Map<String, List<WorkspaceDTO>> orgIdWorkspaceMap = workspaceDTOList.stream().collect(Collectors.groupingBy(WorkspaceDTO::getOrganizationId));
-            List<CascaderDTO> returnList = CascaderParse.parseUserRoleDataStruct(organizationList, orgIdWorkspaceMap, true);
-            return returnList;
-        } else {
-            return new ArrayList<>();
-        }
-    }
-
-
 }

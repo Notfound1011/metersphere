@@ -1,7 +1,9 @@
 package io.metersphere.api.dto.automation;
 
+import io.metersphere.commons.utils.LogUtil;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.dom4j.Document;
 import org.dom4j.Element;
@@ -11,7 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * //ESB数据格式
+ * 树形表格数据格式
  *
  * @author song.tianyang
  * @Date 2021/3/15 4:37 下午
@@ -122,8 +124,7 @@ public class TcpTreeTableDataStruct {
                 element.addAttribute("attr", attrString);
             }
         } catch (Exception e) {
-            System.out.println(this.name);
-            e.printStackTrace();
+            LogUtil.error(e);
         }
 
         if (element != null) {
@@ -162,8 +163,7 @@ public class TcpTreeTableDataStruct {
                 element.addAttribute("attr", attrString);
             }
         } catch (Exception e) {
-            System.out.println(this.name);
-            e.printStackTrace();
+            LogUtil.error(e);
         }
 
         if (element != null) {
@@ -180,5 +180,23 @@ public class TcpTreeTableDataStruct {
             }
         }
         return element;
+    }
+
+    public List<String> getNameDeep() {
+        List<String> returnList = new ArrayList<>();
+        if(StringUtils.isNotEmpty(this.name)){
+            returnList.add(this.name);
+        }
+        if(CollectionUtils.isNotEmpty(this.children)){
+            for (TcpTreeTableDataStruct child :this.children) {
+                List<String> itemNameList = child.getNameDeep();
+                for (String itemName :itemNameList) {
+                    if(!returnList.contains(itemName)){
+                        returnList.add(itemName);
+                    }
+                }
+            }
+        }
+        return returnList;
     }
 }

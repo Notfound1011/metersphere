@@ -6,6 +6,7 @@ import io.metersphere.base.domain.TestCaseReviewTestCase;
 import io.metersphere.commons.constants.OperLogConstants;
 import io.metersphere.commons.utils.PageUtils;
 import io.metersphere.commons.utils.Pager;
+import io.metersphere.controller.request.ResetOrderRequest;
 import io.metersphere.log.annotation.MsAuditLog;
 import io.metersphere.track.dto.TestReviewCaseDTO;
 import io.metersphere.track.request.testplancase.TestReviewCaseBatchRequest;
@@ -48,10 +49,10 @@ public class TestReviewTestCaseController {
         testReviewTestCaseService.editTestCaseBatchStatus(request);
     }
 
-    @PostMapping("/minder/edit")
+    @PostMapping("/minder/edit/{reviewId}")
     @MsAuditLog(module = "track_test_case_review", type = OperLogConstants.ASSOCIATE_CASE, content = "#msClass.getLogDetails(#testCases)", msClass = TestReviewTestCaseService.class)
-    public void editTestCaseForMinder(@RequestBody List<TestCaseReviewTestCase> testCases) {
-        testReviewTestCaseService.editTestCaseForMinder(testCases);
+    public void editTestCaseForMinder(@PathVariable("reviewId") String reviewId, @RequestBody List<TestCaseReviewTestCase> testCases) {
+        testReviewTestCaseService.editTestCaseForMinder(reviewId, testCases);
     }
 
     @PostMapping("/list/minder")
@@ -73,6 +74,11 @@ public class TestReviewTestCaseController {
     @PostMapping("/list/ids")
     public List<TestReviewCaseDTO> getTestReviewCaseList(@RequestBody QueryCaseReviewRequest request) {
         return testReviewTestCaseService.getTestCaseReviewDTOList(request);
+    }
+
+    @PostMapping("/edit/order")
+    public void orderCase(@RequestBody ResetOrderRequest request) {
+        testReviewTestCaseService.updateOrder(request);
     }
 
 }

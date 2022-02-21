@@ -36,7 +36,7 @@ public class DateUtils {
         return dateFormat.format(date);
     }
 
-    public static String getTimeString(long timeStamp) throws Exception {
+    public static String getTimeString(long timeStamp) {
         SimpleDateFormat dateFormat = new SimpleDateFormat(TIME_PATTERN);
         return dateFormat.format(timeStamp);
     }
@@ -55,6 +55,14 @@ public class DateUtils {
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(date);
         calendar.add(Calendar.DAY_OF_MONTH,countDays);
+
+        return calendar.getTime();
+    }
+
+    public static Date dateSum (Date date,int countUnit,int calendarType){
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date);
+        calendar.add(calendarType,countUnit);
 
         return calendar.getTime();
     }
@@ -92,30 +100,21 @@ public class DateUtils {
             returnMap.put("firstTime", thisWeekFirstTime);
             returnMap.put("lastTime", thisWeekLastTime);
         } catch (Exception e) {
-            e.printStackTrace();
+            LogUtil.error(e);
         }
         return returnMap;
 
     }
 
-
-    public static void main(String[] args) throws Exception {
-        System.out.println("start:");
-        Date paramTime = getTime(getTimeString(new Long("1607672440731")));
-
-        Map<String, Date> weekDate = getWeedFirstTimeAndLastTime(paramTime);
-
-        for (Map.Entry<String, Date> entry :
-                weekDate.entrySet()) {
-            System.out.println(entry.getKey() + ":" + getTimeString(entry.getValue())+":"+entry.getValue().getTime());
-        }
-
-        long countTimeLong = new Long("1607672440731");
-
-        System.out.println(getTimeString(--countTimeLong));
-
+    /**
+     * 获取当前时间或者当前时间+- 任意天数 时间的时间戳
+     * @param countDays
+     * @return
+     */
+    public static Long getTimestamp(int countDays){
+        Date now = new Date();
+        return dateSum (now,countDays).getTime()/1000*1000;
     }
-
 
     /**
      * 获取当天的起始时间Date

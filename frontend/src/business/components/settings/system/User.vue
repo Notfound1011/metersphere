@@ -4,9 +4,9 @@
     <el-card class="table-card">
       <template v-slot:header>
         <ms-table-header :create-permission="['SYSTEM_USER:READ+CREATE']" :condition.sync="condition" @search="search"
-                         @import="importUserDialogOpen" :show-import="true" :import-tip="$t('commons.import_user')"
-                         @create="create" :create-tip="$t('user.create')" :title="$t('commons.user')"/>
-
+                         @import="importUserDialogOpen" :show-import="true" :upload-permission="['SYSTEM_USER:READ+CREATE']" :import-tip="$t('commons.import_user')"
+                         :tip="$t('commons.search_by_name_or_id')" @create="create"
+                         :create-tip="$t('user.create')" :title="$t('commons.user')"/>
       </template>
 
       <el-table border class="adjust-table ms-select-all-fixed" :data="tableData" style="width: 100%"
@@ -98,14 +98,15 @@
       </span>
     </el-dialog>
     <user-import ref="userImportDialog" @refreshAll="search"></user-import>
-    <project-cascader :title="batchAddTitle" @confirm="cascaderConfirm" ref="cascaderDialog"></project-cascader>
+    <batch-to-project-group-cascader :title="batchAddTitle" @confirm="cascaderConfirm"
+                                     :cascader-level="2" ref="cascaderDialog"/>
+    <workspace-cascader :title="addToWorkspaceTitle" @confirm="cascaderConfirm" ref="workspaceCascader"></workspace-cascader>
     <group-cascader :title="$t('user.add_user_group_batch')" @confirm="cascaderConfirm" ref="groupCascaderDialog"></group-cascader>
     <edit-user ref="editUser" @refresh="search"/>
   </div>
 </template>
 
 <script>
-import MsCreateBox from "../CreateBox";
 import MsTablePagination from "../../common/pagination/TablePagination";
 import MsTableHeader from "../../common/components/MsTableHeader";
 import MsTableOperator from "../../common/components/MsTableOperator";
@@ -127,15 +128,18 @@ import {
 import UserCascader from "@/business/components/settings/system/components/UserCascader";
 import ShowMoreBtn from "@/business/components/track/case/components/ShowMoreBtn";
 import EditUser from "@/business/components/settings/system/EditUser";
-import ProjectCascader from "@/business/components/settings/system/components/ProjectCascader";
 import GroupCascader from "@/business/components/settings/system/components/GroupCascader";
+import {logout} from "@/network/user";
+import WorkspaceCascader from "@/business/components/settings/system/components/WorkspaceCascader";
+import BatchToProjectGroupCascader from "@/business/components/settings/system/components/BatchToProjectGroupCascader";
 
 export default {
   name: "MsUser",
   components: {
+    BatchToProjectGroupCascader,
+    WorkspaceCascader,
     GroupCascader,
     EditUser,
-    MsCreateBox,
     MsTablePagination,
     MsTableHeader,
     MsTableOperator,
@@ -145,7 +149,6 @@ export default {
     UserImport,
     MsTableHeaderSelectPopover,
     UserCascader,
-    ProjectCascader,
     ShowMoreBtn
   },
   inject: [
@@ -169,6 +172,7 @@ export default {
       updatePath: '/user/special/update',
       editPasswordPath: '/user/special/password',
       batchAddTitle: this.$t('user.add_project_batch'),
+      addToWorkspaceTitle: this.$t('user.add_workspace_batch'),
       result: {},
       currentUserId: '',
       createVisible: false,
@@ -189,6 +193,7 @@ export default {
           id: ''
         }]
       },
+      changePasswordUser: '',
       screenHeight: 'calc(100vh - 195px)',
       checkPasswordForm: {},
       ruleForm: {},
@@ -198,6 +203,9 @@ export default {
         },
         {
           name: this.$t('user.add_user_group_batch'), handleClick: this.addUserGroupBatch
+        },
+        {
+          name: this.$t('user.add_workspace_batch'), handleClick: this.addToWorkspaceBatch
         }
       ],
       rule: {
@@ -280,6 +288,7 @@ export default {
       this.$refs.editUser.open("Edit", this.$t('user.modify'), row);
     },
     editPassword(row) {
+      this.changePasswordUser = row.id;
       this.editPasswordVisible = true;
       this.ruleForm = Object.assign({}, row);
       listenGoBack(this.handleClose);
@@ -329,9 +338,13 @@ export default {
         if (valid) {
           this.result = this.$post(this.editPasswordPath, this.ruleForm, () => {
             this.$success(this.$t('commons.modify_success'));
-            this.editPasswordVisible = false;
-            this.search();
-            this.reload();
+            if (this.changePasswordUser === getCurrentUser().id) {
+              logout();
+            } else {
+              this.editPasswordVisible = false;
+              this.search();
+              this.reload();
+            }
           });
         } else {
           return false;
@@ -407,11 +420,6 @@ export default {
     handleSelectionChange(val) {
       this.multipleSelection = val;
     },
-    getOrgList() {
-      this.$get("/organization/list", response => {
-        this.$set(this.form, "orgList", response.data);
-      })
-    },
     getWsList() {
       this.$get("/workspace/list", response => {
         this.$set(this.form, "wsList", response.data);
@@ -442,10 +450,13 @@ export default {
     addToProjectBatch(){
       this.$refs.cascaderDialog.open();
     },
+    addToWorkspaceBatch(){
+      this.$refs.workspaceCascader.open();
+    },
     addUserGroupBatch(){
       this.$refs.groupCascaderDialog.open();
     },
-    cascaderConfirm(batchProcessTypeParam, selectValueArr){
+    cascaderConfirm(batchProcessTypeParam, selectValueArr, selectedUserGroup){
       if(selectValueArr.length === 0){
         this.$success(this.$t('commons.modify_success'));
       }
@@ -453,6 +464,7 @@ export default {
       params = this.buildBatchParam(params);
       params.batchType = batchProcessTypeParam;
       params.batchProcessValue = selectValueArr;
+      params.selectUserGroupId = selectedUserGroup;
       this.$post('/user/special/batchProcessUserInfo', params, () => {
         this.$success(this.$t('commons.modify_success'));
         this.search();
@@ -462,12 +474,22 @@ export default {
       });
     },
     cascaderRequestError(type) {
-      type === "ADD_PROJECT" ? this.$refs.cascaderDialog.loading = false :
+      if (type === "ADD_PROJECT") {
+        this.$refs.cascaderDialog.loading = false;
+      } else if (type === "ADD_WORKSPACE") {
+        this.$refs.workspaceCascader.loading = false;
+      } else {
         this.$refs.groupCascaderDialog.loading = false;
+      }
     },
     cascaderClose(type) {
-      type === "ADD_PROJECT" ? this.$refs.cascaderDialog.close() :
+      if (type === "ADD_PROJECT") {
+        this.$refs.cascaderDialog.close();
+      } else if (type === "ADD_WORKSPACE") {
+        this.$refs.workspaceCascader.close();
+      } else {
         this.$refs.groupCascaderDialog.close();
+      }
     },
     buildBatchParam(param) {
       param.ids = Array.from(this.selectRows).map(row => row.id);

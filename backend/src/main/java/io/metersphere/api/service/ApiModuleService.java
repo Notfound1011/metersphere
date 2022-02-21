@@ -25,6 +25,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.ibatis.session.ExecutorType;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
+import org.mybatis.spring.SqlSessionUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +44,8 @@ public class ApiModuleService extends NodeTreeService<ApiModuleDTO> {
     @Resource
     private ExtApiDefinitionMapper extApiDefinitionMapper;
     @Resource
+    private ApiDefinitionMapper apiDefinitionMapper;
+    @Resource
     private TestPlanProjectService testPlanProjectService;
     @Resource
     private ProjectService projectService;
@@ -60,23 +63,12 @@ public class ApiModuleService extends NodeTreeService<ApiModuleDTO> {
         super(ApiModuleDTO.class);
     }
 
+    public ApiModule get(String id) {
+        return apiModuleMapper.selectByPrimaryKey(id);
+    }
     public List<ApiModuleDTO> getNodeTreeByProjectId(String projectId, String protocol) {
         // 判断当前项目下是否有默认模块，没有添加默认模块
-        ApiModuleExample example = new ApiModuleExample();
-        example.createCriteria().andProjectIdEqualTo(projectId).andProtocolEqualTo(protocol).andNameEqualTo("默认模块");
-        long count = apiModuleMapper.countByExample(example);
-        if (count <= 0) {
-            ApiModule record = new ApiModule();
-            record.setId(UUID.randomUUID().toString());
-            record.setName("默认模块");
-            record.setProtocol(protocol);
-            record.setPos(1.0);
-            record.setLevel(1);
-            record.setCreateTime(System.currentTimeMillis());
-            record.setUpdateTime(System.currentTimeMillis());
-            record.setProjectId(projectId);
-            apiModuleMapper.insert(record);
-        }
+        this.getDefaultNode(projectId,protocol);
         List<ApiModuleDTO> apiModules = extApiModuleMapper.getNodeTreeByProjectId(projectId, protocol);
         ApiDefinitionRequest request = new ApiDefinitionRequest();
         request.setProjectId(projectId);
@@ -246,18 +238,23 @@ public class ApiModuleService extends NodeTreeService<ApiModuleDTO> {
 
     public ApiModule getNewModule(String name, String projectId, int level) {
         ApiModule node = new ApiModule();
-        node.setCreateTime(System.currentTimeMillis());
-        node.setUpdateTime(System.currentTimeMillis());
-        node.setId(UUID.randomUUID().toString());
+        buildNewModule(node);
         node.setLevel(level);
         node.setName(name);
         node.setProjectId(projectId);
         return node;
     }
 
+    public ApiModule buildNewModule(ApiModule node) {
+        node.setCreateTime(System.currentTimeMillis());
+        node.setUpdateTime(System.currentTimeMillis());
+        node.setId(UUID.randomUUID().toString());
+        return node;
+    }
+
     private void validateNode(ApiModule node) {
         if (node.getLevel() > TestCaseConstants.MAX_NODE_DEPTH) {
-            throw new RuntimeException(Translator.get("test_case_node_level_tip")
+            MSException.throwException(Translator.get("test_case_node_level_tip")
                     + TestCaseConstants.MAX_NODE_DEPTH + Translator.get("test_case_node_level"));
         }
         checkApiModuleExist(node);
@@ -301,6 +298,9 @@ public class ApiModuleService extends NodeTreeService<ApiModuleDTO> {
         if (StringUtils.isNotBlank(node.getId())) {
             criteria.andIdNotEqualTo(node.getId());
         }
+        if(StringUtils.isNotEmpty(node.getProtocol())){
+            criteria.andProtocolEqualTo(node.getProtocol());
+        }
         return apiModuleMapper.selectByExample(example);
     }
 
@@ -335,9 +335,12 @@ public class ApiModuleService extends NodeTreeService<ApiModuleDTO> {
     }
 
     public int deleteNode(List<String> nodeIds) {
-        ApiDefinitionExample apiDefinitionExample = new ApiDefinitionExample();
+        ApiDefinitionExampleWithOperation apiDefinitionExample = new ApiDefinitionExampleWithOperation();
         apiDefinitionExample.createCriteria().andModuleIdIn(nodeIds);
-        extApiDefinitionMapper.removeToGcByExample(apiDefinitionExample);   //  删除模块，则模块下的接口放入回收站
+        apiDefinitionExample.setOperator(SessionUtils.getUserId());
+        apiDefinitionExample.setOperationTime(System.currentTimeMillis());
+        apiDefinitionService.removeToGcByExample(apiDefinitionExample);
+//        extApiDefinitionMapper.removeToGcByExample(apiDefinitionExample);   //  删除模块，则模块下的接口放入回收站
 
         ApiModuleExample apiDefinitionNodeExample = new ApiModuleExample();
         apiDefinitionNodeExample.createCriteria().andIdIn(nodeIds);
@@ -348,9 +351,12 @@ public class ApiModuleService extends NodeTreeService<ApiModuleDTO> {
         SqlSession sqlSession = sqlSessionFactory.openSession(ExecutorType.BATCH);
         ApiDefinitionMapper apiDefinitionMapper = sqlSession.getMapper(ApiDefinitionMapper.class);
         apiModule.forEach((value) -> {
-            apiDefinitionMapper.updateByPrimaryKey(value);
+            apiDefinitionMapper.updateByPrimaryKeySelective(value);
         });
         sqlSession.flushStatements();
+        if (sqlSession != null && sqlSessionFactory != null) {
+            SqlSessionUtils.closeSqlSession(sqlSession, sqlSessionFactory);
+        }
     }
 
     @Override
@@ -397,7 +403,7 @@ public class ApiModuleService extends NodeTreeService<ApiModuleDTO> {
                                        List<ApiModule> updateNodes, String rootPath, String pId, int level) {
         rootPath = rootPath + rootNode.getName();
 
-        if (level > 8) {
+        if (level > TestCaseConstants.MAX_NODE_DEPTH) {
             MSException.throwException(Translator.get("node_deep_limit"));
         }
         if ("root".equals(rootNode.getId())) {
@@ -430,6 +436,9 @@ public class ApiModuleService extends NodeTreeService<ApiModuleDTO> {
             apiModuleMapper.updateByPrimaryKeySelective(value);
         });
         sqlSession.flushStatements();
+        if (sqlSession != null && sqlSessionFactory != null) {
+            SqlSessionUtils.closeSqlSession(sqlSession, sqlSessionFactory);
+        }
     }
 
     public ApiModule getModuleByName(String projectId, String protocol) {
@@ -500,5 +509,49 @@ public class ApiModuleService extends NodeTreeService<ApiModuleDTO> {
             return JSON.toJSONString(details);
         }
         return null;
+    }
+
+    public long countById(String nodeId) {
+        ApiModuleExample example = new ApiModuleExample();
+        example.createCriteria().andIdEqualTo(nodeId);
+        return  apiModuleMapper.countByExample(example);
+    }
+
+    public ApiModule getDefaultNode(String projectId,String protocol) {
+        ApiModuleExample example = new ApiModuleExample();
+        example.createCriteria().andProjectIdEqualTo(projectId).andProtocolEqualTo(protocol).andNameEqualTo("未规划接口").andParentIdIsNull();;
+        List<ApiModule> list = apiModuleMapper.selectByExample(example);
+        if (CollectionUtils.isEmpty(list)) {
+            ApiModule record = new ApiModule();
+            record.setId(UUID.randomUUID().toString());
+            record.setName("未规划接口");
+            record.setProtocol(protocol);
+            record.setPos(1.0);
+            record.setLevel(1);
+            record.setCreateTime(System.currentTimeMillis());
+            record.setUpdateTime(System.currentTimeMillis());
+            record.setProjectId(projectId);
+            apiModuleMapper.insert(record);
+            return record;
+        }else {
+            return list.get(0);
+        }
+    }
+
+    public ApiModule getDefaultNodeUnCreateNew(String projectId,String protocol) {
+        ApiModuleExample example = new ApiModuleExample();
+        example.createCriteria().andProjectIdEqualTo(projectId).andProtocolEqualTo(protocol).andNameEqualTo("未规划接口").andParentIdIsNull();;
+        List<ApiModule> list = apiModuleMapper.selectByExample(example);
+        if (CollectionUtils.isEmpty(list)) {
+            return null;
+        }else {
+            return list.get(0);
+        }
+    }
+
+    public long countTrashApiData(String projectId, String protocol) {
+        ApiDefinitionExample example = new ApiDefinitionExample();
+        example.createCriteria().andProjectIdEqualTo(projectId).andProtocolEqualTo(protocol).andStatusEqualTo("Trash");
+        return apiDefinitionMapper.countByExample(example);
     }
 }

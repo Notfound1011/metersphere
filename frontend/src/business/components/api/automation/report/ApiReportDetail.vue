@@ -3,20 +3,27 @@
     <ms-main-container>
       <el-card>
         <section class="report-container" v-if="this.report.testId">
-          <ms-api-report-view-header :debug="debug" :report="report" @reportExport="handleExport" @reportSave="handleSave"/>
+          <ms-api-report-view-header :show-cancel-button="showCancelButton" :is-plan="isPlan" :is-template="isTemplate" :debug="debug" :report="report" @reportExport="handleExport" @reportSave="handleSave"/>
           <main v-if="isNotRunning">
             <ms-metric-chart :content="content" :totalTime="totalTime"/>
             <div>
               <el-tabs v-model="activeName" @tab-click="handleClick">
                 <el-tab-pane :label="$t('api_report.total')" name="total">
-                  <ms-scenario-results :treeData="fullTreeNodes" :console="content.console" v-on:requestResult="requestResult"/>
+                  <ms-scenario-results :treeData="fullTreeNodes" :console="content.console" v-on:requestResult="requestResult" ref="resultsTree"/>
                 </el-tab-pane>
                 <el-tab-pane name="fail">
                   <template slot="label">
                     <span class="fail">{{ $t('api_report.fail') }}</span>
                   </template>
-                  <ms-scenario-results v-on:requestResult="requestResult" :console="content.console" :treeData="failsTreeNodes"/>
+                  <ms-scenario-results v-on:requestResult="requestResult" :console="content.console" :treeData="fullTreeNodes" ref="failsTree"/>
                 </el-tab-pane>
+                <el-tab-pane name="console">
+                  <template slot="label">
+                    <span class="console">{{ $t('api_test.definition.request.console') }}</span>
+                  </template>
+                  <ms-code-edit :mode="'text'" :read-only="true" :data.sync="content.console" height="calc(100vh - 500px)"/>
+                </el-tab-pane>
+
               </el-tabs>
             </div>
             <ms-api-report-export v-if="reportExportVisible" id="apiTestReport" :title="report.testName"
@@ -41,6 +48,9 @@ import MsApiReportExport from "./ApiReportExport";
 import MsApiReportViewHeader from "./ApiReportViewHeader";
 import {RequestFactory} from "../../definition/model/ApiTestModel";
 import {windowPrint, getUUID, getCurrentProjectID} from "@/common/js/utils";
+import {getScenarioReport, getShareScenarioReport} from "@/network/api";
+import {STEP} from "@/business/components/api/automation/scenario/Setting";
+import MsCodeEdit from "@/business/components/common/components/MsCodeEdit";
 
 export default {
   name: "MsApiReport",
@@ -48,6 +58,7 @@ export default {
     MsApiReportViewHeader,
     MsApiReportExport,
     MsMainContainer,
+    MsCodeEdit,
     MsContainer, MsScenarioResults, MsRequestResultTail, MsMetricChart, MsScenarioResult, MsRequestResult
   },
   data() {
@@ -66,6 +77,7 @@ export default {
       reportExportVisible: false,
       requestType: undefined,
       fullTreeNodes: [],
+      stepFilter: new STEP,
     }
   },
   activated() {
@@ -76,13 +88,34 @@ export default {
     currentProjectId: String,
     infoDb: Boolean,
     debug: Boolean,
+    isTemplate: Boolean,
+    templateReport: Object,
+    isShare: Boolean,
+    shareId: String,
+    isPlan: Boolean,
+    showCancelButton: {
+      type: Boolean,
+      default: true
+    }
   },
   watch: {
     reportId() {
-      this.getReport();
+      if (!this.isTemplate) {
+        this.getReport();
+      }
+    },
+    templateReport() {
+      if (this.isTemplate) {
+        this.getReport();
+      }
     }
   },
   methods: {
+    filter(index) {
+      if (index === "1") {
+        this.$refs.failsTree.filter(index);
+      }
+    },
     init() {
       this.loading = true;
       this.report = {};
@@ -92,9 +125,13 @@ export default {
       this.fullTreeNodes = [];
       this.failsTreeNodes = [];
       this.isRequestResult = false;
+      this.activeName = "total";
     },
     handleClick(tab, event) {
-      this.isRequestResult = false
+      this.isRequestResult = false;
+      if (this.report && this.report.reportVersion && this.report.reportVersion > 1) {
+        this.filter(tab.index);
+      }
     },
     active() {
       this.isActive = !this.isActive;
@@ -123,7 +160,6 @@ export default {
         let key = item.name;
         let nodeArray = key.split('^@~@^');
         let children = tree;
-
         //运行场景中如果连续将1个场景引入多次，会出现运行结果合并的情况。
         //为了解决这种问题，在转hashTree的时候给场景放了个新ID，前台加载解析的时候也要做处理
         let scenarioId = "";
@@ -145,10 +181,17 @@ export default {
             label: nodeArray[i],
             value: item,
           };
-          if (i !== nodeArray.length) {
+          if (i !== (nodeArray.length - 1)) {
             node.children = [];
+          } else {
+            if (item.subRequestResults && item.subRequestResults.length > 0) {
+              let itemChildren = this.deepFormatTreeNode(item.subRequestResults);
+              node.children = itemChildren;
+              if (node.label.indexOf("UUID=")) {
+                node.label = node.label.split("UUID=")[0];
+              }
+            }
           }
-
           if (children.length === 0) {
             children.push(node);
           }
@@ -203,6 +246,43 @@ export default {
         }
       })
     },
+
+    deepFormatTreeNode(array) {
+      let returnChildren = [];
+      array.map((item) => {
+        let children = [];
+        let key = item.name.split('^@~@^')[0];
+        let nodeArray = key.split('<->');
+        //运行场景中如果连续将1个场景引入多次，会出现运行结果合并的情况。
+        //为了解决这种问题，在转hashTree的时候给场景放了个新ID，前台加载解析的时候也要做处理
+        let scenarioId = "";
+        let scenarioName = "";
+        if (item.scenario) {
+          let scenarioArr = JSON.parse(item.scenario);
+          if (scenarioArr.length > 1) {
+            let scenarioIdArr = scenarioArr[0].split("_");
+            scenarioId = scenarioIdArr[0];
+            scenarioName = scenarioIdArr[1];
+          }
+        }
+        // 循环构建子节点
+        let node = {
+          label: nodeArray[0],
+          value: item,
+          children: []
+        };
+        if (item.subRequestResults && item.subRequestResults.length > 0) {
+          let itemChildren = this.deepFormatTreeNode(item.subRequestResults);
+          node.children = itemChildren;
+        }
+        children.push(node);
+        children.forEach(itemNode => {
+          returnChildren.push(itemNode);
+        });
+
+      });
+      return returnChildren;
+    },
     recursiveSorting(arr) {
       for (let i in arr) {
         if (arr[i]) {
@@ -226,32 +306,69 @@ export default {
     },
     getReport() {
       this.init();
-      if (this.reportId) {
-        let url = "/api/scenario/report/get/" + this.reportId;
-        this.$get(url, response => {
-          this.report = response.data || {};
-          if (response.data) {
-            if (this.isNotRunning) {
-              try {
-                this.content = JSON.parse(this.report.content);
-                if (!this.content) {
-                  this.content = {scenarios: []};
-                }
-                this.formatResult(this.content);
-              } catch (e) {
-                throw e;
-              }
-              this.getFails();
-              this.computeTotalTime();
-              this.loading = false;
-            } else {
-              setTimeout(this.getReport, 2000)
-            }
-          } else {
-            this.loading = false;
-            this.$error(this.$t('api_report.not_exist'));
-          }
+      if (this.isTemplate) {
+        // 测试计划报告导出
+        this.report = this.templateReport;
+        this.buildReport();
+      } else if (this.isShare) {
+        getShareScenarioReport(this.shareId, this.reportId, (data) => {
+          this.handleGetScenarioReport(data);
         });
+      } else {
+        getScenarioReport(this.reportId, (data) => {
+          this.handleGetScenarioReport(data);
+        });
+      }
+    },
+
+    handleGetScenarioReport(data) {
+      if (data) {
+        this.report = data;
+        if (this.report.reportVersion && this.report.reportVersion > 1) {
+          this.report.status = data.status;
+          if (!this.isNotRunning) {
+            setTimeout(this.getReport, 2000)
+          } else {
+            if (data.content) {
+              let report = JSON.parse(data.content);
+              this.content = report;
+              this.fullTreeNodes = report.steps;
+              this.content.console = report.console;
+              this.content.error = report.error;
+              this.content.success = (report.total - report.error);
+              this.totalTime = report.totalTime;
+            }
+            this.loading = false;
+          }
+        } else {
+          this.buildReport();
+        }
+      } else {
+        this.$emit('invisible');
+        this.$warning(this.$t('commons.report_delete'));
+      }
+    },
+    buildReport() {
+      if (this.report) {
+        if (this.isNotRunning) {
+          try {
+            this.content = JSON.parse(this.report.content);
+            if (!this.content) {
+              this.content = {scenarios: []};
+            }
+            this.formatResult(this.content);
+          } catch (e) {
+            throw e;
+          }
+          this.getFails();
+          this.computeTotalTime();
+          this.loading = false;
+        } else {
+          setTimeout(this.getReport, 2000)
+        }
+      } else {
+        this.loading = false;
+        this.$error(this.$t('api_report.not_exist'));
       }
     },
     getFails() {
@@ -282,21 +399,27 @@ export default {
     },
     computeTotalTime() {
       if (this.content.scenarios) {
-        let startTime = 99991611737506593;
+        let startTime = 0;
         let endTime = 0;
+        let requestTime = 0;
         this.content.scenarios.forEach((scenario) => {
           scenario.requestResults.forEach((request) => {
-            if (request.startTime && Number(request.startTime) < startTime) {
+            if (request.startTime && Number(request.startTime)) {
               startTime = request.startTime;
             }
-            if (request.endTime && Number(request.endTime) > endTime) {
+            if (request.endTime && Number(request.endTime)) {
               endTime = request.endTime;
             }
+            let resTime;
+            if (startTime === 0 || endTime === 0) {
+              resTime = 0
+            } else {
+              resTime = endTime - startTime
+            }
+            requestTime = requestTime + resTime;
           })
         })
-        if (startTime < endTime) {
-          this.totalTime = endTime - startTime + 100;
-        }
+        this.totalTime = requestTime
       }
     },
     requestResult(requestResult) {
@@ -312,7 +435,30 @@ export default {
         this.scenarioName = requestResult.scenarioName;
       });
     },
+    formatExportApi(array, scenario) {
+      array.forEach(item => {
+        if (this.stepFilter && this.stepFilter.get("AllSamplerProxy").indexOf(item.type) !== -1) {
+          scenario.requestResults.push(item.value);
+        }
+        if (item.children && item.children.length > 0) {
+          this.formatExportApi(item.children, scenario);
+        }
+      })
+    },
     handleExport() {
+      if (this.report.reportVersion && this.report.reportVersion > 1) {
+        this.fullTreeNodes.forEach(item => {
+          if (item.type === "scenario") {
+            let scenario = {name: item.label, requestResults: []};
+            if (this.content.scenarios && this.content.scenarios.length > 0) {
+              this.content.scenarios.push(scenario);
+            } else {
+              this.content.scenarios = [scenario];
+            }
+            this.formatExportApi(item.children, scenario);
+          }
+        })
+      }
       this.reportExportVisible = true;
       let reset = this.exportReportReset;
       this.$nextTick(() => {
@@ -393,6 +539,11 @@ export default {
   color: inherit;
 }
 
+.report-console {
+  height: calc(100vh - 270px);
+  overflow-y: auto;
+}
+
 .export-button {
   float: right;
 }
@@ -400,5 +551,4 @@ export default {
 .scenario-result .icon.is-active {
   transform: rotate(90deg);
 }
-
 </style>

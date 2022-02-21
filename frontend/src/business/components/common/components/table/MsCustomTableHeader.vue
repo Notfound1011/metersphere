@@ -2,6 +2,7 @@
   <el-dialog :title="$t('table.header_display_field')" :visible.sync="visible" :append-to-body="true">
     <tree-transfer :title="[$t('table.fields_to_be_selected'), $t('table.selected_fields')]"
                    :from_data='fromFields'
+                   :placeholder="$t('api_test.request.parameters_mock_filter_tips')"
                    :draggable="true"
                    :to_data='selectedFields'
                    :defaultProps="{label:'label'}"
@@ -19,6 +20,7 @@
 import MsDialogFooter from "@/business/components/common/components/MsDialogFooter";
 import treeTransfer from 'el-tree-transfer'
 import {getAllFieldWithCustomFields, saveCustomTableHeader} from "@/common/js/tableUtils";
+import {SYSTEM_FIELD_NAME_MAP} from "@/common/js/table-constants";
 
 export default {
   name: "MsCustomTableHeader",
@@ -44,6 +46,12 @@ export default {
     },
     open(items) {
       items = JSON.parse(JSON.stringify(items));
+      items.forEach(it => {
+        if (it.isCustom) {
+          // i18n
+          it.label = SYSTEM_FIELD_NAME_MAP[it.id] ? this.$t(SYSTEM_FIELD_NAME_MAP[it.id]) : it.label;
+        }
+      })
       let fields = getAllFieldWithCustomFields(this.type, this.customFields);
       this.selectedKeys = [];
       this.fromFields = [];
@@ -51,6 +59,9 @@ export default {
       this.selectedFields = items;
       fields.forEach(field => {
         if (this.selectedKeys.indexOf(field.key) < 0) {
+          if (field.isCustom) {
+            field.label = SYSTEM_FIELD_NAME_MAP[field.id] ? this.$t(SYSTEM_FIELD_NAME_MAP[field.id]) : field.label
+          }
           this.fromFields.push(field);
         }
       });

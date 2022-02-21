@@ -13,6 +13,17 @@
     <div style="height: 300px;width: 100%">
       <ms-code-edit mode="xml" :data.sync="request.jmeterElement" theme="eclipse" ref="codeEdit"/>
     </div>
+
+    <template v-slot:debugStepCode>
+      <span v-if="node.data.testing" class="ms-test-running">
+         <i class="el-icon-loading" style="font-size: 16px"/>
+         {{ $t('commons.testing') }}
+       </span>
+      <span class="ms-step-debug-code" :class="node.data.code ==='error'?'ms-req-error':'ms-req-success'" v-if="!loading && !node.data.testing && node.data.debug">
+        {{ getCode() }}
+      </span>
+    </template>
+
   </api-base-component>
 </template>
 
@@ -31,6 +42,7 @@
         type: Boolean,
         default: false,
       },
+      message: String,
       isReadOnly: {
         type: Boolean,
         default:
@@ -52,7 +64,33 @@
       defBackgroundColor: {type: String, default: "#F4F4FF"},
       node: {},
     },
+    data() {
+      return {
+        loading: false,
+      }
+    },
+    watch: {
+      message() {
+        this.reload();
+      },
+    },
     methods: {
+      reload() {
+        this.loading = true
+        this.$nextTick(() => {
+          this.loading = false
+        })
+      },
+      getCode() {
+        if (this.node && this.node.data.code && this.node.data.debug) {
+          if (this.node.data.code && this.node.data.code === 'error') {
+            return 'error';
+          } else {
+            return 'success';
+          }
+        }
+        return '';
+      },
       remove() {
         this.$emit('remove', this.request, this.node);
       },
@@ -72,5 +110,25 @@
 <style scoped>
   /deep/ .el-divider {
     margin-bottom: 10px;
+  }
+  .ms-req-error {
+    color: #F56C6C;
+  }
+
+  .ms-req-success {
+    color: #67C23A;
+  }
+  .ms-step-debug-code {
+    display: inline-block;
+    margin: 0 5px;
+    overflow-x: hidden;
+    padding-bottom: 0;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+    white-space: nowrap;
+    width: 100px;
+  }
+  .ms-test-running {
+    color: #6D317C;
   }
 </style>

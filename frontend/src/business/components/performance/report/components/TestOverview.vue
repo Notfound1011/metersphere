@@ -7,7 +7,7 @@
             <span class="ms-card-data-digital">{{ maxUsers }}</span>
             <span class="ms-card-data-unit"> VU</span>
           </span>
-          <span class="ms-card-desc">Max Users</span>
+          <span class="ms-card-desc">{{ $t('load_test.report.ActiveThreadsChart') }}</span>
         </el-card>
       </el-col>
       <el-col :span="4">
@@ -16,7 +16,7 @@
             <span class="ms-card-data-digital">{{ avgTransactions }}</span>
             <span class="ms-card-data-unit"> TPS</span>
           </span>
-          <span class="ms-card-desc">Avg.Transactions</span>
+          <span class="ms-card-desc">{{ $t('load_test.report.TransactionsChart') }}</span>
         </el-card>
       </el-col>
       <el-col :span="4">
@@ -25,7 +25,7 @@
             <span class="ms-card-data-digital">{{ errors }}</span>
             <span class="ms-card-data-unit"> %</span>
           </span>
-          <span class="ms-card-desc">Errors</span>
+          <span class="ms-card-desc">{{ $t('load_test.report.ErrorsChart') }}</span>
         </el-card>
       </el-col>
       <el-col :span="4">
@@ -34,7 +34,7 @@
             <span class="ms-card-data-digital">{{ avgResponseTime }}</span>
             <span class="ms-card-data-unit"> s</span>
           </span>
-          <span class="ms-card-desc">Avg.Response Time</span>
+          <span class="ms-card-desc">{{ $t('load_test.report.ResponseTimeChart') }}</span>
         </el-card>
       </el-col>
       <el-col :span="4">
@@ -43,7 +43,7 @@
             <span class="ms-card-data-digital">{{ responseTime90 }}</span>
             <span class="ms-card-data-unit"> s</span>
           </span>
-          <span class="ms-card-desc">90% Response Time</span>
+          <span class="ms-card-desc">90% {{ $t('load_test.report.ResponseTimeChart') }}</span>
         </el-card>
       </el-col>
       <el-col :span="4">
@@ -52,7 +52,7 @@
             <span class="ms-card-data-digital">{{ avgBandwidth }}</span>
             <span class="ms-card-data-unit"> KiB/s</span>
           </span>
-          <span class="ms-card-desc">Avg.Bandwidth</span>
+          <span class="ms-card-desc">{{ $t('load_test.report.Network') }}</span>
         </el-card>
       </el-col>
     </el-row>
@@ -65,21 +65,32 @@
         <ms-chart ref="chart2" :options="resOption" class="chart-config" :autoresize="true"></ms-chart>
       </el-col>
     </el-row>
-    <el-row>
-      <el-col :span="12">
-        <ms-chart ref="chart3" :options="errorOption" class="chart-config" :autoresize="true"></ms-chart>
-      </el-col>
-      <el-col :span="12">
-        <ms-chart ref="chart3" :options="resCodeOption" class="chart-config" :autoresize="true"></ms-chart>
-      </el-col>
-    </el-row>
   </div>
 </template>
 
 <script>
 import MsChart from "@/business/components/common/chart/MsChart";
+import {
+  getPerformanceReportErrorChart,
+  getPerformanceReportLoadChart,
+  getPerformanceReportOverview,
+  getPerformanceReportResChart,
+  getPerformanceReportResponseCodeChart,
+  getSharePerformanceReportErrorChart,
+  getSharePerformanceReportLoadChart,
+  getSharePerformanceReportOverview,
+  getSharePerformanceReportResChart,
+  getSharePerformanceReportResponseCodeChart,
+} from "@/network/load-test";
 
 const color = ['#60acfc', '#32d3eb', '#5bc49f', '#feb64d', '#ff7c7c', '#9287e7', '#ca8622', '#bda29a', '#6e7074', '#546570', '#c4ccd3'];
+
+const groupBy = function (xs, key) {
+  return xs.reduce(function (rv, x) {
+    (rv[x[key]] = rv[x[key]] || []).push(x);
+    return rv;
+  }, {});
+};
 
 export default {
   name: "TestOverview",
@@ -100,359 +111,370 @@ export default {
       id: ''
     };
   },
+  props: ['report', 'export', 'isShare', 'shareId', 'planReportTemplate'],
   methods: {
     initTableData() {
-      this.$get("/performance/report/content/testoverview/" + this.id).then(res => {
-        let data = res.data.data;
-        this.maxUsers = data.maxUsers;
-        this.avgThroughput = data.avgThroughput;
-        this.avgTransactions = data.avgTransactions;
-        this.errors = data.errors;
-        this.avgResponseTime = data.avgResponseTime;
-        this.responseTime90 = data.responseTime90;
-        this.avgBandwidth = data.avgBandwidth;
-      }).catch(() => {
-        this.maxUsers = '0';
-        this.avgThroughput = '0';
-        this.avgTransactions = '0';
-        this.errors = '0';
-        this.avgResponseTime = '0';
-        this.responseTime90 = '0';
-        this.avgBandwidth = '0';
-        // this.$warning(this.$t('report.generation_error'));
-      });
+      if (this.planReportTemplate) {
+        let data = this.planReportTemplate.testOverview;
+        this.buildInfo(data);
+      } else if (this.isShare) {
+        getSharePerformanceReportOverview(this.shareId, this.id, (data) => {
+          this.buildInfo(data);
+        });
+      } else {
+        getPerformanceReportOverview(this.id, data => {
+          this.buildInfo(data);
+        });
+      }
       this.getLoadChart();
       this.getResChart();
-      this.getErrorChart();
-      this.getResponseCodeChart();
+    },
+    buildInfo(data) {
+      this.maxUsers = data ? data.maxUsers : '0';
+      this.avgThroughput = data ? data.avgThroughput : '0';
+      this.avgTransactions = data ? data.avgTransactions : '0';
+      this.errors = data ? data.errors : '0';
+      this.avgResponseTime = data ? data.avgResponseTime : '0';
+      this.responseTime90 = data ? data.responseTime90 : '0';
+      this.avgBandwidth = data ? data.avgBandwidth : '0';
     },
     getLoadChart() {
-      this.$get("/performance/report/content/load_chart/" + this.id).then(res => {
-        let data = res.data.data;
-        let yAxisList = data.filter(m => m.yAxis2 === -1).map(m => m.yAxis);
-        let yAxis2List = data.filter(m => m.yAxis === -1).map(m => m.yAxis2);
-        let yAxisListMax = this._getChartMax(yAxisList);
-        let yAxis2ListMax = this._getChartMax(yAxis2List);
-
-        let yAxisIndex0List = data.filter(m => m.yAxis2 === -1).map(m => m.groupName);
-        yAxisIndex0List = this._unique(yAxisIndex0List);
-        let yAxisIndex1List = data.filter(m => m.yAxis === -1).map(m => m.groupName);
-        yAxisIndex1List = this._unique(yAxisIndex1List);
-
-        let loadOption = {
-          color: color,
-          title: {
-            text: 'Load',
-            left: 'center',
-            top: 20,
-            textStyle: {
-              color: '#65A2FF'
-            },
-          },
-          tooltip: {
-            show: true,
-            trigger: 'axis',
-            // extraCssText: 'z-index: 999;',
-            confine: true,
-          },
-          legend: {},
-          xAxis: {},
-          yAxis: [{
-            name: 'User',
-            type: 'value',
-            min: 0,
-            max: yAxisListMax,
-            splitNumber: 5,
-            interval: yAxisListMax / 5
-          },
-            {
-              name: 'Transactions/s',
-              type: 'value',
-              splitNumber: 5,
-              min: 0,
-              max: yAxis2ListMax,
-              interval: yAxis2ListMax / 5
-            }
-          ],
-          series: []
-        };
-        let setting = {
-          series: [
-            {
-              name: 'users',
-              color: '#0CA74A',
-            },
-            {
-              name: 'hits',
-              yAxisIndex: '1',
-              color: '#65A2FF',
-            },
-            {
-              name: 'errors',
-              yAxisIndex: '1',
-              color: '#E6113C',
-            }
-          ]
-        };
-        yAxisIndex0List.forEach(item => {
-          setting["series"].splice(0, 0, {name: item, yAxisIndex: '0'});
+      if (this.planReportTemplate) {
+        let data = this.planReportTemplate.loadChartData;
+        this.handleGetLoadChart(data);
+      } else if (this.isShare) {
+        getSharePerformanceReportLoadChart(this.shareId, this.id, data => {
+          this.handleGetLoadChart(data);
         });
-
-        yAxisIndex1List.forEach(item => {
-          setting["series"].splice(0, 0, {name: item, yAxisIndex: '1'});
+      } else {
+        getPerformanceReportLoadChart(this.id, (data) => {
+          this.handleGetLoadChart(data);
         });
-        this.loadOption = this.generateOption(loadOption, data, setting);
-      }).catch(() => {
-        this.loadOption = {};
-      });
+      }
+    },
+    handleGetLoadChart(data) {
+      if (!data) {
+        return;
+      }
+      let loadOption = {
+        color: color,
+        title: {
+          text: 'Load',
+          left: 'center',
+          top: 20,
+          textStyle: {
+            color: '#65A2FF'
+          },
+        },
+        tooltip: {
+          show: true,
+          trigger: 'axis',
+          // extraCssText: 'z-index: 999;',
+          confine: true,
+        },
+        legend: {},
+        xAxis: {},
+        series: []
+      };
+
+      let allData = [];
+      let result = groupBy(data, 'xAxis');
+      for (const xAxis in result) {
+        let yAxis1 = result[xAxis].filter(a => a.yAxis2 === -1).map(a => a.yAxis).reduce((a, b) => a + b, 0);
+        let yAxis2 = result[xAxis].filter(a => a.yAxis === -1).map(a => a.yAxis2).reduce((a, b) => a + b, 0);
+        allData.push({
+          groupName: 'users',
+          xAxis: xAxis,
+          yAxis: yAxis1,
+          yAxis2: -1,
+          yAxisIndex: 0,
+        }, {
+          groupName: 'transactions/s',
+          xAxis: xAxis,
+          yAxis: -1,
+          yAxis2: yAxis2,
+          yAxisIndex: 1,
+        });
+      }
+      let yAxisList = allData.filter(m => m.yAxis2 === -1).map(m => m.yAxis);
+      let yAxis2List = allData.filter(m => m.yAxis === -1).map(m => m.yAxis2);
+      let yAxisListMax = this._getChartMax(yAxisList);
+      let yAxis2ListMax = this._getChartMax(yAxis2List);
+      loadOption.yAxis = [{
+        name: 'User',
+        type: 'value',
+        min: 0,
+        max: yAxisListMax,
+        splitNumber: 5,
+        interval: yAxisListMax / 5
+      },
+        {
+          name: 'Transactions/s',
+          type: 'value',
+          splitNumber: 5,
+          min: 0,
+          max: yAxis2ListMax,
+          interval: yAxis2ListMax / 5
+        }
+      ];
+      this.loadOption = this.generateOption(loadOption, allData);
     },
     getResChart() {
-      this.$get("/performance/report/content/res_chart/" + this.id).then(res => {
-        let data = res.data.data;
-        let yAxisList = data.filter(m => m.yAxis2 === -1).map(m => m.yAxis);
-        let yAxis2List = data.filter(m => m.yAxis === -1).map(m => m.yAxis2);
-        let yAxisListMax = this._getChartMax(yAxisList);
-        let yAxis2ListMax = this._getChartMax(yAxis2List);
-
-        let yAxisIndex0List = data.filter(m => m.yAxis2 === -1).map(m => m.groupName);
-        yAxisIndex0List = this._unique(yAxisIndex0List);
-        let yAxisIndex1List = data.filter(m => m.yAxis === -1).map(m => m.groupName);
-        yAxisIndex1List = this._unique(yAxisIndex1List);
-
-        let resOption = {
-          color: color,
-          title: {
-            text: 'Response Time',
-            left: 'center',
-            top: 20,
-            textStyle: {
-              color: '#99743C'
-            },
+      if (this.planReportTemplate) {
+        let data = this.planReportTemplate.responseTimeChartData;
+        this.handleGetResChart(data);
+      } else if (this.isShare) {
+        getSharePerformanceReportResChart(this.shareId, this.id, data => {
+          this.handleGetResChart(data);
+        });
+      } else {
+        getPerformanceReportResChart(this.id, data => {
+          this.handleGetResChart(data);
+        });
+      }
+    },
+    handleGetResChart(data) {
+      if (!data) {
+        return;
+      }
+      let resOption = {
+        color: color,
+        title: {
+          text: 'Response Time',
+          left: 'center',
+          top: 20,
+          textStyle: {
+            color: '#99743C'
           },
-          tooltip: {
-            show: true,
-            trigger: 'axis',
-            // extraCssText: 'z-index: 999;',
-            confine: true,
-            formatter: function (params, ticket, callback) {
-              let result = "";
-              let name = params[0].name;
-              result += name + "<br/>";
-              for (let i = 0; i < params.length; i++) {
-                let seriesName = params[i].seriesName;
-                if (seriesName.length > 100) {
-                  seriesName = seriesName.substring(0, 100);
-                }
-                let value = params[i].value;
-                let marker = params[i].marker;
-                result += marker + seriesName + ": " + value[1] + "<br/>";
+        },
+        tooltip: {
+          show: true,
+          trigger: 'axis',
+          // extraCssText: 'z-index: 999;',
+          confine: true,
+          formatter: function (params, ticket, callback) {
+            let result = "";
+            let name = params[0].name;
+            result += name + "<br/>";
+            for (let i = 0; i < params.length; i++) {
+              let seriesName = params[i].seriesName;
+              if (seriesName.length > 100) {
+                seriesName = seriesName.substring(0, 100);
               }
+              let value = params[i].value;
+              let marker = params[i].marker;
+              result += marker + seriesName + ": " + value[1] + "<br/>";
+            }
 
-              return result;
-            }
-          },
-          legend: {},
-          xAxis: {},
-          yAxis: [{
-            name: 'User',
-            type: 'value',
-            min: 0,
-            max: yAxisListMax,
-            interval: yAxisListMax / 5
-          },
-            {
-              name: 'Response Time',
-              type: 'value',
-              min: 0,
-              max: yAxis2ListMax,
-              interval: yAxis2ListMax / 5
-            }
-          ],
-          series: []
-        };
-        let setting = {
-          series: [
-            {
-              name: 'users',
-              color: '#0CA74A',
-            }
-          ]
-        };
+            return result;
+          }
+        },
+        legend: {},
+        xAxis: {},
+        series: []
+      };
 
-        yAxisIndex0List.forEach(item => {
-          setting["series"].splice(0, 0, {name: item, yAxisIndex: '0'});
+      let allData = [];
+      let result = groupBy(data, 'xAxis');
+      for (const xAxis in result) {
+        let yAxis1 = result[xAxis].filter(a => a.yAxis2 === -1).map(a => a.yAxis).reduce((a, b) => a + b, 0);
+        yAxis1 = yAxis1 / result[xAxis].length;
+
+        allData.push({
+          groupName: 'response',
+          xAxis: xAxis,
+          yAxis: -1,
+          yAxis2: yAxis1,
+          yAxisIndex: 0,
         });
+      }
 
-        yAxisIndex1List.forEach(item => {
-          setting["series"].splice(0, 0, {name: item, yAxisIndex: '1'});
-        });
-
-        this.resOption = this.generateOption(resOption, data, setting);
-      }).catch(() => {
-        this.resOption = {};
-      });
+      let yAxisList = allData.filter(m => m.yAxis === -1).map(m => m.yAxis2);
+      let yAxisListMax = this._getChartMax(yAxisList);
+      resOption.yAxis = [
+        {
+          name: 'Response Time',
+          type: 'value',
+          min: 0,
+          max: yAxisListMax,
+          interval: yAxisListMax / 5
+        }
+      ];
+      this.resOption = this.generateOption(resOption, allData);
     },
     getErrorChart() {
-      this.$get("/performance/report/content/error_chart/" + this.id).then(res => {
-        let data = res.data.data;
-        let yAxisList = data.filter(m => m.yAxis2 === -1).map(m => m.yAxis);
-        let yAxisListMax = this._getChartMax(yAxisList);
-
-        let yAxisIndex0List = data.filter(m => m.yAxis2 === -1).map(m => m.groupName);
-        yAxisIndex0List = this._unique(yAxisIndex0List);
-
-        let errorOption = {
-          color: color,
-          title: {
-            text: 'Errors',
-            left: 'center',
-            top: 20,
-            textStyle: {
-              color: '#99743C'
-            },
-          },
-          tooltip: {
-            show: true,
-            trigger: 'axis',
-            // extraCssText: 'z-index: 999;',
-            confine: true,
-            formatter: function (params, ticket, callback) {
-              let result = "";
-              let name = params[0].name;
-              result += name + "<br/>";
-              for (let i = 0; i < params.length; i++) {
-                let seriesName = params[i].seriesName;
-                if (seriesName.length > 100) {
-                  seriesName = seriesName.substring(0, 100);
-                }
-                let value = params[i].value;
-                let marker = params[i].marker;
-                result += marker + seriesName + ": " + value[1] + "<br/>";
-              }
-
-              return result;
-            }
-          },
-          legend: {},
-          xAxis: {},
-          yAxis: [
-            {
-              name: 'No',
-              type: 'value',
-              min: 0,
-              max: yAxisListMax,
-              interval: yAxisListMax / 5
-            }
-          ],
-          series: []
-        };
-        let setting = {
-          series: [
-            {
-              name: 'users',
-              color: '#0CA74A',
-            }
-          ]
-        };
-
-        yAxisIndex0List.forEach(item => {
-          setting["series"].splice(0, 0, {name: item, yAxisIndex: '0'});
+      if (this.planReportTemplate) {
+        let data = this.planReportTemplate.loadOverviewErrorChart;
+        this.handleGetErrorChart(data);
+      } else if (this.isShare) {
+        getSharePerformanceReportErrorChart(this.shareId, this.id, data => {
+          this.handleGetErrorChart(data);
         });
+      } else {
+        getPerformanceReportErrorChart(this.id, data => {
+          this.handleGetErrorChart(data);
+        });
+      }
+    },
+    handleGetErrorChart(data) {
+      if (!data) {
+        return;
+      }
+      let errorOption = {
+        color: color,
+        title: {
+          text: 'Errors',
+          left: 'center',
+          top: 20,
+          textStyle: {
+            color: '#99743C'
+          },
+        },
+        tooltip: {
+          show: true,
+          trigger: 'axis',
+          // extraCssText: 'z-index: 999;',
+          confine: true,
+          formatter: function (params, ticket, callback) {
+            let result = "";
+            let name = params[0].name;
+            result += name + "<br/>";
+            for (let i = 0; i < params.length; i++) {
+              let seriesName = params[i].seriesName;
+              if (seriesName.length > 100) {
+                seriesName = seriesName.substring(0, 100);
+              }
+              let value = params[i].value;
+              let marker = params[i].marker;
+              result += marker + seriesName + ": " + value[1] + "<br/>";
+            }
 
-        this.errorOption = this.generateOption(errorOption, data, setting);
-      }).catch(() => {
-        this.errorOption = {};
-      });
+            return result;
+          }
+        },
+        legend: {},
+        xAxis: {},
+        series: []
+      };
+
+      let allData = [];
+      let result = groupBy(data, 'xAxis');
+      for (const xAxis in result) {
+        let yAxis1 = result[xAxis].filter(a => a.yAxis2 === -1).map(a => a.yAxis).reduce((a, b) => a + b, 0);
+
+        allData.push({
+          groupName: 'errors',
+          xAxis: xAxis,
+          yAxis: -1,
+          yAxis2: yAxis1,
+          yAxisIndex: 0,
+        });
+      }
+      let yAxisList = allData.filter(m => m.yAxis === -1).map(m => m.yAxis2);
+      let yAxisListMax = this._getChartMax(yAxisList);
+      errorOption.yAxis = [
+        {
+          name: 'No',
+          type: 'value',
+          min: 0,
+          max: yAxisListMax,
+          interval: yAxisListMax / 5
+        }
+      ];
+
+      this.errorOption = this.generateOption(errorOption, allData);
     },
     getResponseCodeChart() {
-      this.$get("/performance/report/content/response_code_chart/" + this.id).then(res => {
-        let data = res.data.data;
-        let yAxisList = data.filter(m => m.yAxis2 === -1).map(m => m.yAxis);
-        let yAxisListMax = this._getChartMax(yAxisList);
-
-        let yAxisIndex0List = data.filter(m => m.yAxis2 === -1).map(m => m.groupName);
-        yAxisIndex0List = this._unique(yAxisIndex0List);
-
-        let resCodeOption = {
-          color: color,
-          title: {
-            text: 'Response code',
-            left: 'center',
-            top: 20,
-            textStyle: {
-              color: '#99743C'
-            },
-          },
-          tooltip: {
-            show: true,
-            trigger: 'axis',
-            // extraCssText: 'z-index: 999;',
-            confine: true,
-            formatter: function (params, ticket, callback) {
-              let result = "";
-              let name = params[0].name;
-              result += name + "<br/>";
-              for (let i = 0; i < params.length; i++) {
-                let seriesName = params[i].seriesName;
-                if (seriesName.length > 100) {
-                  seriesName = seriesName.substring(0, 100);
-                }
-                let value = params[i].value;
-                let marker = params[i].marker;
-                result += marker + seriesName + ": " + value[1] + "<br/>";
-              }
-
-              return result;
-            }
-          },
-          legend: {},
-          xAxis: {},
-          yAxis: [
-            {
-              name: 'No',
-              type: 'value',
-              min: 0,
-              max: yAxisListMax,
-              interval: yAxisListMax / 5
-            }
-          ],
-          series: []
-        };
-        let setting = {
-          series: [
-            {
-              name: 'users',
-              color: '#0CA74A',
-            }
-          ]
-        };
-
-        yAxisIndex0List.forEach(item => {
-          setting["series"].splice(0, 0, {name: item, yAxisIndex: '0'});
+      if (this.planReportTemplate) {
+        let data = this.planReportTemplate.responseCodeChartData;
+        this.handleGetResponseCodeChart(data);
+      } else if (this.isShare) {
+        getSharePerformanceReportResponseCodeChart(this.shareId, this.id, data => {
+          this.handleGetResponseCodeChart(data);
         });
-
-        this.resCodeOption = this.generateOption(resCodeOption, data, setting);
-      }).catch(() => {
-        this.resCodeOption = {};
-      });
-    },
-    generateOption(option, data, setting) {
-      let chartData = data;
-      let seriesArray = [];
-      for (let set in setting) {
-        if (set === "series") {
-          seriesArray = setting[set];
-          continue;
-        }
-        this.$set(option, set, setting[set]);
+      } else {
+        getPerformanceReportResponseCodeChart(this.id, data => {
+          this.handleGetResponseCodeChart(data);
+        });
       }
-      let legend = [], series = {}, xAxis = [], seriesData = [];
+    },
+    handleGetResponseCodeChart(data) {
+      if (!data) {
+        return;
+      }
+      let resCodeOption = {
+        color: color,
+        title: {
+          text: 'Response code',
+          left: 'center',
+          top: 20,
+          textStyle: {
+            color: '#99743C'
+          },
+        },
+        tooltip: {
+          show: true,
+          trigger: 'axis',
+          // extraCssText: 'z-index: 999;',
+          confine: true,
+          formatter: function (params, ticket, callback) {
+            let result = "";
+            let name = params[0].name;
+            result += name + "<br/>";
+            for (let i = 0; i < params.length; i++) {
+              let seriesName = params[i].seriesName;
+              if (seriesName.length > 100) {
+                seriesName = seriesName.substring(0, 100);
+              }
+              let value = params[i].value;
+              let marker = params[i].marker;
+              result += marker + seriesName + ": " + value[1] + "<br/>";
+            }
+
+            return result;
+          }
+        },
+        legend: {},
+        xAxis: {},
+        series: []
+      };
+
+      let allData = [];
+      let result = groupBy(data, 'xAxis');
+      for (const xAxis in result) {
+        let yAxis1 = result[xAxis].filter(a => a.yAxis2 === -1).map(a => a.yAxis).reduce((a, b) => a + b, 0);
+
+        allData.push({
+          groupName: 'codes',
+          xAxis: xAxis,
+          yAxis: -1,
+          yAxis2: yAxis1,
+          yAxisIndex: 0,
+        });
+      }
+      let yAxisList = allData.filter(m => m.yAxis === -1).map(m => m.yAxis2);
+      let yAxisListMax = this._getChartMax(yAxisList);
+      resCodeOption.yAxis = [
+        {
+          name: 'No',
+          type: 'value',
+          min: 0,
+          max: yAxisListMax,
+          interval: yAxisListMax / 5
+        }
+      ];
+      this.resCodeOption = this.generateOption(resCodeOption, allData);
+    },
+    generateOption(option, data) {
+      let chartData = data;
+      let legend = [], series = {}, xAxis = [], seriesData = [], yAxisIndex = {};
       chartData.forEach(item => {
         if (!xAxis.includes(item.xAxis)) {
           xAxis.push(item.xAxis);
         }
         xAxis.sort();
         let name = item.groupName;
+        yAxisIndex[name] = item.yAxisIndex;
         if (!legend.includes(name)) {
           legend.push(name);
           series[name] = [];
@@ -476,17 +498,10 @@ export default {
           data: d,
           smooth: true,
           sampling: 'lttb',
+          showSymbol: false,
           animation: !this.export,
+          yAxisIndex: yAxisIndex[name]
         };
-        let seriesArrayNames = seriesArray.map(m => m.name);
-        if (seriesArrayNames.includes(name)) {
-          for (let j = 0; j < seriesArray.length; j++) {
-            let seriesObj = seriesArray[j];
-            if (seriesObj['name'] === name) {
-              Object.assign(items, seriesObj);
-            }
-          }
-        }
         seriesData.push(items);
       }
       this.$set(option, "series", seriesData);
@@ -525,9 +540,16 @@ export default {
         }
       },
       deep: true
+    },
+    planReportTemplate: {
+      handler() {
+        if (this.planReportTemplate) {
+          this.initTableData();
+        }
+      },
+      deep: true
     }
   },
-  props: ['report', 'export']
 };
 </script>
 

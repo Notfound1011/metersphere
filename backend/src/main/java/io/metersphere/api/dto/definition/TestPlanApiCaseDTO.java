@@ -8,9 +8,9 @@ import lombok.Setter;
 public class TestPlanApiCaseDTO extends ApiTestCaseDTO {
     private String environmentId;
     private String caseId;
-    private String execResult;
     private String userId;
     private String creatorName;
     private String principalName;
     private String updateName;
+    private String environmentName;
 }

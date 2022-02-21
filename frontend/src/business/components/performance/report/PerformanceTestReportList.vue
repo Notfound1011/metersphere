@@ -42,11 +42,11 @@
           </el-table-column>
           <el-table-column
             prop="maxUsers"
-            width="65"
+            min-width="65"
             :label="$t('report.max_users')">
           </el-table-column>
           <el-table-column
-            width="100"
+            min-width="100"
             prop="avgResponseTime"
             :label="$t('report.response_time')">
           </el-table-column>
@@ -55,7 +55,7 @@
             label="TPS">
           </el-table-column>
           <el-table-column
-            width="100"
+            min-width="100"
             prop="testStartTime"
             :label="$t('report.test_start_time') ">
             <template v-slot:default="scope">
@@ -63,7 +63,7 @@
             </template>
           </el-table-column>
           <el-table-column
-            width="100"
+            min-width="100"
             prop="testEndTime"
             :label="$t('report.test_end_time')">
             <template v-slot:default="scope">
@@ -71,7 +71,7 @@
             </template>
           </el-table-column>
           <el-table-column
-            width="90"
+            min-width="90"
             prop="testDuration"
             :label="$t('report.test_execute_time')">
             <template v-slot:default="scope">
@@ -108,7 +108,7 @@
                                         v-permission="['PROJECT_PERFORMANCE_REPORT:READ']"
                                         @exec="handleView(scope.row)" type="primary"/>
               <ms-table-operator-button :tip="$t('load_test.report.diff')" icon="el-icon-s-operation"
-                                        v-permission="['PROJECT_PERFORMANCE_REPORT:READ']"
+                                        v-permission="['PROJECT_PERFORMANCE_REPORT:READ+COMPARE']"
                                         @exec="handleDiff(scope.row)" type="warning"/>
               <ms-table-operator-button :tip="$t('api_report.delete')"
                                         v-permission="['PROJECT_PERFORMANCE_REPORT:READ+DELETE']"
@@ -184,8 +184,11 @@ export default {
       triggerFilters: [
         {text: this.$t('commons.trigger_mode.manual'), value: 'MANUAL'},
         {text: this.$t('commons.trigger_mode.schedule'), value: 'SCHEDULE'},
+        {text: this.$t('commons.trigger_mode.test_plan_schedule'), value: 'TEST_PLAN_SCHEDULE'},
+        {text: this.$t('commons.trigger_mode.test_plan_api'), value: 'TEST_PLAN_API'},
         {text: this.$t('commons.trigger_mode.api'), value: 'API'},
         {text: this.$t('commons.trigger_mode.case'), value: 'CASE'},
+        {text: this.$t('api_test.automation.batch_execute'), value: 'BATCH'},
       ],
       buttons: [
         {
@@ -250,10 +253,8 @@ export default {
       } else {
         this.condition.testId = null;
       }
-      let orderArr = this.getSortField();
-      if(orderArr){
-        this.condition.orders = orderArr;
-      }
+      this.condition.orders = getLastTableSortField(this.tableHeaderKey);
+
       if (!getCurrentProjectID()) {
         return;
       }
@@ -351,18 +352,6 @@ export default {
     },
     saveSortField(key,orders){
       saveLastTableSortField(key,JSON.stringify(orders));
-    },
-    getSortField(){
-      let orderJsonStr = getLastTableSortField(this.tableHeaderKey);
-      let returnObj = null;
-      if(orderJsonStr){
-        try {
-          returnObj = JSON.parse(orderJsonStr);
-        }catch (e){
-          return null;
-        }
-      }
-      return returnObj;
     },
     handleSelectAll(selection) {
       if (selection.length > 0) {

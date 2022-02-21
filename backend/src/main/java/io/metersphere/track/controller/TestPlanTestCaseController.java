@@ -6,6 +6,7 @@ import io.metersphere.base.domain.TestPlanTestCaseWithBLOBs;
 import io.metersphere.commons.constants.OperLogConstants;
 import io.metersphere.commons.utils.PageUtils;
 import io.metersphere.commons.utils.Pager;
+import io.metersphere.controller.request.ResetOrderRequest;
 import io.metersphere.log.annotation.MsAuditLog;
 import io.metersphere.track.dto.TestPlanCaseDTO;
 import io.metersphere.track.request.testcase.TestPlanCaseBatchRequest;
@@ -130,4 +131,18 @@ public class TestPlanTestCaseController {
         return testPlanTestCaseService.deleteTestCase(id);
     }
 
+    @GetMapping("/list/failure/{planId}")
+    public List<TestPlanCaseDTO> getFailureCases(@PathVariable String planId) {
+        return testPlanTestCaseService.getFailureCases(planId);
+    }
+
+    @GetMapping("/list/all/{planId}")
+    public List<TestPlanCaseDTO> getAllCases(@PathVariable String planId) {
+        return testPlanTestCaseService.getAllCases(planId);
+    }
+
+    @PostMapping("/edit/order")
+    public void orderCase(@RequestBody ResetOrderRequest request) {
+        testPlanTestCaseService.updateOrder(request);
+    }
 }

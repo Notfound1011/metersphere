@@ -20,19 +20,27 @@ import CKEditor from '@ckeditor/ckeditor5-vue';
 import VueFab from 'vue-float-action-button'
 import {left2RightDrag, bottom2TopDrag, right2LeftDrag} from "../common/js/directive";
 import JsonSchemaEditor from './components/common/json-schema/schema/index';
+import ComparedEditor from './components/history/api/json-view/schema/index';
 import JSONPathPicker from 'vue-jsonpath-picker';
 import VueClipboard from 'vue-clipboard2'
 import vueMinderEditor from 'vue-minder-editor-plus'
+import formCreate from "@form-create/element-ui"
 
 import mavonEditor from 'mavon-editor'
 import 'mavon-editor/dist/css/index.css'
+import 'element-ui/lib/theme-chalk/display.css';
+import * as echarts from 'echarts';
+Vue.prototype.$echarts = echarts
 Vue.use(mavonEditor)
 
 Vue.use(vueMinderEditor)
 
 Vue.use(JsonSchemaEditor);
+Vue.use(ComparedEditor);
+
 import VuePapaParse from 'vue-papa-parse'
 Vue.use(VuePapaParse)
+Vue.use(formCreate);
 
 Vue.config.productionTip = false;
 Vue.use(icon);
@@ -52,9 +60,6 @@ Vue.use(VueClipboard)
 
 // v-permission
 Vue.directive('permission', permission);
-
-// v-roles
-Vue.directive('roles', roles);
 
 Vue.directive('xpack', xpack);
 

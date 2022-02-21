@@ -143,6 +143,9 @@ textarea {
   border-right: 0 !important;
 }
 
+.msTableColumn .el-tooltip {
+  width: auto !important;
+}
 /* 表格拖拽表头调整宽度 --> */
 
 /* <-- 表格 input 编辑效果 */
@@ -288,4 +291,12 @@ textarea {
   background-color: #409EFF;
   border-color: #409EFF;
   color: white;
+}
+
+.ms-full-loading .el-loading-spinner {
+  font-size: 16px;
+}
+
+.ace-chrome .ace_print-margin {
+  width: 0px !important;
 }

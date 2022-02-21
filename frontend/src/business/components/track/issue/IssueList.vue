@@ -1,6 +1,7 @@
 <template>
   <ms-container>
     <ms-main-container>
+
       <el-card class="table-card">
         <template v-slot:header>
           <ms-table-header :create-permission="['PROJECT_TRACK_ISSUE:READ+CREATE']" :condition.sync="page.condition" @search="getIssues" @create="handleCreate"
@@ -25,22 +26,15 @@
           :operators="operators"
           :show-select-all="false"
           :screen-height="screenHeight"
+          :remember-order="true"
           @handlePageChange="getIssues"
           :fields.sync="fields"
           :field-key="tableHeaderKey"
-          @saveSortField="saveSortField"
           @refresh="getIssues"
           :custom-fields="issueTemplate.customFields"
           ref="table"
         >
     <span v-for="(item) in fields" :key="item.key">
-<!--          <ms-table-column
-           :label="$t('test_track.issue.id')"
-           prop="id"
-           :field="item"
-           :fields-width="fieldsWidth"
-           v-if="false">
-          </ms-table-column>-->
         <ms-table-column width="1">
         </ms-table-column>
           <ms-table-column
@@ -48,6 +42,7 @@
             prop="num"
             :field="item"
             sortable
+            min-width="100"
             :fields-width="fieldsWidth">
           </ms-table-column>
 
@@ -56,6 +51,7 @@
             :fields-width="fieldsWidth"
             :label="$t('test_track.issue.title')"
             sortable
+            min-width="110"
             prop="title">
           </ms-table-column>
 
@@ -64,6 +60,7 @@
             :fields-width="fieldsWidth"
             :filters="platformFilters"
             :label="$t('test_track.issue.platform')"
+            min-width="80"
             prop="platform">
           </ms-table-column>
 
@@ -71,10 +68,12 @@
                   :field="item"
                   :fields-width="fieldsWidth"
                   sortable
+                  min-width="110"
                   :label="$t('test_track.issue.platform_status') "
                   prop="platformStatus">
             <template v-slot="scope">
-              {{ scope.row.platformStatus ? scope.row.platformStatus : '--'}}
+              <span v-if="scope.row.platform ==='Zentao'">{{ scope.row.platformStatus ? issueStatusMap[scope.row.platformStatus] : '--'}}</span>
+              <span v-else>{{ scope.row.platformStatus ? scope.row.platformStatus : '--'}}</span>
             </template>
           </ms-table-column>
 
@@ -82,7 +81,9 @@
             :field="item"
             :fields-width="fieldsWidth"
             column-key="creator"
+            :filters="creatorFilters"
             sortable
+            min-width="100px"
             :label="$t('custom_field.issue_creator')"
             prop="creatorName">
           </ms-table-column>
@@ -129,7 +130,7 @@
           <ms-table-column v-for="field in issueTemplate.customFields" :key="field.id"
                            :field="item"
                            :fields-width="fieldsWidth"
-                           :label="field.name"
+                           :label="field.system ? $t(systemNameMap[field.name]) :field.name"
                            :prop="field.name">
               <template v-slot="scope">
                 <span v-if="field.name === '状态'">
@@ -161,26 +162,24 @@ import MsTableOperators from "@/business/components/common/components/MsTableOpe
 import MsTableButton from "@/business/components/common/components/MsTableButton";
 import MsTablePagination from "@/business/components/common/pagination/TablePagination";
 import {
-  CUSTOM_FIELD_SCENE_OPTION,
-  CUSTOM_FIELD_TYPE_OPTION,
-  FIELD_TYPE_MAP, ISSUE_PLATFORM_OPTION,
+  ISSUE_PLATFORM_OPTION,
   ISSUE_STATUS_MAP,
   SYSTEM_FIELD_NAME_MAP
 } from "@/common/js/table-constants";
 import MsTableHeader from "@/business/components/common/components/MsTableHeader";
 import IssueDescriptionTableItem from "@/business/components/track/issue/IssueDescriptionTableItem";
 import IssueEdit from "@/business/components/track/issue/IssueEdit";
-import {getIssues, syncIssues} from "@/network/Issue";
+import {getIssuePartTemplateWithProject, getIssues, syncIssues} from "@/network/Issue";
 import {
   getCustomFieldValue,
   getCustomTableWidth,
-  getPageInfo, getTableHeaderWithCustomFields,saveLastTableSortField,getLastTableSortField
+  getPageInfo, getTableHeaderWithCustomFields, getLastTableSortField
 } from "@/common/js/tableUtils";
 import MsContainer from "@/business/components/common/components/MsContainer";
 import MsMainContainer from "@/business/components/common/components/MsMainContainer";
-import {getCurrentProjectID} from "@/common/js/utils";
-import {getIssueTemplate} from "@/network/custom-field-template";
+import {getCurrentProjectID, getCurrentWorkspaceId} from "@/common/js/utils";
 import {getProjectMember} from "@/network/user";
+import {LOCAL} from "@/common/js/constants";
 
 export default {
   name: "IssueList",
@@ -203,7 +202,6 @@ export default {
         {
           tip: this.$t('commons.edit'), icon: "el-icon-edit",
           exec: this.handleEdit,
-          isDisable: this.btnDisable,
           permissions: ['PROJECT_TRACK_ISSUE:READ+EDIT']
         }, {
           tip: this.$t('commons.copy'), icon: "el-icon-copy-document", type: "success",
@@ -212,52 +210,38 @@ export default {
         }, {
           tip: this.$t('commons.delete'), icon: "el-icon-delete", type: "danger",
           exec: this.handleDelete,
-          isDisable: this.btnDisable,
           permissions: ['PROJECT_TRACK_ISSUE:READ+DELETE']
         }
       ],
       issueTemplate: {},
       members: [],
-      isThirdPart: false
+      isThirdPart: false,
+      creatorFilters: [],
     };
   },
+  watch: {
+    '$route'(to, from) {
+      window.removeEventListener("resize", this.tableDoLayout);
+    },
+  },
   activated() {
-    getProjectMember((data) => {
-      this.members = data;
-    });
-    getIssueTemplate()
-      .then((template) => {
-        this.issueTemplate = template;
-        if (this.issueTemplate.platform === 'metersphere') {
-          this.isThirdPart = false;
-        } else {
-          this.isThirdPart = true;
-        }
-        this.fields = getTableHeaderWithCustomFields('ISSUE_LIST', this.issueTemplate.customFields);
-        if (!this.isThirdPart) {
-          for (let i = 0; i < this.fields.length; i++) {
-            if (this.fields[i].id === 'platformStatus') {
-              this.fields.splice(i, 1);
-              break;
-            }
-          }
-        }
-        this.$refs.table.reloadTable();
+    this.page.result.loading = true;
+    this.$nextTick(() => {
+      // 解决错位问题
+      window.addEventListener('resize', this.tableDoLayout);
+      getProjectMember((data) => {
+        this.members = data;
       });
-    this.getIssues();
+      getIssuePartTemplateWithProject((template) => {
+        this.initFields(template);
+        this.page.result.loading = false;
+      });
+      this.getIssues();
+    });
   },
   computed: {
-    fieldFilters() {
-      return CUSTOM_FIELD_TYPE_OPTION;
-    },
     platformFilters() {
      return ISSUE_PLATFORM_OPTION;
-    },
-    sceneFilters() {
-      return CUSTOM_FIELD_SCENE_OPTION;
-    },
-    fieldTypeMap() {
-      return FIELD_TYPE_MAP;
     },
     issueStatusMap() {
       return ISSUE_STATUS_MAP;
@@ -267,32 +251,65 @@ export default {
     },
     projectId() {
       return getCurrentProjectID();
+    },
+    workspaceId(){
+      return getCurrentWorkspaceId();
     }
   },
+  created() {
+    this.getMaintainerOptions();
+  },
   methods: {
+    tableDoLayout() {
+      if (this.$refs.table) this.$refs.table.doLayout();
+    },
     getCustomFieldValue(row, field) {
       return getCustomFieldValue(row, field, this.members);
     },
+    initFields(template) {
+      this.issueTemplate = template;
+      if (this.issueTemplate.platform === LOCAL) {
+        this.isThirdPart = false;
+      } else {
+        this.isThirdPart = true;
+      }
+      this.fields = getTableHeaderWithCustomFields('ISSUE_LIST', this.issueTemplate.customFields);
+      if (!this.isThirdPart) {
+        for (let i = 0; i < this.fields.length; i++) {
+          if (this.fields[i].id === 'platformStatus') {
+            this.fields.splice(i, 1);
+            break;
+          }
+        }
+      }
+      if (this.$refs.table) this.$refs.table.reloadTable();
+    },
     getIssues() {
       this.page.condition.projectId = this.projectId;
-      let orderArr = this.getSortField();
-      if(orderArr){
-        this.page.condition.orders = orderArr;
-      }
+      this.page.condition.workspaceId= this.workspaceId;
+      this.page.condition.orders = getLastTableSortField(this.tableHeaderKey);
       this.page.result = getIssues(this.page);
     },
+    getMaintainerOptions() {
+      this.$post('/user/project/member/tester/list', {projectId: getCurrentProjectID()}, response => {
+        this.creatorFilters = response.data.map(u => {
+          return {text: u.name, value: u.id};
+        });
+      });
+
+    },
     handleEdit(data) {
-      this.$refs.issueEdit.open(data);
+      this.$refs.issueEdit.open(data, 'edit');
     },
     handleCreate() {
-      this.$refs.issueEdit.open();
+      this.$refs.issueEdit.open(null, 'add');
     },
     handleCopy(data) {
       let copyData = {};
       Object.assign(copyData, data);
       copyData.id = null;
       copyData.name = data.name + '_copy';
-      this.$refs.issueEdit.open(copyData);
+      this.$refs.issueEdit.open(copyData, 'copy');
     },
     handleDelete(data) {
       this.page.result = this.$get('issues/delete/' + data.id, () => {
@@ -301,30 +318,15 @@ export default {
       });
     },
     btnDisable(row) {
-      if (row.platform === 'Local') {
-        return false;
+      if (this.issueTemplate.platform !== row.platform) {
+        return true;
       }
-      return true;
-    },
-    saveSortField(key,orders){
-      saveLastTableSortField(key,JSON.stringify(orders));
+      return false;
     },
     syncIssues() {
       this.page.result = syncIssues(() => {
         this.getIssues();
       });
-    },
-    getSortField(){
-      let orderJsonStr = getLastTableSortField(this.tableHeaderKey);
-      let returnObj = null;
-      if(orderJsonStr){
-        try {
-          returnObj = JSON.parse(orderJsonStr);
-        }catch (e){
-          return null;
-        }
-      }
-      return returnObj;
     }
   }
 };

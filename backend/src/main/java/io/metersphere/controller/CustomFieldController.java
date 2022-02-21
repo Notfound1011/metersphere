@@ -4,14 +4,11 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import io.metersphere.base.domain.CustomField;
 import io.metersphere.commons.constants.OperLogConstants;
-import io.metersphere.commons.constants.RoleConstants;
 import io.metersphere.commons.utils.PageUtils;
 import io.metersphere.commons.utils.Pager;
 import io.metersphere.controller.request.QueryCustomFieldRequest;
 import io.metersphere.log.annotation.MsAuditLog;
 import io.metersphere.service.CustomFieldService;
-import org.apache.shiro.authz.annotation.Logical;
-import org.apache.shiro.authz.annotation.RequiresRoles;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -26,7 +23,7 @@ public class CustomFieldController {
     private CustomFieldService customFieldService;
 
     @PostMapping("/add")
-    @MsAuditLog(module = "workspace_template_settings", type = OperLogConstants.CREATE, content = "#msClass.getLogDetails(#customField.id)", msClass = CustomFieldService.class)
+    @MsAuditLog(module = "workspace_template_settings_field", type = OperLogConstants.CREATE, content = "#msClass.getLogDetails(#customField.id)", msClass = CustomFieldService.class)
     public String add(@RequestBody CustomField customField) {
         return customFieldService.add(customField);
     }
@@ -43,13 +40,13 @@ public class CustomFieldController {
     }
 
     @GetMapping("/delete/{id}")
-    @MsAuditLog(module = "workspace_template_settings", type = OperLogConstants.DELETE, beforeEvent = "#msClass.getLogDetails(#id)", msClass = CustomFieldService.class)
+    @MsAuditLog(module = "workspace_template_settings_field", type = OperLogConstants.DELETE, beforeEvent = "#msClass.getLogDetails(#id)", msClass = CustomFieldService.class)
     public void delete(@PathVariable(value = "id") String id) {
         customFieldService.delete(id);
     }
 
     @PostMapping("/update")
-    @MsAuditLog(module = "workspace_template_settings", type = OperLogConstants.UPDATE, beforeEvent = "#msClass.getLogDetails(#customField.id)", content = "#msClass.getLogDetails(#customField.id)", msClass = CustomFieldService.class)
+    @MsAuditLog(module = "workspace_template_settings_field", type = OperLogConstants.UPDATE, beforeEvent = "#msClass.getLogDetails(#customField.id)", content = "#msClass.getLogDetails(#customField.id)", msClass = CustomFieldService.class)
     public void update(@RequestBody CustomField customField) {
         customFieldService.update(customField);
     }

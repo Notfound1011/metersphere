@@ -40,7 +40,7 @@
 <script>
 import {
   getCurrentProjectID,
-  getCurrentUser,
+  getCurrentUser, getCurrentWorkspaceId,
   listenGoBack,
   removeGoBackListener
 } from "@/common/js/utils";
@@ -153,7 +153,12 @@ export default {
       this.$refs['from'].validate();
     },
     showCronDialog() {
-      this.showCron = true;
+      let tmp = this.schedule.value;
+      this.schedule.value = '';
+      this.$nextTick(() => {
+        this.schedule.value = tmp;
+        this.showCron = true;
+      });
     },
     saveCron() {
       this.$refs['from'].validate((valid) => {
@@ -175,6 +180,7 @@ export default {
       param = this.schedule;
       param.resourceId = this.swaggerUrl;
       param.projectId = getCurrentProjectID();
+      param.workspaceId = getCurrentWorkspaceId();
       param.moduleId = this.moduleId;
       param.modulePath = this.modulePath;
       param.modeId = this.modeId;

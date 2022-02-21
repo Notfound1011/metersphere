@@ -1,10 +1,8 @@
 package io.metersphere.performance.service;
 
-
 import com.alibaba.excel.util.CollectionUtils;
 import io.metersphere.base.domain.LoadTestReportWithBLOBs;
-import io.metersphere.base.domain.LoadTestWithBLOBs;
-import io.metersphere.base.mapper.LoadTestMapper;
+import io.metersphere.base.mapper.LoadTestReportMapper;
 import io.metersphere.base.mapper.ext.ExtLoadTestReportMapper;
 import io.metersphere.commons.exception.MSException;
 import io.metersphere.commons.utils.LogUtil;
@@ -18,25 +16,36 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+
+// 非事务运行
 @Service
 public class JmeterFileService {
-
-    @Resource
-    private LoadTestMapper loadTestMapper;
     @Resource
     private ExtLoadTestReportMapper extLoadTestReportMapper;
+    @Resource
+    private LoadTestReportMapper loadTestReportMapper;
 
-    public byte[] downloadZip(String testId, double[] ratios, String reportId, int resourceIndex) {
+    public byte[] downloadZip(String reportId, double[] ratios, int resourceIndex) {
         try {
-            LoadTestWithBLOBs loadTest = loadTestMapper.selectByPrimaryKey(testId);
-            EngineContext context = EngineFactory.createContext(loadTest, ratios, reportId, resourceIndex);
+            LoadTestReportWithBLOBs loadTestReport = loadTestReportMapper.selectByPrimaryKey(reportId);
+            int wait = 0;
+            while (loadTestReport == null) {
+                if (wait > 120_000) {
+                    break;
+                }
+                TimeUnit.MILLISECONDS.sleep(200);
+                wait += 200;
+                loadTestReport = loadTestReportMapper.selectByPrimaryKey(reportId);
+            }
+            if (loadTestReport == null) {
+                MSException.throwException("测试报告不存在或还没产生");
+            }
+            EngineContext context = EngineFactory.createContext(loadTestReport, ratios, reportId, resourceIndex);
             return zipFilesToByteArray(context);
-        } catch (MSException e) {
-            LogUtil.error(e.getMessage(), e);
-            throw e;
         } catch (Exception e) {
             LogUtil.error(e.getMessage(), e);
             MSException.throwException(e);

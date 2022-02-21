@@ -1,7 +1,6 @@
 package io.metersphere.security.realm;
 
 
-import io.metersphere.base.domain.Role;
 import io.metersphere.commons.constants.UserSource;
 import io.metersphere.commons.user.SessionUser;
 import io.metersphere.commons.utils.SessionUtils;
@@ -21,7 +20,6 @@ import org.springframework.beans.factory.annotation.Value;
 import javax.annotation.Resource;
 import java.util.Collections;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 
 /**
@@ -39,9 +37,6 @@ public class LocalRealm extends BaseRealm {
     @Resource
     private UserService userService;
 
-    @Value("${run.mode:release}")
-    private String runMode;
-
     @Override
     public String getName() {
         return "LOCAL";
@@ -57,10 +52,6 @@ public class LocalRealm extends BaseRealm {
 
     public static AuthorizationInfo getAuthorizationInfo(String userId, UserService userService) {
         SimpleAuthorizationInfo authorizationInfo = new SimpleAuthorizationInfo();
-        // roles 内容填充
-        UserDTO userDTO = userService.getUserDTO(userId);
-        Set<String> roles = userDTO.getRoles().stream().map(Role::getId).collect(Collectors.toSet());
-        authorizationInfo.setRoles(roles);
         Set<String> userPermission = userService.getUserPermission(userId);
         authorizationInfo.setStringPermissions(userPermission);
         return authorizationInfo;
@@ -76,14 +67,6 @@ public class LocalRealm extends BaseRealm {
 
         String userId = token.getUsername();
         String password = String.valueOf(token.getPassword());
-
-        if (StringUtils.equals("local", runMode)) {
-            UserDTO user = getUserWithOutAuthenticate(userId);
-            userId = user.getId();
-            SessionUser sessionUser = SessionUser.fromUser(user);
-            SessionUtils.putUser(sessionUser);
-            return new SimpleAuthenticationInfo(userId, password, getName());
-        }
 
         if (StringUtils.equals(login, UserSource.LOCAL.name())) {
             return loginLocalMode(userId, password);

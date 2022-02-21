@@ -18,19 +18,22 @@
         <i class="el-icon-top" style="cursor:pointer" @click="moveTop(index)"/>
         <i class="el-icon-bottom" style="cursor:pointer;" @click="moveBottom(index)"/>
 
-        <el-col class="item">
+        <el-col class="item" v-if="unShowSelect===false">
           <el-input v-if="!suggestions" :disabled="isReadOnly" v-model="item.name" size="small" maxlength="200"
                     @change="change"
                     :placeholder="keyText" show-word-limit/>
           <el-autocomplete :disabled="isReadOnly" :maxlength="400" v-if="suggestions" v-model="item.name" size="small"
                            :fetch-suggestions="querySearch" @change="change" :placeholder="keyText"
                            show-word-limit/>
+        </el-col>
 
+        <el-col class="item" v-if="unShowSelect===true">
+          <el-input v-if="suggestions" :disabled="isReadOnly" v-model="item.name" size="small" maxlength="200" :placeholder="keyText"  show-word-limit/>
         </el-col>
 
         <el-col class="item">
           <el-input v-if="!needMock" :disabled="isReadOnly" v-model="item.value" size="small" @change="change"
-                    :placeholder="valueText" show-word-limit/>
+                    :placeholder="unShowSelect?$t('commons.description'):valueText" show-word-limit/>
           <div v-if="needMock">
             <el-autocomplete
               :disabled="isReadOnly"
@@ -47,13 +50,20 @@
             </el-autocomplete>
           </div>
         </el-col>
+
+        <el-col class="item" v-if="showDesc">
+          <el-input v-model="item.description" size="small" maxlength="200"
+                    :placeholder="$t('commons.description')" show-word-limit>
+          </el-input>
+        </el-col>
+
         <el-col class="item kv-delete">
           <el-button size="mini" class="el-icon-delete-solid" circle @click="remove(index)"
                      :disabled="isDisable(index) || isReadOnly"/>
         </el-col>
       </el-row>
     </div>
-    <ms-api-variable-advance :current-item="currentItem" :parameters="keyValues" ref="variableAdvance"/>
+    <ms-api-variable-advance :append-to-body="appendToBody" :current-item="currentItem" :parameters="keyValues" ref="variableAdvance"/>
 
   </div>
 </template>
@@ -74,6 +84,10 @@
       isShowEnable: {
         type: Boolean,
       },
+      unShowSelect:{
+        type: Boolean,
+        default: false
+      },
       description: String,
       items: Array,
       isReadOnly: {
@@ -84,7 +98,14 @@
       needMock: {
         type: Boolean,
         default: false
-      }
+      },
+      showDesc: Boolean,
+      appendToBody: {
+        type: Boolean,
+        default() {
+          return false;
+        }
+      },
     },
     data() {
       return {
@@ -202,7 +223,7 @@
     },
     created() {
       if (this.items.length === 0 || this.items[this.items.length - 1].name) {
-        this.items.push(new KeyValue({enable: true}));
+        this.items.push(new KeyValue({enable: true, name: '', value: ''}));
       }
     }
   }

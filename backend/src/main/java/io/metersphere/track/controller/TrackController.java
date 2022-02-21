@@ -4,15 +4,15 @@ package io.metersphere.track.controller;
 import io.metersphere.base.domain.TestCase;
 import io.metersphere.i18n.Translator;
 import io.metersphere.performance.base.ChartsData;
+import io.metersphere.track.request.testcase.TrackCountBatchRequest;
 import io.metersphere.track.response.BugStatustics;
 import io.metersphere.track.response.TrackCountResult;
+import io.metersphere.track.response.TrackCaseBatch;
 import io.metersphere.track.response.TrackStatisticsDTO;
 import io.metersphere.track.service.TestCaseService;
 import io.metersphere.track.service.TrackService;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
 import javax.annotation.Resource;
 import java.text.DecimalFormat;
 import java.util.List;
@@ -50,6 +50,19 @@ public class TrackController {
         statistics.setP1CountStr("P1&nbsp;&nbsp;<br/><br/>" + statistics.getP1CaseCountNumber());
         statistics.setP2CountStr("P2&nbsp;&nbsp;<br/><br/>" + statistics.getP2CaseCountNumber());
         statistics.setP3CountStr("P3&nbsp;&nbsp;<br/><br/>" + statistics.getP3CaseCountNumber());
+        return statistics;
+    }
+
+    @PostMapping("/count/all")
+    public TrackCaseBatch getTrackCountAll(@RequestBody TrackCountBatchRequest request) {
+        TrackCaseBatch statistics = new TrackCaseBatch();
+
+        List<TrackCountResult> caseCount = trackService.getTrackCountAll(request);
+        statistics.setCaseCount(caseCount);
+        int caseTotal = trackService.countTotal();
+        int caseTotalByUser = trackService.countTotalByUser(request.getCreateUser());
+        statistics.setAllCaseCountNumber(caseTotal);
+        statistics.setAllCaseCountNumberByUser(caseTotalByUser);
         return statistics;
     }
 

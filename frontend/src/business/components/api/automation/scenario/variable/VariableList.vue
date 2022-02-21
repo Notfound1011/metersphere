@@ -174,35 +174,49 @@ export default {
       this.$refs.batchAddHeader.open();
     },
     _handleBatchVars(data) {
-      let params = data.split("\n");
-      let keyValues = [];
-      params.forEach(item => {
-        let line = item.split(/，|,/);
-        let required = false;
-        if (line[1] === '必填' || line[1] === 'true') {
-          required = true;
-        }
-        keyValues.push(new KeyValue({
-          name: line[0],
-          required: required,
-          value: line[2],
-          description: line[3],
-          type: "text",
-          valid: false,
-          file: false,
-          encode: true,
-          enable: true,
-          contentType: "text/plain"
-        }));
-      });
-      return keyValues;
+      if (data) {
+        let params = data.split("\n");
+        let keyValues = [];
+        params.forEach(item => {
+          let line = item.split(/：|:/);
+          let required = false;
+          keyValues.unshift(new KeyValue({
+            name: line[0],
+            required: required,
+            value: line[1],
+            description: line[2],
+            type: "text",
+            valid: false,
+            file: false,
+            encode: true,
+            enable: true,
+            contentType: "text/plain"
+          }));
+        })
+        return keyValues;
+      }
     },
     batchSaveHeader(data) {
       if (data) {
         let keyValues = this._handleBatchVars(data);
         keyValues.forEach(item => {
-          this.headers.unshift(item);
+          this.format(this.headers, item);
         });
+      }
+    },
+    format(array, obj) {
+      if (array) {
+        let isAdd = true;
+        for (let i in array) {
+          let item = array[i];
+          if (item.name === obj.name) {
+            item.value = obj.value;
+            isAdd = false;
+          }
+        }
+        if (isAdd) {
+          this.headers.unshift(obj);
+        }
       }
     },
     batchSaveParameter(data) {
@@ -215,7 +229,7 @@ export default {
       }
     },
     handleClick(command) {
-      this.editData = {delimiter: ","};
+      this.editData = {delimiter: ",", quotedData: 'false'};
       this.editData.type = command;
       this.addParameters(this.editData);
     },
@@ -235,6 +249,7 @@ export default {
       v.id = getUUID();
       if (v.type === 'CSV') {
         v.delimiter = ",";
+        v.quotedData = false;
       }
       this.variables.push(v);
       let index = 1;
@@ -257,8 +272,6 @@ export default {
         this.headers = headers;
       }
       this.visible = true;
-      this.editData = {type: "CONSTANT"};
-      this.addParameters(this.editData);
       this.disabled = disabled;
     },
     save() {
@@ -283,10 +296,32 @@ export default {
         this.$warning("请选择一条数据删除");
         return;
       }
+      let message = "";
       ids.forEach(row => {
-        const index = this.variables.findIndex(d => d.id === row);
-        this.variables.splice(index, 1);
+        const v = this.variables.find(d => d.id === row);
+        if (v.name) {
+          message += v.name + ";";
+        }
       });
+      if (message !== "") {
+        message = message.substr(0, message.length - 1);
+        this.$alert('是否确认删除变量：【 ' + message + " 】？", '', {
+          confirmButtonText: this.$t('commons.confirm'),
+          callback: (action) => {
+            if (action === 'confirm') {
+              ids.forEach(row => {
+                const index = this.variables.findIndex(d => d.id === row);
+                this.variables.splice(index, 1);
+              });
+            }
+          }
+        });
+      } else {
+        ids.forEach(row => {
+          const index = this.variables.findIndex(d => d.id === row);
+          this.variables.splice(index, 1);
+        });
+      }
       this.selection = [];
       this.editData = {type: "CONSTANT"};
     },

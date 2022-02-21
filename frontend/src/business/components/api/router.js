@@ -1,8 +1,9 @@
-import MsProject from "@/business/components/settings/workspace/MsProject";
+
 
 export default {
   path: "/api",
   name: "api",
+  redirect: "/api/home",
   components: {
     content: () => import('@/business/components/api/ApiTest')
   },
@@ -12,32 +13,34 @@ export default {
       name: 'fucHome',
       component: () => import('@/business/components/api/homepage/ApiTestHomePage'),
     },
-    {
-      path: 'home_obsolete',
-      name: 'fucHome',
-      component: () => import('@/business/components/api/home/ApiTestHome'),
-    },
-    {
-      path: 'caseRecord',
-      name: 'caseRecord',
-      component: () => import('@/business/components/api/caseRecord/caseRecord'),
-    },
-    {
-      path: "test/:type",
-      name: "ApiTestConfig",
-      component: () => import('@/business/components/api/test/ApiTestConfig'),
-      props: (route) => ({id: route.query.id})
-    },
-    {
-      path: "test/list/:projectId",
-      name: "ApiTestList",
-      component: () => import('@/business/components/api/test/ApiTestList'),
-    },
     // {
     //   path: "project/:type",
     //   name: "fucProject",
     //   component: MsProject,
     // },
+    {
+      path: 'testCaseRecord',
+      name: 'testCaseRecord',
+      component: () => import('@/business/components/api/autotest/TestCaseRecord'),
+    },
+    {
+      path: 'jobScheduler',
+      name: 'jobScheduler',
+      component: () => import('@/business/components/api/jobscheduler/jobScheduler'),
+      children: [
+        {
+          path: 'analysis',
+          component: () => import('@/business/components/api/jobscheduler/components/analysis')
+        },
+        {
+          path: 'reports',
+          component: () => import('@/business/components/api/jobscheduler/components/reports')
+        },
+        {
+          path: 'runJobs',
+          component: () => import('@/business/components/api/jobscheduler/components/runJobs')
+        }]
+    },
     {
       path: "report/list/:testId",
       name: "ApiReportList",
@@ -54,18 +57,18 @@ export default {
       component: () => import('@/business/components/api/automation/report/ApiReportList'),
     },
     {
-      path:"automation/report/view/:reportId",
-      name:"ApiReportView",
+      path: "automation/report/view/:reportId",
+      name: "ApiReportView",
       component: () => import('@/business/components/api/automation/report/ApiReportView'),
 
     },
     {
-      path: "definition/:redirectID?/:dataType?/:dataSelectRange?",
+      path: "definition/:redirectID?/:dataType?/:dataSelectRange?/:projectId?/:type?",
       name: "ApiDefinition",
       component: () => import('@/business/components/api/definition/ApiDefinition'),
     },
     {
-      path: "automation/:redirectID?/:dataType?/:dataSelectRange?",
+      path: "automation/:redirectID?/:dataType?/:dataSelectRange?/:projectId?",
       name: "ApiAutomation",
       component: () => import('@/business/components/api/automation/ApiAutomation'),
     },
@@ -74,5 +77,10 @@ export default {
       name: 'ApiMonitor',
       component: () => import('@/business/components/api/monitor/ApiMonitor'),
     },
+    {
+      path: 'definition/edit/:definitionId',
+      name: 'editCompleteContainer',
+      component: () => import('@/business/components/api/definition/ApiDefinition'),
+    },
   ]
-}
+};

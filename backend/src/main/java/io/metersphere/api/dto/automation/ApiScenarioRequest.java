@@ -23,4 +23,13 @@ public class ApiScenarioRequest extends BaseQueryRequest {
     private String executeStatus;
     private boolean notInTestPlan;
     private String reviewId;
+
+    //操作人
+    private String operator;
+    //操作时间
+    private Long operationTime;
+    /**
+     * 是否需要查询环境字段
+     */
+    private boolean selectEnvironment = false;
 }

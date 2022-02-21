@@ -5,7 +5,6 @@ import com.github.pagehelper.PageHelper;
 import io.metersphere.api.service.ApiTestEnvironmentService;
 import io.metersphere.base.domain.FileMetadata;
 import io.metersphere.base.domain.Project;
-import io.metersphere.base.domain.UserGroup;
 import io.metersphere.commons.constants.OperLogConstants;
 import io.metersphere.commons.utils.PageUtils;
 import io.metersphere.commons.utils.Pager;
@@ -17,16 +16,13 @@ import io.metersphere.dto.WorkspaceMemberDTO;
 import io.metersphere.log.annotation.MsAuditLog;
 import io.metersphere.service.CheckPermissionService;
 import io.metersphere.service.ProjectService;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping(value = "/project")
@@ -68,20 +64,17 @@ public class ProjectController {
     public Project getProject(@PathVariable String id) {
         return projectService.getProjectById(id);
     }
+    @GetMapping("/member/size/{id}")
+    public long getProjectMemberSize(@PathVariable String id) {
+        return projectService.getProjectMemberSize(id);
+    }
 
     @PostMapping("/add")
     @MsAuditLog(module = "project_project_manager", type = OperLogConstants.CREATE, content = "#msClass.getLogDetails(#project.id)", msClass = ProjectService.class)
     public Project addProject(@RequestBody AddProjectRequest project, HttpServletRequest request) {
         Project returnModel = projectService.addProject(project);
-
         //创建项目的时候默认增加Mock环境
-        String requestUrl = request.getRequestURL().toString();
-        String baseUrl = "";
-        if (requestUrl.contains("/project/add")) {
-            baseUrl = requestUrl.split("/project/add")[0];
-        }
-        apiTestEnvironmentService.getMockEnvironmentByProjectId(returnModel.getId(), project.getProtocal(), baseUrl);
-
+        apiTestEnvironmentService.getMockEnvironmentByProjectId(returnModel.getId());
         return returnModel;
     }
 
@@ -142,5 +135,10 @@ public class ProjectController {
     @GetMapping("/getOwnerProjectIds")
     public Collection<String> getOwnerProjectIds() {
         return checkPermissionService.getUserRelatedProjectIds();
+    }
+
+    @GetMapping("/genTcpMockPort/{id}")
+    public String genTcpMockPort(@PathVariable String id){
+        return projectService.genTcpMockPort(id);
     }
 }

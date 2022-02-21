@@ -19,8 +19,6 @@ public class TestPlan implements Serializable {
 
     private String stage;
 
-    private String principal;
-
     private String testCaseMatchRule;
 
     private String executorMatchRule;
@@ -43,9 +41,11 @@ public class TestPlan implements Serializable {
 
     private Integer executionTimes;
 
+    private Integer rejectedTimes;
+
     private Boolean automaticStatusUpdate;
 
-    private String tags;
+    private Boolean repeatCase;
 
     private static final long serialVersionUID = 1L;
 }

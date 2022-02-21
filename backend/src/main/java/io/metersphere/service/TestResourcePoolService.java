@@ -6,6 +6,7 @@ import io.metersphere.base.domain.*;
 import io.metersphere.base.mapper.LoadTestMapper;
 import io.metersphere.base.mapper.TestResourceMapper;
 import io.metersphere.base.mapper.TestResourcePoolMapper;
+import io.metersphere.base.mapper.ext.ExtTaskMapper;
 import io.metersphere.commons.constants.PerformanceTestStatus;
 import io.metersphere.commons.constants.ResourcePoolTypeEnum;
 import io.metersphere.commons.exception.MSException;
@@ -50,6 +51,8 @@ public class TestResourcePoolService {
     private NodeResourcePoolService nodeResourcePoolService;
     @Resource
     private LoadTestMapper loadTestMapper;
+    @Resource
+    private ExtTaskMapper extTaskMapper;
 
     public TestResourcePoolDTO addTestResourcePool(TestResourcePoolDTO testResourcePool) {
         checkTestResourcePool(testResourcePool);
@@ -148,6 +151,9 @@ public class TestResourcePoolService {
                 }
             });
         }
+        // api
+        List<String> apiNames = extTaskMapper.checkActuator(testResourcePool.getId());
+        builder.append(StringUtils.join(apiNames, "; "));
         result.setTestName(builder.toString());
         return result;
     }
@@ -212,8 +218,9 @@ public class TestResourcePoolService {
                 continue;
             }
             try {
-                updateTestResourcePool(pool);
-            } catch (MSException e) {
+                validateTestResourcePool(pool);
+            } catch (Exception e) {
+                LogUtil.error(e.getMessage(), e);
                 pool.setStatus(INVALID.name());
                 pool.setUpdateTime(System.currentTimeMillis());
                 testResourcePoolMapper.updateByPrimaryKeySelective(pool);

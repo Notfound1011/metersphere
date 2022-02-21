@@ -1,19 +1,16 @@
 <template>
-  <el-menu :unique-opened="true" class="header-user-menu align-right"
-           mode="horizontal"
-           :background-color="color"
-           text-color="#fff"
-           active-text-color="#fff">
-    <el-submenu index="1">
-      <template slot="title">
-        <font-awesome-icon class="icon global" :icon="['fas', 'globe']"/>
-        <span>{{ language }}</span>
-      </template>
-      <el-menu-item v-for="(value, key) in languageMap" :key="key" @click="changeLanguage(key)">
-        {{ value }} <i class="el-icon-check" v-if="language === value"/>
-      </el-menu-item>
-    </el-submenu>
-  </el-menu>
+  <el-dropdown size="medium" @command="changeLanguage" class="align-right">
+    <span class="dropdown-link">
+        <font-awesome-icon :icon="['fas', 'language']" size="lg"/>
+    </span>
+    <template v-slot:dropdown>
+      <el-dropdown-menu>
+        <el-dropdown-item :command="key" v-for="(value, key) in languageMap" :key="key">
+          {{ value }} <i class="el-icon-check" v-if="language === value"/>
+        </el-dropdown-item>
+      </el-dropdown-menu>
+    </template>
+  </el-dropdown>
 </template>
 
 <script>
@@ -86,10 +83,18 @@ export default {
 </script>
 
 <style scoped>
+.dropdown-link {
+  cursor: pointer;
+  font-size: 12px;
+  color: rgb(245, 245, 245);
+  line-height: 40px;
+  padding-right: 20px;
+}
 
 .el-icon-check {
-  color: #44b349;
+  color: #783887;
   margin-left: 10px;
+  font-weight: bold;
 }
 
 .align-right {
@@ -102,5 +107,9 @@ export default {
 
 .global {
   color: #fff;
+}
+
+/deep/ .el-submenu__title {
+  padding-left: 5px;
 }
 </style>

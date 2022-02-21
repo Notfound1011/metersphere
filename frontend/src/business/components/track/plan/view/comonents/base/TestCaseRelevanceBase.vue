@@ -1,9 +1,26 @@
 <template>
-  <relevance-dialog :title="dialogTitle"  ref="relevanceDialog">
+  <relevance-dialog :width="width" :title="dialogTitle" ref="relevanceDialog">
+
+    <template v-slot:headerBtn>
+
+      <div v-if="$slots.headerBtn">
+        <slot name="headerBtn"></slot>
+      </div>
+      <div v-else>
+        <div style="margin-bottom: 5px; display:inline-block" v-if="flag">
+          <el-checkbox v-model="checked" class="el-checkbox__label">{{
+              $t('test_track.sync_add_api_load')
+            }}
+          </el-checkbox>
+        </div>
+        <ms-dialog-header @cancel="close" v-loading="isSaving" @confirm="save"/>
+      </div>
+    </template>
 
     <template v-slot:aside>
       <select-menu
         :data="projects"
+        v-if="multipleProject"
         width="160px"
         :current-data="currentProject"
         :title="$t('test_track.switch_project')"
@@ -13,35 +30,35 @@
 
     <slot></slot>
 
-    <template v-slot:footer>
+    <!--        <template v-slot:footer>
 
-    <div v-if="$slots.footer">
-        <slot name="footer"></slot>
-      </div>
-      <div v-else>
-        <div style="margin-bottom: 15px" v-if="flag">
-          <el-checkbox v-model="checked">同步添加关联的接口和性能测试</el-checkbox>
-        </div>
-        <ms-dialog-footer @cancel="close" @confirm="save"/>
-      </div>
-    </template>
+              <div v-if="$slots.footer">
+                <slot name="footer"></slot>
+              </div>
+              <div v-else>
+                <div style="margin-bottom: 15px" v-if="flag">
+                  <el-checkbox v-model="checked">{{ $t('test_track.sync_add_api_load') }}</el-checkbox>
+                </div>
+                <ms-dialog-footer @cancel="close" v-loading="isSaving" @confirm="save"/>
+              </div>
+            </template>-->
 
   </relevance-dialog>
 </template>
 
 <script>
 
-  import MsDialogFooter from '../../../../../common/components/MsDialogFooter'
-  import SelectMenu from "../../../../common/SelectMenu";
+import MsDialogHeader from '../../../../../common/components/MsDialogHeader'
+import SelectMenu from "../../../../common/SelectMenu";
   import RelevanceDialog from "./RelevanceDialog";
-  import {getCurrentProjectID, getCurrentUserId} from "@/common/js/utils";
+  import {getCurrentProjectID, getCurrentUserId, getCurrentWorkspaceId} from "@/common/js/utils";
 
   export default {
     name: "TestCaseRelevanceBase",
     components: {
       RelevanceDialog,
       SelectMenu,
-      MsDialogFooter,
+      MsDialogHeader,
     },
     data() {
       return {
@@ -66,6 +83,17 @@
       },
       flag:{
         type:Boolean,
+      },
+      width: String,
+      isSaving:{
+        type:Boolean,
+        default() {
+          return false;
+        }
+      },
+      multipleProject: {
+        type: Boolean,
+        default: true
       }
     },
     watch: {
@@ -91,7 +119,7 @@
       },
 
       getProject() {
-        this.result = this.$post("/project/list/related", {userId: getCurrentUserId()}, res => {
+        this.result = this.$post("/project/list/related", {userId: getCurrentUserId(), workspaceId: getCurrentWorkspaceId()}, res => {
           let data = res.data;
           if (data) {
             const index = data.findIndex(d => d.id === getCurrentProjectID());
@@ -120,4 +148,12 @@
 </script>
 
 <style scoped>
+
+.el-checkbox__label {
+  display: inline-block;
+  padding-left: 10px;
+  line-height: 19px;
+  font-size: 14px;
+  padding-right: 10px;
+}
 </style>

@@ -21,7 +21,7 @@
 
     <ms-table
       v-loading="result.loading"
-      field-key="TEST_PLAN_FUNCTION_TEST_CASE"
+      :field-key="tableHeaderKey"
       :data="tableData"
       :condition="condition"
       :total="total"
@@ -32,7 +32,12 @@
       @handlePageChange="initTableData"
       @handleRowClick="handleEdit"
       :fields.sync="fields"
+      :remember-order="true"
       @refresh="initTableData"
+      :row-order-group-id="planId"
+      :row-order-func="editTestPlanTestCaseOrder"
+      :enable-order-drag="enableOrderDrag"
+      row-key="id"
       ref="table">
 
       <span v-for="item in fields" :key="item.key">
@@ -46,6 +51,7 @@
 
         <ms-table-column
           prop="name"
+          sortable="custom"
           :field="item"
           :fields-width="fieldsWidth"
           :label="$t('commons.name')"
@@ -82,7 +88,7 @@
               :field="item"
               :fields-width="fieldsWidth"
               :label="$t('commons.create_time')"
-              min-width="120px">
+              min-width="140px">
           <template v-slot:default="scope">
             <span>{{ scope.row.createTime | timestampFormatDate }}</span>
           </template>
@@ -196,7 +202,7 @@
           :field="item"
           :fields-width="fieldsWidth"
           :label="$t('commons.update_time')"
-          min-width="120px">
+          min-width="140px">
           <template v-slot:default="scope">
             <span>{{ scope.row.updateTime | timestampFormatDate }}</span>
           </template>
@@ -207,8 +213,8 @@
                          :field="item"
                          column-key="priority"
                          :fields-width="fieldsWidth"
-                         :label="field.name"
-                         :min-width="90"
+                         :label="field.system ? $t(systemFiledMap[field.name]) :field.name"
+                         :min-width="120"
                          :prop="field.name">
           <template v-slot="scope">
               <span v-if="field.name === '用例等级'">
@@ -259,14 +265,14 @@ import TypeTableItem from "../../../../common/tableItems/planview/TypeTableItem"
 import MethodTableItem from "../../../../common/tableItems/planview/MethodTableItem";
 import MsTableOperator from "../../../../../common/components/MsTableOperator";
 import MsTableOperatorButton from "../../../../../common/components/MsTableOperatorButton";
-import {TEST_CASE_CONFIGS} from "../../../../../common/components/search/search-components";
+import {TEST_PLAN_TEST_CASE_CONFIGS} from "../../../../../common/components/search/search-components";
 import BatchEdit from "../../../../case/components/BatchEdit";
 import ClassicEditor from "@ckeditor/ckeditor5-build-classic";
 import {hub} from "@/business/components/track/plan/event-bus";
 import MsTag from "@/business/components/common/components/MsTag";
 import {
-  buildBatchParam, checkTableRowIsSelected,
-  getCustomFieldValue, getCustomTableWidth,
+  buildBatchParam,
+  getCustomFieldValue, getCustomTableWidth, getLastTableSortField,
   getTableHeaderWithCustomFields,
   initCondition,
 } from "@/common/js/tableUtils";
@@ -274,6 +280,8 @@ import MsTable from "@/business/components/common/components/table/MsTable";
 import MsTableColumn from "@/business/components/common/components/table/MsTableColumn";
 import {getProjectMember} from "@/network/user";
 import {getTestTemplate} from "@/network/custom-field-template";
+import {editTestPlanTestCaseOrder} from "@/network/test-plan";
+import {SYSTEM_FIELD_NAME_MAP} from "@/common/js/table-constants";
 
 export default {
   name: "FunctionalTestCaseList",
@@ -295,14 +303,15 @@ export default {
       // updata: false,
       type: TEST_PLAN_FUNCTION_TEST_CASE,
       fields: [],
-      fieldsWidth: getCustomTableWidth('TRACK_TEST_CASE'),
+      fieldsWidth: getCustomTableWidth('TEST_PLAN_FUNCTION_TEST_CASE'),
       screenHeight: 'calc(100vh - 275px)',
       tableLabel: [],
       result: {},
       deletePath: "/test/case/delete",
       condition: {
-        components: TEST_CASE_CONFIGS
+        components: TEST_PLAN_TEST_CASE_CONFIGS
       },
+      enableOrderDrag: true,
       showMyTestCase: false,
       tableData: [],
       currentPage: 1,
@@ -312,6 +321,7 @@ export default {
       testPlan: {},
       isReadOnly: false,
       hasEditPermission: false,
+      tableHeaderKey: 'TEST_PLAN_FUNCTION_TEST_CASE',
       priorityFilters: [
         {text: 'P0', value: 'P0'},
         {text: 'P1', value: 'P1'},
@@ -347,7 +357,7 @@ export default {
         {
           tip: this.$t('commons.edit'), icon: "el-icon-edit",
           exec: this.handleEdit,
-          permissions: ['PROJECT_TRACK_CASE:READ+EDIT']
+          permissions: ['PROJECT_TRACK_PLAN:READ+RUN']
         },
         {
           tip: this.$t('test_track.plan_view.cancel_relevance'), icon: "el-icon-unlock", type: "danger",
@@ -387,6 +397,14 @@ export default {
       type: Array
     },
   },
+  computed: {
+    editTestPlanTestCaseOrder() {
+      return editTestPlanTestCaseOrder;
+    },
+    systemFiledMap() {
+      return SYSTEM_FIELD_NAME_MAP;
+    },
+  },
   watch: {
     planId() {
       this.refreshTableAndPlan();
@@ -400,9 +418,16 @@ export default {
         this.updata = !this.updata;
       },
       deep: true
-    }
+    },
+    condition() {
+      this.$emit('setCondition', this.condition);
+    },
+  },
+  created() {
+    this.condition.orders = getLastTableSortField(this.tableHeaderKey);
   },
   mounted() {
+    this.$emit('setCondition', this.condition);
     hub.$on("openFailureTestCase", row => {
       this.isReadOnly = true;
       this.condition.status = 'Failure';
@@ -427,9 +452,9 @@ export default {
         let template = data[1];
         this.result.loading = true;
         this.testCaseTemplate = template;
-        this.fields = getTableHeaderWithCustomFields('TEST_PLAN_FUNCTION_TEST_CASE', this.testCaseTemplate.customFields);
+        this.fields = getTableHeaderWithCustomFields(this.tableHeaderKey, this.testCaseTemplate.customFields);
         this.result.loading = false;
-        this.$refs.table.reloadTable();
+        if (this.$refs.table) this.$refs.table.reloadTable();
       });
     },
     getCustomFieldValue(row, field) {
@@ -437,6 +462,8 @@ export default {
     },
     initTableData() {
       initCondition(this.condition, this.condition.selectAll);
+      this.enableOrderDrag = this.condition.orders.length > 0 ? false : true;
+
       this.autoCheckStatus();
       if (this.planId) {
         // param.planId = this.planId;
@@ -470,8 +497,6 @@ export default {
               this.$set(this.tableData[i], "issuesContent", JSON.parse(this.tableData[i].issues));
             }
           }
-          this.$refs.table.clear();
-          checkTableRowIsSelected(this, this.$refs.table);
         });
       }
     },
@@ -487,7 +512,7 @@ export default {
       this.$refs.testPlanTestCaseEdit.openTestCaseEdit(row);
     },
     refresh() {
-      this.condition = {components: TEST_CASE_CONFIGS};
+      this.condition = {components: TEST_PLAN_TEST_CASE_CONFIGS};
       this.$refs.table.clear();
       this.$emit('refresh');
     },

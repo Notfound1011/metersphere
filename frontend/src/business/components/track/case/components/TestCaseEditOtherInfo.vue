@@ -6,38 +6,15 @@
       </el-row>
     </el-tab-pane>
     <el-tab-pane :label="$t('test_track.case.relate_test')" name="relateTest">
-      <el-col v-if="form.list" :span="7" :offset="1">
-        <span class="cast_label">{{ $t('test_track.case.relate_test') }}：</span>
-        <span v-for="(item,index) in form.list" :key="index">
-                        <el-button @click="openTest(item)" type="text" style="margin-left: 7px;">{{
-                            item.testName
-                          }}</el-button>
-                      </span>
-      </el-col>
-      <el-col v-else :span="7" style="margin-top: 10px;">
-        <el-form-item :label="$t('test_track.case.relate_test')">
-          <el-cascader :options="sysList" filterable :placeholder="$t('test_track.case.please_select_relate_test')"
-                       show-all-levels
-                       v-model="form.selected" :props="props"
-                       :disabled="readOnly"
-                       ref="cascade"></el-cascader>
-        </el-form-item>
-      </el-col>
+      <test-case-test-relate :read-only="readOnly" :case-id="caseId"/>
     </el-tab-pane>
 
     <el-tab-pane :label="$t('test_track.related_requirements')" name="demand">
       <el-col :span="7">
         <el-form-item :label="$t('test_track.related_requirements')" :label-width="labelWidth"
                       prop="demandId">
-          <el-select filterable :disabled="readOnly" v-model="form.demandId" @visible-change="visibleChange"
-                     :placeholder="$t('test_track.please_related_requirements')" class="ms-case-input">
-            <el-option
-              v-for="item in demandOptions"
-              :key="item.id"
-              :label="item.platform + ': '+item.name"
-              :value="item.id">
-            </el-option>
-          </el-select>
+
+          <el-cascader v-model="demandValue" :show-all-levels="false" :options="demandOptions" clearable/>
         </el-form-item>
       </el-col>
       <el-col :span="7">
@@ -50,16 +27,24 @@
 
     <el-tab-pane :label="$t('test_track.case.relate_issue')" name="bug">
       <test-case-issue-relate
+        v-if="tabActiveName === 'bug'"
         :plan-id="planId"
         :read-only="readOnly && !(isTestPlan)"
         :case-id="caseId" ref="issue"/>
+    </el-tab-pane>
+
+    <el-tab-pane :label="$t('commons.relationship.name')" name="relationship">
+      <template v-slot:label>
+        <tab-pane-count :title="$t('commons.relationship.name')" :count="relationshipCount"/>
+      </template>
+      <dependencies-list @setCount="setRelationshipCount" :read-only="readOnly" :resource-id="caseId" resource-type="TEST_CASE" ref="relationship"/>
     </el-tab-pane>
 
     <el-tab-pane :label="$t('test_track.case.attachment')" name="attachment">
       <el-row>
         <el-col :span="20" :offset="1">
           <el-upload
-            accept=".jpg,.jpeg,.png,.xlsx,.doc,.pdf,.docx"
+            accept=".jpg,.jpeg,.png,.xlsx,.doc,.pdf,.docx,.txt"
             action=""
             :show-file-list="false"
             :before-upload="beforeUpload"
@@ -90,16 +75,22 @@
 import {Message} from "element-ui";
 import TestCaseRichText from "@/business/components/track/case/components/MsRichText";
 import MsRichText from "@/business/components/track/case/components/MsRichText";
-import {TEST} from "@/business/components/api/definition/model/JsonData";
 import TestCaseAttachment from "@/business/components/track/case/components/TestCaseAttachment";
 import TestCaseIssueRelate from "@/business/components/track/case/components/TestCaseIssueRelate";
-import {enableModules} from "@/common/js/utils";
 import FormRichTextItem from "@/business/components/track/case/components/FormRichTextItem";
+import TestCaseTestRelate from "@/business/components/track/case/components/TestCaseTestRelate";
+import DependenciesList from "@/business/components/common/components/graph/DependenciesList";
+import TabPaneCount from "@/business/components/track/plan/view/comonents/report/detail/component/TabPaneCount";
+import {getRelationshipCountCase} from "@/network/testCase";
 
 export default {
   name: "TestCaseEditOtherInfo",
-  components: {FormRichTextItem, TestCaseIssueRelate, TestCaseAttachment, MsRichText, TestCaseRichText},
-  props: ['form', 'labelWidth', 'caseId', 'readOnly', 'projectId', 'isTestPlan', 'planId', 'sysList'],
+  components: {
+    TabPaneCount,
+    DependenciesList,
+    TestCaseTestRelate,
+    FormRichTextItem, TestCaseIssueRelate, TestCaseAttachment, MsRichText, TestCaseRichText},
+  props: ['form', 'labelWidth', 'caseId', 'readOnly', 'projectId', 'isTestPlan', 'planId'],
   data() {
     return {
       result: {},
@@ -108,6 +99,8 @@ export default {
       fileList: [],
       tableData: [],
       demandOptions: [],
+      relationshipCount: 0,
+      demandValue: [],
       //sysList:this.sysList,//一级选择框的数据
       props: {
         multiple: true,
@@ -126,9 +119,25 @@ export default {
       if (this.tabActiveName === 'demand') {
         this.getDemandOptions();
       } else if (this.tabActiveName === 'bug') {
-        this.$refs.issue.getIssues();
+        this.$nextTick(() => {
+          this.$refs.issue.getIssues();
+        });
+      } else if (this.tabActiveName === 'relationship') {
+        this.$refs.relationship.open();
       } else if (this.tabActiveName === 'attachment') {
         this.getFileMetaData();
+      }
+    },
+    caseId() {
+      getRelationshipCountCase(this.caseId, (data) => {
+        this.relationshipCount = data;
+      });
+    },
+    demandValue() {
+      if (this.demandValue.length > 0) {
+        this.form.demandId = this.demandValue[this.demandValue.length - 1];
+      } else {
+        this.form.demandId = null;
       }
     }
   },
@@ -136,15 +145,15 @@ export default {
     updateRemark(text) {
       this.form.remark = text;
     },
+    setRelationshipCount(count) {
+      this.relationshipCount = count;
+    },
     reset() {
       this.tabActiveName = "remark";
     },
     fileValidator(file) {
       /// todo: 是否需要对文件内容和大小做限制
       return file.size > 0;
-    },
-    openTest(data) {
-      this.$emit('openTest', data);
     },
     beforeUpload(file) {
       if (!this.fileValidator(file)) {
@@ -256,16 +265,42 @@ export default {
       if (this.demandOptions.length === 0) {
         this.result = {loading: true};
         this.$get("demand/list/" + this.projectId).then(response => {
-          this.demandOptions = response.data.data;
-          this.demandOptions.unshift({id: 'other', name: this.$t('test_track.case.other'), platform: 'Other'});
+          this.demandOptions = [];
+          if (response.data.data && response.data.data.length > 0) {
+            this.buildDemandCascaderOptions(response.data.data, this.demandOptions, []);
+          }
+          this.demandOptions.unshift({value: 'other', label: 'Other: ' + this.$t('test_track.case.other'), platform: 'Other'});
+          if (this.form.demandId === 'other') {
+            this.demandValue = ['other'];
+          }
           this.result = {loading: false};
         }).catch(() => {
-          this.demandOptions.unshift({id: 'other', name: this.$t('test_track.case.other'), platform: 'Other'});
+          this.demandOptions.unshift({value: 'other', label: 'Other: ' + this.$t('test_track.case.other'), platform: 'Other'});
+          if (this.form.demandId === 'other') {
+            this.demandValue = ['other'];
+          }
           this.result = {loading: false};
         });
       }
     },
-
+    buildDemandCascaderOptions(data, options, pathArray) {
+      data.forEach(item => {
+        let option = {
+          label: item.platform + ': ' + item.name,
+          value: item.id
+        }
+        options.push(option);
+        pathArray.push(item.id);
+        if (item.id === this.form.demandId) {
+          this.demandValue = [...pathArray]; // 回显级联选项
+        }
+        if (item.children && item.children.length > 0) {
+          option.children = [];
+          this.buildDemandCascaderOptions(item.children, option.children, pathArray);
+        }
+        pathArray.pop();
+      });
+    }
   }
 };
 </script>
@@ -276,16 +311,12 @@ export default {
   padding: 20px 0px;
 }
 
-.other-info-tabs {
-  padding: 10px 60px;
-}
-
 .remark-item {
-  padding: 0px 15px;
+  padding: 0px 3px;
 }
 
 .el-cascader >>> .el-input {
   cursor: pointer;
-  width: 500px;
+  width: 250px;
 }
 </style>

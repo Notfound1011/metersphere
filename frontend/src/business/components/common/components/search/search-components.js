@@ -165,7 +165,9 @@ export const API_CASE_RESULT = {
   },
   options: [
     {value: 'success', label: 'api_test.automation.success'},
-    {value: 'error', label: 'api_test.automation.fail'}
+    {value: 'error', label: 'api_test.automation.fail'},
+    {value: '', label: 'api_test.home_page.detail_card.unexecute'},
+    {value: 'Running', label: 'commons.testing'}
   ],
   props: { // 尾部控件的props，一般为element ui控件的props
     multiple: true
@@ -287,6 +289,23 @@ export const EXECUTOR = {
   },
   isShow: operator => {
     return operator !== OPERATORS.CURRENT_USER.value;
+  }
+}
+
+export const ISREFERENCE = {
+  key: "isReference",
+      name: 'MsTableSearchSelect',
+      label: 'api_test.scenario.reference',
+      operator: {
+    options: [OPERATORS.IN]
+  },
+  options: [
+    {value: '', label: 'commons.default'},
+    {value: 'true', label: 'commons.yes'},
+    {value: 'false', label: 'commons.no'}
+  ],
+      props: { // 尾部控件的props，一般为element ui控件的props
+    multiple: false
   }
 }
 
@@ -430,6 +449,23 @@ export const TEST_PLAN_STATUS = {
   }
 };
 
+export const TEST_PLAN_REPORT_STATUS = {
+  key: "status",
+  name: 'MsTableSearchSelect',
+  label: "test_track.plan.plan_status",
+  operator: {
+    options: [OPERATORS.IN, OPERATORS.NOT_IN]
+  },
+  options: [
+    {label: 'Starting', value: 'Starting'},
+    {label: 'Running', value: 'Underway'},
+    {label: 'Completed', value: 'Completed'}
+  ],
+  props: {
+    multiple: true
+  }
+};
+
 export const TEST_PLAN_TRIGGER_MODE = {
   key: "triggerMode",
   name: 'MsTableSearchSelect',
@@ -439,7 +475,10 @@ export const TEST_PLAN_TRIGGER_MODE = {
   },
   options: [
     {label: 'test_track.report.trigger_mode.manual', value: 'manual'},
-    {label: 'test_track.report.trigger_mode.automation', value: 'automation'},
+    {label: 'commons.trigger_mode.schedule', value: 'SCHEDULE'},
+    {label: 'commons.trigger_mode.api', value: 'API'},
+    {label: 'api_test.automation.batch_execute', value: 'BATCH'}
+
   ],
   props: {
     multiple: true
@@ -461,7 +500,120 @@ export const CASE_REVIEW_STATUS = {
   props: {
     multiple: true
   }
-}
+};
+
+// 自研自动化录入页面的组合查询
+export const CASE_NAME = {
+  key: "case_name", // 返回结果Map的key
+  name: 'MsTableSearchInput', // Vue控件名称
+  label: '用例名称', // 显示名称
+  operator: { // 运算符设置
+    value: OPERATORS.LIKE.value, // 如果未设置value初始值，则value初始值为options[0]
+    options: [OPERATORS.LIKE] // 运算符候选项
+  },
+};
+export const REQUEST_METHOD = {
+  key: "method",
+  name: 'MsTableSearchSelect',
+  label: 'api_test.definition.api_type',
+  operator: {
+    options: [OPERATORS.EQ]
+  },
+  options: [
+    {value: 'GET', label: 'GET'},
+    {value: 'POST', label: 'POST'},
+    {value: 'PUT', label: 'PUT'},
+    {value: 'DELETE', label: 'DELETE'}
+  ],
+  props: { // 尾部控件的props，一般为element ui控件的props
+    multiple: false
+  }
+};
+export const MARK = {
+  key: "mark", // 返回结果Map的key
+  name: 'MsTableSearchInput', // Vue控件名称
+  label: 'mark', // 显示名称
+  operator: { // 运算符设置
+    value: OPERATORS.LIKE.value, // 如果未设置value初始值，则value初始值为options[0]
+    options: [OPERATORS.LIKE] // 运算符候选项
+  },
+};
+export const WEB_SITE = {
+  key: "web_site", // 返回结果Map的key
+  name: 'MsTableSearchSelect', // Vue控件名称
+  label: '站点', // 显示名称
+  operator: {
+    options: [OPERATORS.EQ]
+  },
+  options: [
+    {value: 'phemex', label: '国际站'},
+    {value: 'turkey', label: '土耳其站'}
+  ],
+  props: { // 尾部控件的props，一般为element ui控件的props
+    multiple: false
+  }
+};
+export const TEMPLATE_TYPE = {
+  key: "template_type", // 返回结果Map的key
+  name: 'MsTableSearchSelect', // Vue控件名称
+  label: '模板类型', // 显示名称
+  operator: {
+    options: [OPERATORS.EQ]
+  },
+  options: [
+    {value: 'not_template', label: '非模板'},
+    {value: 'contract', label: '合约模板'},
+    {value: 'spot', label: '现货模板'}
+  ],
+  props: { // 尾部控件的props，一般为element ui控件的props
+    multiple: false
+  }
+};
+export const CASE_TYPE = {
+  key: "case_type", // 返回结果Map的key
+  name: 'MsTableSearchSelect', // Vue控件名称
+  label: '用例类型', // 显示名称
+  operator: {
+    options: [OPERATORS.EQ]
+  },
+  options: [
+    {value: 'rest_api', label: 'rest_api'},
+    {value: 'pub_api', label: 'pub_api'}
+  ],
+  props: { // 尾部控件的props，一般为element ui控件的props
+    multiple: false
+  }
+};
+export const NEED_HELP = {
+  key: "need_help", // 返回结果Map的key
+  name: 'MsTableSearchSelect', // Vue控件名称
+  label: '是否协助挂对手单', // 显示名称
+  operator: {
+    options: [OPERATORS.EQ]
+  },
+  options: [
+    {value: 'true', label: '是'},
+    {value: 'false', label: '否'}
+  ],
+  props: { // 尾部控件的props，一般为element ui控件的props
+    multiple: false
+  }
+};
+export const CASE_STATUS = {
+  key: "status", // 返回结果Map的key
+  name: 'MsTableSearchSelect', // Vue控件名称
+  label: '用例状态', // 显示名称
+  operator: {
+    options: [OPERATORS.EQ]
+  },
+  options: [
+    {value: 'true', label: '启用'},
+    {value: 'false', label: '停用'}
+  ],
+  props: { // 尾部控件的props，一般为element ui控件的props
+    multiple: false
+  }
+};
 
 export const TEST_CONFIGS = [NAME, UPDATE_TIME, CREATE_TIME, STATUS, CREATOR];
 
@@ -469,14 +621,32 @@ export const PROJECT_CONFIGS = [NAME, UPDATE_TIME, CREATE_TIME, CREATOR];
 
 export const REPORT_CONFIGS = [NAME, TEST_NAME, CREATE_TIME, STATUS, CREATOR, TRIGGER_MODE];
 
-export const TEST_CASE_CONFIGS = [NAME, API_TAGS, MODULE, PRIORITY, CREATE_TIME, UPDATE_TIME, CREATOR, EXECUTOR, CASE_REVIEW_STATUS];
+export const TEST_CASE_CONFIGS = [NAME, API_TAGS, MODULE, PRIORITY, CREATE_TIME, UPDATE_TIME, CREATOR, CASE_REVIEW_STATUS];
 
 export const TEST_PLAN_CONFIGS = [NAME, UPDATE_TIME, CREATE_TIME, PRINCIPAL, TEST_PLAN_STATUS, STAGE];
 
-export const API_DEFINITION_CONFIGS = [NAME, API_METHOD, API_PATH, API_STATUS, API_TAGS, UPDATE_TIME, CREATE_TIME, CREATOR];
+export const API_DEFINITION_CONFIGS = [NAME, API_METHOD, API_PATH, API_STATUS, API_TAGS, UPDATE_TIME, CREATE_TIME, CREATOR,ISREFERENCE];
 
-export const API_CASE_CONFIGS = [NAME, API_CASE_PRIORITY, API_TAGS, API_CASE_RESULT, UPDATE_TIME, CREATE_TIME, CREATOR];
+export const API_CASE_CONFIGS = [NAME, API_CASE_PRIORITY, API_TAGS, API_CASE_RESULT, UPDATE_TIME, CREATE_TIME, CREATOR,ISREFERENCE];
 
 export const API_SCENARIO_CONFIGS = [NAME, API_CASE_PRIORITY, API_TAGS, API_SCENARIO_RESULT, UPDATE_TIME, CREATE_TIME, CREATOR];
 
-export const TEST_PLAN_REPORT_CONFIGS = [NAME, TEST_PLAN_NAME,CREATOR, CREATE_TIME, TEST_PLAN_TRIGGER_MODE, TEST_PLAN_STATUS];
+export const TEST_PLAN_REPORT_CONFIGS = [NAME, TEST_PLAN_NAME,CREATOR, CREATE_TIME, TEST_PLAN_TRIGGER_MODE, TEST_PLAN_REPORT_STATUS];
+
+// 测试计划 功能用例
+export const TEST_PLAN_TEST_CASE_CONFIGS = [NAME, API_TAGS, MODULE, PRIORITY, CREATE_TIME, UPDATE_TIME, EXECUTOR, CASE_REVIEW_STATUS];
+
+// 测试计划关联页面
+export const TEST_PLAN_RELEVANCE_FUNC_CONFIGS = [NAME, API_TAGS, CREATE_TIME, UPDATE_TIME, CREATOR];
+export const TEST_PLAN_RELEVANCE_API_DEFINITION_CONFIGS = [NAME, API_METHOD, API_PATH, API_TAGS, UPDATE_TIME, CREATE_TIME, CREATOR];
+export const TEST_PLAN_RELEVANCE_API_CASE_CONFIGS = [NAME, API_CASE_PRIORITY, API_TAGS, UPDATE_TIME, CREATOR];
+export const TEST_PLAN_RELEVANCE_API_SCENARIO_CONFIGS = [NAME, API_CASE_PRIORITY, API_TAGS, API_SCENARIO_RESULT, CREATE_TIME, UPDATE_TIME, CREATOR];
+export const TEST_PLAN_RELEVANCE_LOAD_CASE= [NAME, STATUS, CREATE_TIME, UPDATE_TIME, CREATOR];
+
+// 测试用例关联测试
+export const TEST_CASE_RELEVANCE_API_CASE_CONFIGS = [NAME, API_CASE_PRIORITY, API_TAGS, CREATOR];
+export const TEST_CASE_RELEVANCE_API_SCENARIO_CONFIGS = [NAME, API_CASE_PRIORITY, API_TAGS, CREATOR];
+export const TEST_CASE_RELEVANCE_LOAD_CASE= [NAME, STATUS, CREATE_TIME, UPDATE_TIME, CREATOR];
+
+// 自研自动化录入页面的组合查询
+export const AUTO_TEST_SEARCH_CASE= [CASE_NAME, REQUEST_METHOD, MARK, WEB_SITE ,TEMPLATE_TYPE, CASE_TYPE, NEED_HELP, CASE_STATUS];

@@ -63,6 +63,10 @@ public abstract class ApiImportAbstractParser<T> implements ApiImportParser<T> {
 
     protected String getBodyType(String contentType) {
         String bodyType = "";
+        if (StringUtils.isBlank(contentType)) {
+            return bodyType;
+        }
+
         switch (contentType) {
             case "application/x-www-form-urlencoded":
                 bodyType = Body.WWW_FROM;
@@ -107,8 +111,9 @@ public abstract class ApiImportAbstractParser<T> implements ApiImportParser<T> {
                 headers = new ArrayList<>();
                 request.setHeaders(headers);
             }
-            addContentType(request.getHeaders(), contentType);
-
+            if (StringUtils.isNotEmpty(contentType)) {
+                addContentType(request.getHeaders(), contentType);
+            }
         }
     }
 
@@ -122,8 +127,10 @@ public abstract class ApiImportAbstractParser<T> implements ApiImportParser<T> {
         apiDefinition.setProjectId(this.projectId);
         if (StringUtils.equalsIgnoreCase("schedule", importRequest.getType())) {
             apiDefinition.setUserId(importRequest.getUserId());
+            apiDefinition.setCreateUser(importRequest.getUserId());
         } else {
             apiDefinition.setUserId(SessionUtils.getUserId());
+            apiDefinition.setCreateUser(SessionUtils.getUserId());
         }
         return apiDefinition;
     }
@@ -131,7 +138,8 @@ public abstract class ApiImportAbstractParser<T> implements ApiImportParser<T> {
     private String formatPath(String url) {
         try {
             URL urlObject = new URL(url);
-            StringBuffer pathBuffer = new StringBuffer(urlObject.getPath());
+            String path = StringUtils.isBlank(urlObject.getPath()) ? "/" : urlObject.getPath();
+            StringBuffer pathBuffer = new StringBuffer(path);
             if (StringUtils.isNotEmpty(urlObject.getQuery())) {
                 pathBuffer.append("?").append(urlObject.getQuery());
             }

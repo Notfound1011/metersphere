@@ -2,7 +2,6 @@ package io.metersphere.track.controller;
 
 import io.metersphere.base.domain.TestCaseNode;
 import io.metersphere.commons.constants.OperLogConstants;
-import io.metersphere.commons.constants.RoleConstants;
 import io.metersphere.log.annotation.MsAuditLog;
 import io.metersphere.service.CheckPermissionService;
 import io.metersphere.track.dto.TestCaseNodeDTO;
@@ -10,8 +9,6 @@ import io.metersphere.track.request.testcase.DragNodeRequest;
 import io.metersphere.track.request.testcase.QueryNodeRequest;
 import io.metersphere.track.request.testplancase.QueryTestPlanCaseRequest;
 import io.metersphere.track.service.TestCaseNodeService;
-import org.apache.shiro.authz.annotation.Logical;
-import org.apache.shiro.authz.annotation.RequiresRoles;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -30,6 +27,17 @@ public class TestCaseNodeController {
     public List<TestCaseNodeDTO> getNodeByProjectId(@PathVariable String projectId) {
         checkPermissionService.checkProjectOwner(projectId);
         return testCaseNodeService.getNodeTreeByProjectId(projectId);
+    }
+
+    @GetMapping("/trashCount/{projectId}")
+    public long trashCount(@PathVariable String projectId) {
+        checkPermissionService.checkProjectOwner(projectId);
+        return testCaseNodeService.trashCount(projectId);
+    }
+
+    @GetMapping("/publicCount/{workSpaceId}")
+    public long publicCount(@PathVariable String workSpaceId) {
+        return testCaseNodeService.publicCount(workSpaceId);
     }
 
     /*模块列表列表*/

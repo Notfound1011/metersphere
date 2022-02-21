@@ -10,6 +10,12 @@
     <result column="create_time" jdbcType="BIGINT" property="createTime" />
     <result column="update_time" jdbcType="BIGINT" property="updateTime" />
     <result column="create_user" jdbcType="VARCHAR" property="createUser" />
+    <result column="test_resource_pool_id" jdbcType="VARCHAR" property="testResourcePoolId" />
+    <result column="order" jdbcType="BIGINT" property="order" />
+  </resultMap>
+  <resultMap extends="BaseResultMap" id="ResultMapWithBLOBs" type="io.metersphere.base.domain.TestPlanLoadCaseWithBLOBs">
+    <result column="load_configuration" jdbcType="LONGVARCHAR" property="loadConfiguration" />
+    <result column="advanced_configuration" jdbcType="LONGVARCHAR" property="advancedConfiguration" />
   </resultMap>
   <sql id="Example_Where_Clause">
     <where>
@@ -71,8 +77,27 @@
   </sql>
   <sql id="Base_Column_List">
     id, test_plan_id, load_case_id, load_report_id, `status`, create_time, update_time, 
-    create_user
+    create_user, test_resource_pool_id, `order`
   </sql>
+  <sql id="Blob_Column_List">
+    load_configuration, advanced_configuration
+  </sql>
+  <select id="selectByExampleWithBLOBs" parameterType="io.metersphere.base.domain.TestPlanLoadCaseExample" resultMap="ResultMapWithBLOBs">
+    select
+    <if test="distinct">
+      distinct
+    </if>
+    <include refid="Base_Column_List" />
+    ,
+    <include refid="Blob_Column_List" />
+    from test_plan_load_case
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null">
+      order by ${orderByClause}
+    </if>
+  </select>
   <select id="selectByExample" parameterType="io.metersphere.base.domain.TestPlanLoadCaseExample" resultMap="BaseResultMap">
     select
     <if test="distinct">
@@ -87,9 +112,11 @@
       order by ${orderByClause}
     </if>
   </select>
-  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="ResultMapWithBLOBs">
     select 
     <include refid="Base_Column_List" />
+    ,
+    <include refid="Blob_Column_List" />
     from test_plan_load_case
     where id = #{id,jdbcType=VARCHAR}
   </select>
@@ -103,15 +130,19 @@
       <include refid="Example_Where_Clause" />
     </if>
   </delete>
-  <insert id="insert" parameterType="io.metersphere.base.domain.TestPlanLoadCase">
+  <insert id="insert" parameterType="io.metersphere.base.domain.TestPlanLoadCaseWithBLOBs">
     insert into test_plan_load_case (id, test_plan_id, load_case_id, 
       load_report_id, `status`, create_time, 
-      update_time, create_user)
+      update_time, create_user, test_resource_pool_id, 
+      `order`, load_configuration, advanced_configuration
+      )
     values (#{id,jdbcType=VARCHAR}, #{testPlanId,jdbcType=VARCHAR}, #{loadCaseId,jdbcType=VARCHAR}, 
       #{loadReportId,jdbcType=VARCHAR}, #{status,jdbcType=VARCHAR}, #{createTime,jdbcType=BIGINT}, 
-      #{updateTime,jdbcType=BIGINT}, #{createUser,jdbcType=VARCHAR})
+      #{updateTime,jdbcType=BIGINT}, #{createUser,jdbcType=VARCHAR}, #{testResourcePoolId,jdbcType=VARCHAR}, 
+      #{order,jdbcType=BIGINT}, #{loadConfiguration,jdbcType=LONGVARCHAR}, #{advancedConfiguration,jdbcType=LONGVARCHAR}
+      )
   </insert>
-  <insert id="insertSelective" parameterType="io.metersphere.base.domain.TestPlanLoadCase">
+  <insert id="insertSelective" parameterType="io.metersphere.base.domain.TestPlanLoadCaseWithBLOBs">
     insert into test_plan_load_case
     <trim prefix="(" suffix=")" suffixOverrides=",">
       <if test="id != null">
@@ -138,6 +169,18 @@
       <if test="createUser != null">
         create_user,
       </if>
+      <if test="testResourcePoolId != null">
+        test_resource_pool_id,
+      </if>
+      <if test="order != null">
+        `order`,
+      </if>
+      <if test="loadConfiguration != null">
+        load_configuration,
+      </if>
+      <if test="advancedConfiguration != null">
+        advanced_configuration,
+      </if>
     </trim>
     <trim prefix="values (" suffix=")" suffixOverrides=",">
       <if test="id != null">
@@ -163,6 +206,18 @@
       </if>
       <if test="createUser != null">
         #{createUser,jdbcType=VARCHAR},
+      </if>
+      <if test="testResourcePoolId != null">
+        #{testResourcePoolId,jdbcType=VARCHAR},
+      </if>
+      <if test="order != null">
+        #{order,jdbcType=BIGINT},
+      </if>
+      <if test="loadConfiguration != null">
+        #{loadConfiguration,jdbcType=LONGVARCHAR},
+      </if>
+      <if test="advancedConfiguration != null">
+        #{advancedConfiguration,jdbcType=LONGVARCHAR},
       </if>
     </trim>
   </insert>
@@ -199,7 +254,37 @@
       <if test="record.createUser != null">
         create_user = #{record.createUser,jdbcType=VARCHAR},
       </if>
+      <if test="record.testResourcePoolId != null">
+        test_resource_pool_id = #{record.testResourcePoolId,jdbcType=VARCHAR},
+      </if>
+      <if test="record.order != null">
+        `order` = #{record.order,jdbcType=BIGINT},
+      </if>
+      <if test="record.loadConfiguration != null">
+        load_configuration = #{record.loadConfiguration,jdbcType=LONGVARCHAR},
+      </if>
+      <if test="record.advancedConfiguration != null">
+        advanced_configuration = #{record.advancedConfiguration,jdbcType=LONGVARCHAR},
+      </if>
     </set>
+    <if test="_parameter != null">
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+  <update id="updateByExampleWithBLOBs" parameterType="map">
+    update test_plan_load_case
+    set id = #{record.id,jdbcType=VARCHAR},
+      test_plan_id = #{record.testPlanId,jdbcType=VARCHAR},
+      load_case_id = #{record.loadCaseId,jdbcType=VARCHAR},
+      load_report_id = #{record.loadReportId,jdbcType=VARCHAR},
+      `status` = #{record.status,jdbcType=VARCHAR},
+      create_time = #{record.createTime,jdbcType=BIGINT},
+      update_time = #{record.updateTime,jdbcType=BIGINT},
+      create_user = #{record.createUser,jdbcType=VARCHAR},
+      test_resource_pool_id = #{record.testResourcePoolId,jdbcType=VARCHAR},
+      `order` = #{record.order,jdbcType=BIGINT},
+      load_configuration = #{record.loadConfiguration,jdbcType=LONGVARCHAR},
+      advanced_configuration = #{record.advancedConfiguration,jdbcType=LONGVARCHAR}
     <if test="_parameter != null">
       <include refid="Update_By_Example_Where_Clause" />
     </if>
@@ -213,12 +298,14 @@
       `status` = #{record.status,jdbcType=VARCHAR},
       create_time = #{record.createTime,jdbcType=BIGINT},
       update_time = #{record.updateTime,jdbcType=BIGINT},
-      create_user = #{record.createUser,jdbcType=VARCHAR}
+      create_user = #{record.createUser,jdbcType=VARCHAR},
+      test_resource_pool_id = #{record.testResourcePoolId,jdbcType=VARCHAR},
+      `order` = #{record.order,jdbcType=BIGINT}
     <if test="_parameter != null">
       <include refid="Update_By_Example_Where_Clause" />
     </if>
   </update>
-  <update id="updateByPrimaryKeySelective" parameterType="io.metersphere.base.domain.TestPlanLoadCase">
+  <update id="updateByPrimaryKeySelective" parameterType="io.metersphere.base.domain.TestPlanLoadCaseWithBLOBs">
     update test_plan_load_case
     <set>
       <if test="testPlanId != null">
@@ -242,7 +329,34 @@
       <if test="createUser != null">
         create_user = #{createUser,jdbcType=VARCHAR},
       </if>
+      <if test="testResourcePoolId != null">
+        test_resource_pool_id = #{testResourcePoolId,jdbcType=VARCHAR},
+      </if>
+      <if test="order != null">
+        `order` = #{order,jdbcType=BIGINT},
+      </if>
+      <if test="loadConfiguration != null">
+        load_configuration = #{loadConfiguration,jdbcType=LONGVARCHAR},
+      </if>
+      <if test="advancedConfiguration != null">
+        advanced_configuration = #{advancedConfiguration,jdbcType=LONGVARCHAR},
+      </if>
     </set>
+    where id = #{id,jdbcType=VARCHAR}
+  </update>
+  <update id="updateByPrimaryKeyWithBLOBs" parameterType="io.metersphere.base.domain.TestPlanLoadCaseWithBLOBs">
+    update test_plan_load_case
+    set test_plan_id = #{testPlanId,jdbcType=VARCHAR},
+      load_case_id = #{loadCaseId,jdbcType=VARCHAR},
+      load_report_id = #{loadReportId,jdbcType=VARCHAR},
+      `status` = #{status,jdbcType=VARCHAR},
+      create_time = #{createTime,jdbcType=BIGINT},
+      update_time = #{updateTime,jdbcType=BIGINT},
+      create_user = #{createUser,jdbcType=VARCHAR},
+      test_resource_pool_id = #{testResourcePoolId,jdbcType=VARCHAR},
+      `order` = #{order,jdbcType=BIGINT},
+      load_configuration = #{loadConfiguration,jdbcType=LONGVARCHAR},
+      advanced_configuration = #{advancedConfiguration,jdbcType=LONGVARCHAR}
     where id = #{id,jdbcType=VARCHAR}
   </update>
   <update id="updateByPrimaryKey" parameterType="io.metersphere.base.domain.TestPlanLoadCase">
@@ -253,7 +367,9 @@
       `status` = #{status,jdbcType=VARCHAR},
       create_time = #{createTime,jdbcType=BIGINT},
       update_time = #{updateTime,jdbcType=BIGINT},
-      create_user = #{createUser,jdbcType=VARCHAR}
+      create_user = #{createUser,jdbcType=VARCHAR},
+      test_resource_pool_id = #{testResourcePoolId,jdbcType=VARCHAR},
+      `order` = #{order,jdbcType=BIGINT}
     where id = #{id,jdbcType=VARCHAR}
   </update>
 </mapper>

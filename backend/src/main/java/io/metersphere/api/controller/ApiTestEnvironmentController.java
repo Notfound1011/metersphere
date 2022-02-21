@@ -8,14 +8,10 @@ import io.metersphere.api.service.ApiTestEnvironmentService;
 import io.metersphere.api.service.CommandService;
 import io.metersphere.base.domain.ApiTestEnvironmentWithBLOBs;
 import io.metersphere.commons.constants.OperLogConstants;
-import io.metersphere.commons.constants.RoleConstants;
 import io.metersphere.commons.utils.PageUtils;
 import io.metersphere.commons.utils.Pager;
 import io.metersphere.controller.request.EnvironmentRequest;
 import io.metersphere.log.annotation.MsAuditLog;
-import io.metersphere.service.CheckPermissionService;
-import org.apache.shiro.authz.annotation.Logical;
-import org.apache.shiro.authz.annotation.RequiresRoles;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -29,13 +25,10 @@ public class ApiTestEnvironmentController {
     @Resource
     ApiTestEnvironmentService apiTestEnvironmentService;
     @Resource
-    private CheckPermissionService checkPermissionService;
-    @Resource
     private CommandService commandService;
 
     @GetMapping("/list/{projectId}")
     public List<ApiTestEnvironmentWithBLOBs> list(@PathVariable String projectId) {
-//        checkPermissionService.checkProjectOwner(projectId);
         return apiTestEnvironmentService.list(projectId);
     }
 
@@ -49,10 +42,6 @@ public class ApiTestEnvironmentController {
      */
     @PostMapping("/list/{goPage}/{pageSize}")
     public Pager<List<ApiTestEnvironmentWithBLOBs>> listByCondition(@PathVariable int goPage, @PathVariable int pageSize, @RequestBody EnvironmentRequest environmentRequest) {
-//        List<String> projectIds = environmentRequest.getProjectIds();
-//        for (String projectId : projectIds) {
-//            checkPermissionService.checkProjectOwner(projectId);
-//        }
         Page<Object> page = PageHelper.startPage(goPage, pageSize, true);
         return PageUtils.setPageInfo(page, apiTestEnvironmentService.listByConditions(environmentRequest));
     }
@@ -86,4 +75,8 @@ public class ApiTestEnvironmentController {
         apiTestEnvironmentService.delete(id);
     }
 
+    @GetMapping("/getTcpMockInfo/{projectId}")
+    public String getMockInfo(@PathVariable(value = "projectId") String projectId) {
+        return apiTestEnvironmentService.getMockInfo(projectId);
+    }
 }

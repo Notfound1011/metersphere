@@ -21,6 +21,10 @@
         @handlePageChange="initTable"
         :fields.sync="fields"
         :field-key="tableHeaderKey"
+        :enable-order-drag="enableOrderDrag"
+        row-key="id"
+        :row-order-group-id="planId"
+        :row-order-func="editTestPlanLoadCaseOrder"
         @refresh="initTable"
         ref="table">
         <span v-for="(item) in fields" :key="item.key">
@@ -111,6 +115,7 @@
     <ms-plan-run-mode @handleRunBatch="runBatch" ref="runMode"/>
 
     <load-case-report :report-id="reportId" ref="loadCaseReport" @refresh="initTable"/>
+    <load-case-config ref="loadCaseConfig"/>
   </div>
 </template>
 
@@ -121,17 +126,18 @@ import MsTablePagination from "@/business/components/common/pagination/TablePagi
 import MsPerformanceTestStatus from "@/business/components/performance/test/PerformanceTestStatus";
 import LoadCaseReport from "@/business/components/track/plan/view/comonents/load/LoadCaseReport";
 import {
-  buildBatchParam,
-  checkTableRowIsSelect, getCustomTableHeader, getCustomTableWidth
+  buildBatchParam, getCustomTableHeader, getCustomTableWidth
 } from "@/common/js/tableUtils";
 import {TEST_PLAN_LOAD_CASE} from "@/common/js/constants";
-import {getCurrentUser} from "@/common/js/utils";
+import {getCurrentProjectID, getCurrentUser, getCurrentUserId} from "@/common/js/utils";
 import HeaderLabelOperate from "@/business/components/common/head/HeaderLabelOperate";
 import MsPlanRunMode from "../../../common/PlanRunMode";
 import MsTable from "@/business/components/common/components/table/MsTable";
 import MsTableColumn from "@/business/components/common/components/table/MsTableColumn";
 import MsCreateTimeColumn from "@/business/components/common/components/table/MsCreateTimeColumn";
 import MsUpdateTimeColumn from "@/business/components/common/components/table/MsUpdateTimeColumn";
+import LoadCaseConfig from "@/business/components/track/plan/view/comonents/load/LoadCaseConfig";
+import {editTestPlanLoadCaseOrder} from "@/network/test-plan";
 
 export default {
   name: "TestPlanLoadCaseList",
@@ -145,7 +151,8 @@ export default {
     TestPlanLoadCaseListHeader,
     MsTablePagination,
     MsPerformanceTestStatus,
-    MsPlanRunMode
+    MsPlanRunMode,
+    LoadCaseConfig
   },
   data() {
     return {
@@ -160,6 +167,7 @@ export default {
       status: 'default',
       screenHeight: 'calc(100vh - 250px)',//屏幕高度
       tableHeaderKey:"TEST_PLAN_LOAD_CASE",
+      enableOrderDrag: true,
       fields: getCustomTableHeader('TEST_PLAN_LOAD_CASE'),
       fieldsWidth: getCustomTableWidth('TEST_PLAN_LOAD_CASE'),
       operators: [
@@ -171,12 +179,19 @@ export default {
           permissions: ['PROJECT_TRACK_PLAN:READ+RUN']
         },
         {
+          tip: '修改配置',
+          icon: "el-icon-setting",
+          exec: this.changeLoadConfig,
+          type: 'success',
+          isDisable: this.isReadOnly,
+        },
+        {
           tip: this.$t('test_track.plan_view.cancel_relevance'), icon: "el-icon-unlock",
           exec: this.handleDelete,
           type: 'danger',
           isDisable: this.isReadOnly,
           permissions: ['PROJECT_TRACK_PLAN:READ+RELEVANCE_OR_CANCEL']
-        }
+        },
       ],
       buttons: [
         {
@@ -208,6 +223,11 @@ export default {
     planId: String,
     reviewId: String,
     clickType: String,
+  },
+  computed: {
+    editTestPlanLoadCaseOrder() {
+      return editTestPlanLoadCaseOrder;
+    }
   },
   created() {
     this.initTable();
@@ -245,7 +265,9 @@ export default {
             runArr.push({
               id: loadCase.loadCaseId,
               testPlanLoadId: loadCase.id,
-              triggerMode: 'CASE'
+              userId: getCurrentUserId(),
+              projectId: getCurrentProjectID(),
+              triggerMode: 'BATCH'
             });
           });
           let obj = {config: config, requests: runArr, userId: getCurrentUser().id};
@@ -259,7 +281,9 @@ export default {
           runArr.push( {
             id: loadCase.loadCaseId,
             testPlanLoadId: loadCase.id,
-            triggerMode: 'CASE'
+            userId: getCurrentUserId(),
+            projectId: getCurrentProjectID(),
+            triggerMode: 'MANUAL'
           })
         });
         let obj = {config:config,requests:runArr,userId:getCurrentUser().id};
@@ -281,6 +305,9 @@ export default {
       if (this.selectProjectId && this.selectProjectId !== 'root') {
         this.condition.projectId = this.selectProjectId;
       }
+      if (this.selectProjectId === 'root') {
+        this.condition.projectId = null;
+      }
       if (this.clickType) {
         if (this.status == 'default') {
           this.condition.status = this.clickType;
@@ -289,6 +316,8 @@ export default {
         }
         this.status = 'all';
       }
+      this.enableOrderDrag = (this.condition.orders && this.condition.orders.length) > 0 ? false : true;
+
       if (this.planId) {
         this.condition.testPlanId = this.planId;
         this.$post("/test/plan/load/case/list/" + this.currentPage + "/" + this.pageSize, this.condition, response => {
@@ -296,12 +325,6 @@ export default {
           let {itemCount, listObject} = data;
           this.total = itemCount;
           this.tableData = listObject;
-          if (this.$refs.table) {
-            setTimeout(this.$refs.table.doLayout, 200);
-            this.$nextTick(() => {
-              checkTableRowIsSelect(this, this.condition, this.tableData, this.$refs.table, this.$refs.table.selectRows);
-            });
-          }
         })
       }
       if (this.reviewId) {
@@ -311,12 +334,6 @@ export default {
           let {itemCount, listObject} = data;
           this.total = itemCount;
           this.tableData = listObject;
-          if (this.$refs.table) {
-            setTimeout(this.$refs.table.doLayout, 200);
-            this.$nextTick(() => {
-              checkTableRowIsSelect(this, this.condition, this.tableData, this.$refs.table, this.$refs.table.selectRows);
-            });
-          }
         })
       }
     },
@@ -376,7 +393,9 @@ export default {
       this.$post('/test/plan/load/case/run', {
         id: loadCase.loadCaseId,
         testPlanLoadId: loadCase.id,
-        triggerMode: 'CASE'
+        userId: getCurrentUserId(),
+        projectId: getCurrentProjectID(),
+        triggerMode: 'MANUAL'
       }).then(() => {
         this.$notify.success({
           title: loadCase.caseName,
@@ -404,6 +423,10 @@ export default {
         this.$emit('refresh');
         this.initTable();
       });
+    },
+    changeLoadConfig(loadCase) {
+      const {loadCaseId, id} = loadCase;
+      this.$refs.loadCaseConfig.open(loadCaseId, id);
     },
     getReport(data) {
       const {loadReportId} = data;

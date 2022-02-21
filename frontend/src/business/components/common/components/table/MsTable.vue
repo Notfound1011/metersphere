@@ -9,10 +9,14 @@
       @select="handleSelect"
       @header-dragend="headerDragend"
       @cell-mouse-enter="showPopover"
+      :default-sort="defaultSort"
       class="test-content adjust-table ms-table"
       :class="{'ms-select-all-fixed': showSelectAll}"
       :height="screenHeight"
       v-loading="tableIsLoading"
+      :row-key="rowKey"
+      :cell-class-name="addPaddingColClass"
+      :highlight-current-row="highlightCurrentRow"
       ref="table" @row-click="handleRowClick">
 
       <el-table-column v-if="enableSelection" width="50" type="selection"/>
@@ -21,15 +25,17 @@
                                       :page-size="pageSize > total ? total : pageSize"
                                       :table-data-count-in-page="data.length"
                                       :total="total"
+                                      :select-type="condition.selectAll"
                                       @selectPageAll="isSelectDataAll(false)"
                                       @selectAll="isSelectDataAll(true)"/>
 
-      <el-table-column v-if="enableSelection && batchOperators && batchOperators.length > 0" width="30"
+      <el-table-column v-if="enableSelection && batchOperators && batchOperators.length > 0" width="15"
                        fixed="left"
+                       column-key="batchBtnCol"
                        :resizable="false" align="center">
         <template v-slot:default="scope">
           <!-- 选中记录后浮现的按钮，提供对记录的批量操作 -->
-          <show-more-btn :has-showed="hasBatchTipShow" :is-show="scope.row.showMore" :buttons="batchOperators"
+          <show-more-btn :has-showed="!scope.row.showBatchTip" :is-show="scope.row.showMore" :buttons="batchOperators"
                          :size="selectDataCounts"/>
         </template>
       </el-table-column>
@@ -39,6 +45,17 @@
           <span class="table-column-mark">&nbsp;</span>
         </template>
       </el-table-column>
+
+      <el-table-column v-if="enableOrderDrag" width="20" column-key="tableRowDropCol">
+        <template v-slot:default="scope">
+<!--          <span class="table-row-drop-bar">-->
+          <div class="table-row-drop-bar">
+             <i class="el-icon-more ms-icon-more"/>
+             <i class="el-icon-more ms-icon-more"/>
+          </div>
+        </template>
+      </el-table-column>
+
       <slot></slot>
 
       <el-table-column
@@ -47,7 +64,7 @@
         fixed="right"
         :label="$t('commons.operating')">
         <template slot="header">
-          <header-label-operate v-if="fieldKey" @exec="openCustomHeader"/>
+          <header-label-operate :disable-header-config="disableHeaderConfig" v-if="fieldKey" @exec="openCustomHeader"/>
         </template>
         <template v-slot:default="scope">
           <div>
@@ -73,14 +90,13 @@
 import {
   _filter,
   _handleSelect,
-  _handleSelectAll, _sort, getLabel,
+  _handleSelectAll, _sort,
   getSelectDataCounts,
   setUnSelectIds,
   toggleAllSelection,
-  checkTableRowIsSelect, getCustomTableHeader, saveCustomTableWidth,
+  checkTableRowIsSelect, getCustomTableHeader, saveCustomTableWidth, saveLastTableSortField, handleRowDrop,
 } from "@/common/js/tableUtils";
 import MsTableHeaderSelectPopover from "@/business/components/common/components/table/MsTableHeaderSelectPopover";
-import {TEST_CASE_LIST} from "@/common/js/constants";
 import MsTablePagination from "@/business/components/common/pagination/TablePagination";
 import ShowMoreBtn from "@/business/components/track/case/components/ShowMoreBtn";
 import MsTableColumn from "@/business/components/common/components/table/MsTableColumn";
@@ -88,6 +104,8 @@ import MsTableOperators from "@/business/components/common/components/MsTableOpe
 import HeaderLabelOperate from "@/business/components/common/head/HeaderLabelOperate";
 import HeaderCustom from "@/business/components/common/head/HeaderCustom";
 import MsCustomTableHeader from "@/business/components/common/components/table/MsCustomTableHeader";
+import {lineToHump} from "@/common/js/utils";
+import {editTestCaseOrder} from "@/network/testCase";
 
 /**
  * 参考 ApiList
@@ -114,7 +132,8 @@ export default {
       selectRows: new Set(),
       selectIds: [],
       tableActive: true,
-      hasBatchTipShow: false
+      // hasBatchTipShow: false,
+      defaultSort: {}
     };
   },
   props: {
@@ -192,19 +211,49 @@ export default {
         return false;
       }
     },
+    disableHeaderConfig: Boolean,
     fields: Array,
     fieldKey: String,
-    customFields: Array
+    customFields: Array,
+    highlightCurrentRow: Boolean,
+    // 是否记住排序
+    rememberOrder: Boolean,
+    enableOrderDrag: Boolean,
+    rowKey: [String, Function],
+    // 自定义排序，需要传资源所属的项目id或者测试计划id，并且传排序的方法
+    rowOrderGroupId: String,
+    rowOrderFunc: Function
+  },
+  created() {
   },
   mounted() {
-    getLabel(this, TEST_CASE_LIST);
+    this.setDefaultOrders();
   },
   watch: {
     selectNodeIds() {
       this.selectDataCounts = 0;
     },
+    // 刷新列表后做统一处理
+    data(newVar, oldVar) {
+      // 不知为何，勾选选择框也会进到这里，但是这种情况 newVar === oldVar
+      if (newVar !== oldVar) {
+        this.$nextTick(() => {
+          this.clear();
+          this.doLayout();
+          this.checkTableRowIsSelect();
+          this.listenRowDrop();
+          this.initData();
+        });
+      }
+    }
   },
   methods: {
+    initData(){
+      //初始化数据是否显示提示块
+      if(this.data.length > 0){
+        this.data[0].showBatchTip = true;
+      }
+    },
     // 批量操作提示, 第一次勾选提示, 之后不提示
     // 先添加 batch-popper 样式, 全选后再移除样式, 只保留可见框内第一条数据的提示
     removeBatchPopper() {
@@ -225,15 +274,42 @@ export default {
           if (i == index) {
             elements[i].classList.remove('batch-popper');
             setTimeout(() => {
-              this.hasBatchTipShow = true;
+              // this.hasBatchTipShow = true;
+              this.initData();
             }, 1500);
           }
         }
       }
     },
+    listenRowDrop() {
+      if (this.rowOrderGroupId) {
+        handleRowDrop(this.data, (param) => {
+          param.groupId = this.rowOrderGroupId;
+          if (this.rowOrderFunc) {
+            this.rowOrderFunc(param);
+          }
+        });
+      }
+    },
     isScrollShow(column, tableTop){  //判断元素是否因为超过表头
       let columnTop = column.getBoundingClientRect().top;
       return columnTop - tableTop > 30;
+    },
+    // 访问页面默认高亮当前的排序
+    setDefaultOrders() {
+      let orders = this.condition.orders;
+      if (orders) {
+        orders.forEach(item => {
+          this.defaultSort = {
+            prop: lineToHump(item.name),
+            order: 'descending'
+          };
+          if (item.type === 'asc') {
+            this.defaultSort.order = 'ascending';
+          }
+          return;
+        });
+      }
     },
     handleSelectAll(selection) {
       _handleSelectAll(this, selection, this.data, this.selectRows, this.condition);
@@ -288,7 +364,9 @@ export default {
       }
     },
     doLayout() {
-      setTimeout(this.$refs.table.doLayout(), 200);
+      if (this.$refs.table) {
+        setTimeout(this.$refs.table.doLayout(), 200);
+      }
     },
     filter(filters) {
       _filter(filters, this.condition);
@@ -300,7 +378,9 @@ export default {
         this.condition.orders = [];
       }
       _sort(column, this.condition);
-      this.$emit("saveSortField", this.fieldKey,this.condition.orders);
+      if (this.rememberOrder) {
+        saveLastTableSortField(this.fieldKey, JSON.stringify(this.condition.orders));
+      }
       this.handleRefresh();
     },
     handleBatchEdit() {
@@ -310,8 +390,8 @@ export default {
     handleBatchMove() {
       this.$refs.testBatchMove.open(this.treeNodes, Array.from(this.selectRows).map(row => row.id), this.moduleOptions);
     },
-    handleRowClick(row) {
-      this.$emit("handleRowClick", row);
+    handleRowClick(row, column) {
+      this.$emit("handleRowClick", row, column);
     },
     handleRefresh() {
       this.clear();
@@ -335,8 +415,10 @@ export default {
     clearSelectRows() {
       this.selectRows.clear();
       this.selectIds = [];
-      this.condition.selectAll = false;
-      this.condition.unSelectIds = [];
+      if(!this.condition.selectAll){
+        this.condition.selectAll = false;
+        this.condition.unSelectIds = [];
+      }
       this.selectDataCounts = 0;
       if (this.$refs.table) {
         this.$refs.table.clearSelection();
@@ -357,6 +439,13 @@ export default {
       this.$nextTick(() => {
         this.tableActive = true;
       });
+    },
+    addPaddingColClass({column}) {
+      if (column.columnKey === 'tableRowDropCol'
+        || column.columnKey === 'selectionCol'
+        || column.columnKey ==='batchBtnCol') {
+        return 'padding-col';
+      }
     }
   }
 };
@@ -366,5 +455,50 @@ export default {
 .batch-popper {
   top: 300px;
   color: #1FDD02;
+}
+
+.el-table >>> .padding-col .cell {
+  padding: 0px !important;
+}
+
+.table-row-drop-bar {
+  /*visibility: hidden;*/
+  text-align: center;
+  height: 28px;
+}
+
+.table-row-drop-bar:hover {
+  /*visibility: visible;*/
+  /*font-size: 15px;*/
+}
+
+/*.el-table >>> .hover-row .table-row-drop-bar {*/
+/*  visibility: initial !important;*/
+/*}*/
+
+.ms-icon-more {
+  transform: rotate(90deg);
+  width: 9px;
+  color: #cccccc;
+}
+
+.ms-icon-more:first-child {
+  margin-right: -5px;
+}
+
+.ms-table >>> .el-table__body tr.hover-row.current-row>td,
+.ms-table >>>  .el-table__body tr.hover-row.el-table__row--striped.current-row>td,
+.ms-table >>> .el-table__body tr.hover-row.el-table__row--striped>td,
+.ms-table >>> .el-table__body tr.hover-row>td {
+  background-color: #ffffff;
+}
+/* 解决拖拽排序后hover阴影错乱问题 */
+.ms-table >>> .el-table__body tr:hover>td
+ {
+  background-color: #F5F7FA;
+}
+
+.disable-hover >>> tr:hover>td{
+  background-color: #ffffff !important;
 }
 </style>

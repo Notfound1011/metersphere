@@ -41,11 +41,16 @@
 </template>
 
 <script>
-import {getCurrentOrganizationId, getCurrentUser, listenGoBack, removeGoBackListener} from "@/common/js/utils";
+import {
+  getCurrentUser,
+  getCurrentWorkspaceId,
+  listenGoBack,
+  removeGoBackListener
+} from "@/common/js/utils";
 import Crontab from "../cron/Crontab";
 import CrontabResult from "../cron/CrontabResult";
 import {cronValidate} from "@/common/js/cron";
-import ScheduleTaskNotification from "../../settings/organization/components/ScheduleTaskNotification";
+import ScheduleTaskNotification from "../../settings/workspace/components/ScheduleTaskNotification";
 
 function defaultCustomValidate() {
   return {pass: true};
@@ -103,20 +108,17 @@ export default {
       rules: {
         cronValue: [{required: true, validator: validateCron, trigger: 'blur'}],
       }
-    }
+    };
   },
   methods: {
     currentUser: () => {
       return getCurrentUser();
     },
     initUserList() {
-      let param = {
-        name: '',
-        organizationId: getCurrentOrganizationId()
-      };
 
-      this.result = this.$post('user/org/member/list/all', param, response => {
-        this.scheduleReceiverOptions = response.data
+
+      this.result = this.$get('user/ws/member/list/' + getCurrentWorkspaceId(), response => {
+        this.scheduleReceiverOptions = response.data;
       });
 
     },
@@ -129,8 +131,8 @@ export default {
      },*/
     buildParam() {
       let param = {};
-      param.notices = this.tableData
-      param.testId = this.testId
+      param.notices = this.tableData;
+      param.testId = this.testId;
       return param;
     },
     open() {
@@ -138,7 +140,7 @@ export default {
       this.dialogVisible = true;
       this.form.cronValue = this.schedule.value;
       listenGoBack(this.close);
-      this.activeName = 'first'
+      this.activeName = 'first';
     },
     crontabFill(value, resultList) {
       //确定后回传的值
@@ -147,7 +149,12 @@ export default {
       this.$refs['from'].validate();
     },
     showCronDialog() {
-      this.showCron = true;
+      let tmp = this.schedule.value;
+      this.schedule.value = '';
+      this.$nextTick(() => {
+        this.schedule.value = tmp;
+        this.showCron = true;
+      });
     },
     saveCron() {
       this.$refs['from'].validate((valid) => {
@@ -164,7 +171,7 @@ export default {
       let param = this.buildParam();
       this.result = this.$post("notice/save", param, () => {
         this.$success(this.$t('commons.save_success'));
-      })
+      });
     },
     close() {
       this.dialogVisible = false;
@@ -197,7 +204,7 @@ export default {
       return false;
     }
   }
-}
+};
 </script>
 
 <style scoped>

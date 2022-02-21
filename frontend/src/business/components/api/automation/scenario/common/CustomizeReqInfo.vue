@@ -1,19 +1,26 @@
 <template>
   <div>
     <div v-if="request.protocol === 'HTTP'">
-      <el-input :placeholder="$t('api_test.definition.request.path_all_info')" v-if="request.url || isCustomizeReq" v-model="request.url"
-                style="width: 85%;margin-top: 10px" size="small" @blur="urlChange">
-        <el-select v-model="request.method" slot="prepend" style="width: 100px" size="small">
+      <div v-if="request.url || isCustomizeReq">
+        <el-select v-model="request.method" class="ms-select" size="small" :disabled="request.disabled">
           <el-option v-for="item in reqOptions" :key="item.id" :label="item.label" :value="item.id"/>
         </el-select>
-      </el-input>
-      <el-input :placeholder="$t('api_test.definition.request.path_all_info')" v-else v-model="request.path"
-                style="width: 85%;margin-top: 10px" size="small" @blur="pathChange">
-        <el-select v-model="request.method" slot="prepend" style="width: 100px" size="small">
+        <el-input v-model="request.domain" v-if="request.isRefEnvironment  && request.domain" size="small" readonly class="ms-input"/>
+        <el-input :placeholder="$t('api_test.definition.request.path_all_info')" v-model="request.url"
+                  style="width: 50%" size="small" @blur="urlChange" :disabled="request.disabled">
+        </el-input>
+        <el-checkbox v-if="isCustomizeReq" class="is-ref-environment" v-model="request.isRefEnvironment" @change="setDomain" :disabled="request.disabled">
+          {{ $t('api_test.request.refer_to_environment') }}
+        </el-checkbox>
+      </div>
+      <div v-else>
+        <el-select v-model="request.method" class="ms-select" size="small" :disabled="request.disabled">
           <el-option v-for="item in reqOptions" :key="item.id" :label="item.label" :value="item.id"/>
         </el-select>
-      </el-input>
-      <el-checkbox v-if="isCustomizeReq" class="is-ref-environment" v-model="request.isRefEnvironment">{{$t('api_test.request.refer_to_environment')}}</el-checkbox>
+        <el-input v-model="request.domain" v-if="request.domain" size="small" readonly class="ms-input" :disabled="request.disabled"/>
+        <el-input :placeholder="$t('api_test.definition.request.path_all_info')" style="width: 50%"
+                  v-model="request.path" size="small" @blur="pathChange" :disabled="request.disabled"/>
+      </div>
     </div>
 
     <div v-if="request.protocol === 'TCP' && isCustomizeReq">
@@ -45,6 +52,7 @@ export default {
   data() {
     return {
       reqOptions: REQ_METHOD,
+      isUrl: false,
     }
   },
   mounted() {
@@ -69,20 +77,28 @@ export default {
   },
   methods: {
     pathChange() {
+      this.isUrl = false;
       if (!this.request.path || this.request.path.indexOf('?') === -1) return;
       let url = this.getURL(this.addProtocol(this.request.path));
-      if (url) {
+      if (url && this.isUrl) {
         this.request.path = decodeURIComponent(this.request.path.substr(0, this.request.path.indexOf("?")));
       }
     },
     urlChange() {
+      this.isUrl = false;
       if (this.isCustomizeReq) {
         this.request.path = this.request.url;
       }
       if (!this.request.url || this.request.url.indexOf('?') === -1) return;
       let url = this.getURL(this.addProtocol(this.request.url));
       if (url) {
-        this.request.url = decodeURIComponent(this.request.url.substr(0, this.request.url.indexOf("?")));
+        let paramUrl = this.request.url.substr(this.request.url.indexOf("?") + 1);
+        if (paramUrl && this.isUrl) {
+          this.request.url = decodeURIComponent(this.request.url.substr(0, this.request.url.indexOf("?")));
+        }
+        if (this.isCustomizeReq) {
+          this.request.path = this.request.url;
+        }
       }
     },
     addProtocol(url) {
@@ -98,6 +114,7 @@ export default {
         let url = new URL(urlStr);
         url.searchParams.forEach((value, key) => {
           if (key && value) {
+            this.isUrl = true;
             this.request.arguments.splice(0, 0, new KeyValue({name: key, required: false, value: value}));
           }
         });
@@ -106,16 +123,40 @@ export default {
         this.$error(this.$t('api_test.request.url_invalid'), 2000);
       }
     },
+    setDomain() {
+      this.$emit("setDomain");
+    }
   }
 }
 </script>
 
 <style scoped>
-  .server-input {
-    width: 50%;
-  }
+.server-input {
+  width: 50%;
+}
 
-  .is-ref-environment {
-    margin-left: 15px;
-  }
+.scenario-step-request-name {
+  display: inline-block;
+  margin: 0 5px;
+  overflow-x: hidden;
+  padding-bottom: 0;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: nowrap;
+  width: 120px;
+}
+
+.ms-select {
+  width: 100px;
+  margin-right: 10px;
+}
+
+.ms-input {
+  width: 150px;
+  margin-right: 10px;
+}
+
+.is-ref-environment {
+  margin-left: 15px;
+}
 </style>

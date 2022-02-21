@@ -3,14 +3,15 @@
     <!--  基本配置  -->
     <el-row>
       <el-col :span="6">
-        <el-form :inline="true">
+        <el-form :inline="true" :disabled="isReadOnly">
           <el-form-item>
             <div>{{ $t('load_test.connect_timeout') }}</div>
           </el-form-item>
           <el-form-item>
             <el-input-number
-              :disabled="readOnly" size="mini" v-model="timeout"
-              :min="0"/>
+                size="mini" v-model="timeout"
+                controls-position="right"
+                :min="0"/>
           </el-form-item>
           <el-form-item>
             ms
@@ -18,14 +19,15 @@
         </el-form>
       </el-col>
       <el-col :span="6">
-        <el-form :inline="true">
+        <el-form :inline="true" :disabled="isReadOnly">
           <el-form-item>
             <div>{{ $t('load_test.response_timeout') }}</div>
           </el-form-item>
           <el-form-item>
             <el-input-number
-              :disabled="readOnly" size="mini" :min="0"
-              v-model="responseTimeout"/>
+                size="mini" :min="0"
+                controls-position="right"
+                v-model="responseTimeout"/>
           </el-form-item>
           <el-form-item>
             ms
@@ -33,14 +35,14 @@
         </el-form>
       </el-col>
       <el-col :span="6">
-        <el-form :inline="true">
+        <el-form :inline="true" :disabled="isReadOnly">
           <el-form-item>
             <div>
               {{ $t('load_test.granularity') }}
               <el-popover
-                placement="left"
-                width="300"
-                trigger="hover">
+                  placement="left"
+                  width="300"
+                  trigger="hover">
                 <el-table :data="granularityData">
                   <el-table-column property="start" :label="$t('load_test.duration')">
                     <template v-slot:default="scope">
@@ -63,19 +65,94 @@
         </el-form>
       </el-col>
       <el-col :span="6">
-        <el-form :inline="true">
+        <el-form :inline="true" :disabled="isReadOnly">
           <el-form-item>
             <div>{{ $t('load_test.custom_http_code') }}</div>
           </el-form-item>
           <el-form-item>
             <el-input
-              :disabled="readOnly" size="mini" v-model="statusCodeStr"
-              :placeholder="$t('load_test.separated_by_commas')"
-              @input="checkStatusCode"></el-input>
+                size="mini" v-model="statusCodeStr"
+                :placeholder="$t('load_test.separated_by_commas')"
+                @input="checkStatusCode"></el-input>
           </el-form-item>
         </el-form>
       </el-col>
     </el-row>
+
+    <!-- DNS -->
+    <el-row type="flex" justify="start">
+      <el-col :span="8">
+        <h3>{{ $t('load_test.domain_bind') }}</h3>
+        <el-button icon="el-icon-circle-plus-outline"
+                   :disabled="isReadOnly"
+                   plain size="mini" @click="add('domains')">
+          {{ $t('commons.add') }}
+        </el-button>
+      </el-col>
+    </el-row>
+    <el-row>
+      <el-col :span="24">
+        <el-table :data="domains" size="mini" class="tb-edit" align="center" border highlight-current-row>
+          <el-table-column
+              align="center"
+              :label="$t('load_test.domain')"
+              show-overflow-tooltip>
+            <template v-slot:default="{row}">
+              <el-input
+                  size="mini"
+                  v-if="!isReadOnly"
+                  type="textarea"
+                  :rows="1"
+                  class="edit-input"
+                  v-model="row.domain"
+                  :placeholder="$t('load_test.domain')"
+                  clearable>
+              </el-input>
+              <span>{{ row.domain }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+              align="center"
+              :label="$t('load_test.ip')"
+              show-overflow-tooltip>
+            <template v-slot:default="{row}">
+              <el-input
+                  size="mini"
+                  v-if="!isReadOnly"
+                  type="textarea"
+                  class="edit-input"
+                  :rows="1"
+                  v-model="row.ip"
+                  :placeholder="$t('load_test.ip')"
+                  clearable></el-input>
+              <span>{{ row.ip }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+              align="center"
+              :label="$t('load_test.enable')"
+              show-overflow-tooltip>
+            <template v-slot:default="{row}">
+              <el-switch
+                  :disabled="isReadOnly"
+                  size="mini"
+                  v-model="row.enable"
+                  inactive-color="#DCDFE6"
+              >
+              </el-switch>
+            </template>
+          </el-table-column>
+          <el-table-column align="center" :label="$t('load_test.operating')">
+            <template v-slot:default="{row, $index}">
+              <ms-table-operator-button :tip="$t('commons.delete')" icon="el-icon-delete"
+                                        type="danger" :disabled="isReadOnly"
+                                        @exec="del(row, 'domains', $index)"/>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-col>
+    </el-row>
+
     <!--  csv 配置  -->
     <el-row>
       <el-col :span="8">
@@ -86,18 +163,18 @@
       <el-col :span="24">
         <el-table :data="csvFiles" size="mini" class="tb-edit" align="center" border highlight-current-row>
           <el-table-column
-            align="center"
-            prop="name"
-            :label="$t('commons.name')">
+              align="center"
+              prop="name"
+              :label="$t('commons.name')">
           </el-table-column>
           <el-table-column align="center" prop="csvSplit" :label="$t('load_test.csv_split')">
             <template v-slot:default="{row}">
-              <el-switch :disabled="readOnly" v-model="row.csvSplit"/>
+              <el-switch :disabled="isReadOnly" v-model="row.csvSplit"/>
             </template>
           </el-table-column>
           <el-table-column align="center" prop="csvHasHeader" :label="$t('load_test.csv_has_header')">
             <template v-slot:default="{row}">
-              <el-switch :disabled="readOnly || !row.csvSplit" v-model="row.csvHasHeader"/>
+              <el-switch :disabled="isReadOnly || !row.csvSplit" v-model="row.csvHasHeader"/>
             </template>
           </el-table-column>
         </el-table>
@@ -108,70 +185,68 @@
     <el-row>
       <el-col :span="8">
         <h3>{{ $t('load_test.params') }}</h3>
-        <el-button :disabled="readOnly" icon="el-icon-circle-plus-outline" plain size="mini" @click="add('params')">
+        <el-button icon="el-icon-circle-plus-outline"
+                   :disabled="isReadOnly"
+                   plain size="mini" @click="add('params')">
           {{ $t('commons.add') }}
         </el-button>
       </el-col>
     </el-row>
-    <!-- -->
     <el-row>
       <el-col :span="24">
         <el-table :data="params" size="mini" class="tb-edit" align="center" border highlight-current-row>
           <el-table-column
-            align="center"
-            :label="$t('load_test.param_name')"
-            show-overflow-tooltip>
+              align="center"
+              :label="$t('load_test.param_name')"
+              show-overflow-tooltip>
             <template v-slot:default="{row}">
               <el-input
-                size="mini"
-                v-if="!readOnly"
-                type="textarea"
-                :rows="1"
-                class="edit-input"
-                v-model="row.name"
-                :placeholder="$t('load_test.param_name')"
-                clearable>
+                  size="mini"
+                  v-if="!isReadOnly"
+                  type="textarea"
+                  :rows="1"
+                  class="edit-input"
+                  v-model="row.name"
+                  :placeholder="$t('load_test.param_name')"
+                  clearable>
               </el-input>
               <span>{{ row.name }}</span>
             </template>
           </el-table-column>
           <el-table-column
-            align="center"
-            :label="$t('load_test.enable')"
-            show-overflow-tooltip>
+              :label="$t('load_test.param_value')"
+              show-overflow-tooltip align="center">
             <template v-slot:default="{row}">
-              <el-switch
-                :disabled="!row.edit || readOnly"
-                size="mini"
-                v-model="row.enable"
-                inactive-color="#DCDFE6">
-              </el-switch>
+              <el-input
+                  size="mini"
+                  v-if="!isReadOnly"
+                  type="textarea"
+                  class="edit-input"
+                  :rows="1"
+                  v-model="row.value"
+                  :placeholder="$t('load_test.param_value')"
+                  clearable></el-input>
+              <span>{{ row.value }}</span>
             </template>
           </el-table-column>
           <el-table-column
-            :label="$t('load_test.param_value')"
-            show-overflow-tooltip align="center">
+              align="center"
+              :label="$t('load_test.enable')"
+              show-overflow-tooltip>
             <template v-slot:default="{row}">
-              <!-- <template v-if="row.edit">
-                 <el-input v-model="row.value" class="edit-input" size="mini"/>
-               </template>
-               <span v-else>{{ row.value }}</span>-->
-              <el-input
-                size="mini"
-                v-if="!readOnly"
-                type="textarea"
-                class="edit-input"
-                :rows="1"
-                v-model="row.value"
-                :placeholder="$t('load_test.param_value')"
-                clearable></el-input>
-              <span>{{ row.value }}</span>
+              <el-switch
+                  :disabled="isReadOnly"
+                  size="mini"
+                  v-model="row.enable"
+                  inactive-color="#DCDFE6">
+              </el-switch>
             </template>
           </el-table-column>
           <el-table-column align="center" :label="$t('load_test.operating')">
             <template v-slot:default="{row, $index}">
-              <ms-table-operator-button :disabled="readOnly" :tip="$t('commons.delete')" icon="el-icon-delete"
+              <ms-table-operator-button :tip="$t('commons.delete')" icon="el-icon-delete"
                                         type="danger"
+                                        :disabled="isReadOnly"
                                         @exec="del(row, 'params', $index)"/>
             </template>
           </el-table-column>
@@ -179,58 +254,125 @@
       </el-col>
     </el-row>
 
+    <!-- JMeter Properties -->
     <el-row>
       <el-col :span="8">
-        <h3>监控集成</h3>
-        <el-button :disabled="readOnly" icon="el-icon-circle-plus-outline" plain size="mini" @click="addMonitor">
+        <h3>JMeter Properties</h3>
+        <el-button icon="el-icon-circle-plus-outline"
+                   :disabled="isReadOnly"
+                   plain size="mini" @click="add('properties')">
           {{ $t('commons.add') }}
         </el-button>
       </el-col>
     </el-row>
     <el-row>
-
       <el-col :span="24">
-        <el-table :data="monitorParams" size="mini" class="tb-edit" align="center" border highlight-current-row>
+        <el-table :data="properties" size="mini" class="tb-edit" align="center" border highlight-current-row>
           <el-table-column
-            align="center"
-            prop="name"
-            label="名称">
-          </el-table-column>
-          <!--        <el-table-column-->
-          <!--          align="center"-->
-          <!--          prop="environmentName"-->
-          <!--          label="所属环境">-->
-          <!--        </el-table-column>-->
-          <!--        <el-table-column-->
-          <!--          align="center"-->
-          <!--          prop="authStatus"-->
-          <!--          label="认证状态">-->
-          <!--        </el-table-column>-->
-          <!--        <el-table-column-->
-          <!--          align="center"-->
-          <!--          prop="monitorStatus"-->
-          <!--          label="监控状态">-->
-          <el-table-column
-            align="center"
-            prop="ip"
-            label="IP">
+              align="center"
+              :label="$t('load_test.param_name')"
+              show-overflow-tooltip>
+            <template v-slot:default="{row}">
+              <el-input
+                  size="mini"
+                  v-if="!isReadOnly"
+                  type="textarea"
+                  :rows="1"
+                  class="edit-input"
+                  v-model="row.name"
+                  :placeholder="$t('load_test.param_name')"
+                  clearable>
+              </el-input>
+              <span>{{ row.name }}</span>
+            </template>
           </el-table-column>
           <el-table-column
-            align="center"
-            prop="port"
-            label="Port">
+              :label="$t('load_test.param_value')"
+              show-overflow-tooltip align="center">
+            <template v-slot:default="{row}">
+              <el-input
+                  size="mini"
+                  v-if="!isReadOnly"
+                  type="textarea"
+                  class="edit-input"
+                  :rows="1"
+                  v-model="row.value"
+                  :placeholder="$t('load_test.param_value')"
+                  clearable></el-input>
+              <span>{{ row.value }}</span>
+            </template>
           </el-table-column>
           <el-table-column
-            align="center"
-            prop="description"
-            label="描述">
+              align="center"
+              :label="$t('load_test.enable')"
+              show-overflow-tooltip>
+            <template v-slot:default="{row}">
+              <el-switch
+                  :disabled="isReadOnly"
+                  size="mini"
+                  v-model="row.enable"
+                  inactive-color="#DCDFE6">
+              </el-switch>
+            </template>
           </el-table-column>
           <el-table-column align="center" :label="$t('load_test.operating')">
             <template v-slot:default="{row, $index}">
-              <ms-table-operator-button :disabled="readOnly" tip="编辑" icon="el-icon-edit"
+              <ms-table-operator-button :tip="$t('commons.delete')" icon="el-icon-delete"
+                                        type="danger"
+                                        :disabled="isReadOnly"
+                                        @exec="del(row, 'properties', $index)"/>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-col>
+    </el-row>
+
+    <!-- 监控配置   -->
+    <el-row>
+      <el-col :span="8">
+        <h3>{{ $t('commons.monitor') }}</h3>
+        <el-button icon="el-icon-circle-plus-outline" :disabled="isReadOnly"
+                   plain size="mini" @click="addMonitor">
+          {{ $t('commons.add') }}
+        </el-button>
+        <el-button icon="el-icon-circle-plus-outline" plain size="mini"
+                   :disabled="isReadOnly"
+                   @click="batchAddMonitor">
+          {{ $t('commons.batch_add') }}
+        </el-button>
+      </el-col>
+    </el-row>
+    <el-row>
+      <el-col :span="24">
+        <el-table :data="monitorParams" size="mini" class="tb-edit" border highlight-current-row>
+          <el-table-column
+              align="center"
+              prop="name"
+              :label="$t('commons.name')">
+          </el-table-column>
+          <el-table-column
+              align="center"
+              prop="ip"
+              label="IP">
+          </el-table-column>
+          <el-table-column
+              align="center"
+              prop="port"
+              label="Port">
+          </el-table-column>
+          <el-table-column
+              align="center"
+              prop="description"
+              :label="$t('commons.description')">
+          </el-table-column>
+          <el-table-column align="center" :label="$t('load_test.operating')">
+            <template v-slot:default="{row, $index}">
+              <ms-table-operator-button tip="编辑" icon="el-icon-edit"
                                         type="primary"
+                                        :disabled="isReadOnly"
                                         @exec="modifyMonitor(row, $index)"/>
-              <ms-table-operator-button :disabled="readOnly" :tip="$t('commons.delete')" icon="el-icon-delete"
+              <ms-table-operator-button :tip="$t('commons.delete')" icon="el-icon-delete"
+                                        :disabled="isReadOnly"
                                         type="danger"
                                         @exec="delMonitor(row, $index)"/>
             </template>
@@ -240,17 +382,18 @@
     </el-row>
 
     <edit-monitor ref="monitorDialog" :testId="testId" :list.sync="monitorParams"/>
+    <batch-add-monitor ref="batchMonitorDialog" @batchSave="batchSave"/>
   </div>
 </template>
 
 <script>
-import MsTableOperatorButton from "../../../common/components/MsTableOperatorButton";
+import MsTableOperatorButton from "@/business/components/common/components/MsTableOperatorButton.vue";
 import EditMonitor from "@/business/components/performance/test/components/EditMonitor";
-import {hasPermission} from "@/common/js/utils";
+import BatchAddMonitor from "@/business/components/performance/test/components/BatchAddMonitor";
 
 export default {
   name: "PerformanceAdvancedConfig",
-  components: {EditMonitor, MsTableOperatorButton},
+  components: {BatchAddMonitor, EditMonitor, MsTableOperatorButton},
   data() {
     return {
       timeout: undefined,
@@ -258,6 +401,7 @@ export default {
       statusCode: [],
       domains: [],
       params: [],
+      properties: [],
       monitorParams: [],
       csvFiles: [],
       csvConfig: [],
@@ -274,17 +418,26 @@ export default {
         {start: 60001, end: 180000, granularity: 1800},
         {start: 180001, end: 360000, granularity: 3600},
       ],
-      readOnly: false,
     };
   },
   props: {
     testId: String,
+    reportId: {
+      type: String
+    },
+    isReadOnly: {
+      type: Boolean,
+      default() {
+        return false;
+      }
+    }
   },
   mounted() {
     if (this.testId) {
       this.getAdvancedConfig();
+    } else if (this.reportId) {
+      this.getAdvancedConfig('report');
     }
-    this.readOnly = !hasPermission('PROJECT_PERFORMANCE_TEST:READ+EDIT');
   },
   watch: {
     testId() {
@@ -295,15 +448,19 @@ export default {
     csvFiles() {
       if (this.csvConfig && this.csvFiles) {
         this.csvFiles.forEach(f => {
-          f.csvSplit = this.csvConfig[f.name].csvSplit;
-          f.csvHasHeader = this.csvConfig[f.name].csvHasHeader;
+          f.csvSplit = this.csvConfig[f.name]?.csvSplit;
+          f.csvHasHeader = this.csvConfig[f.name]?.csvHasHeader;
         });
       }
     }
   },
   methods: {
-    getAdvancedConfig() {
-      this.$get('/performance/get-advanced-config/' + this.testId, (response) => {
+    getAdvancedConfig(type) {
+      let url = '/performance/get-advanced-config/' + this.testId;
+      if (type) {
+        url = '/performance/report/get-advanced-config/' + this.reportId;
+      }
+      this.$get(url, (response) => {
         if (response.data) {
           let data = JSON.parse(response.data);
           this.timeout = data.timeout;
@@ -314,6 +471,7 @@ export default {
           this.params = data.params || [];
           this.granularity = data.granularity;
           this.monitorParams = data.monitorParams || [];
+          this.properties = data.properties || [];
           this.csvConfig = data.csvConfig;
         }
       });
@@ -330,6 +488,14 @@ export default {
       if (dataName === 'params') {
         this[dataName].push({
           name: 'param1',
+          enable: true,
+          value: '0',
+          edit: true,
+        });
+      }
+      if (dataName === 'properties') {
+        this[dataName].push({
+          name: 'prop1',
           enable: true,
           value: '0',
           edit: true,
@@ -371,6 +537,13 @@ export default {
           return false;
         }
       }
+      counts = this.groupBy(this.properties, 'name');
+      for (let c in counts) {
+        if (counts[c] > 1) {
+          this.$error(this.$t('load_test.param_is_duplicate'));
+          return false;
+        }
+      }
       if (this.domains.filter(d => !d.domain || !d.ip).length > 0) {
         this.$error(this.$t('load_test.domain_ip_is_empty'));
         return false;
@@ -400,6 +573,7 @@ export default {
         responseTimeout: this.responseTimeout,
         statusCode: statusCode,
         params: this.params,
+        properties: this.properties,
         csvConfig: this.csvFiles.reduce((result, curr) => {
           result[curr.name] = {csvHasHeader: curr.csvHasHeader, csvSplit: curr.csvSplit};
           return result;
@@ -411,6 +585,32 @@ export default {
     },
     addMonitor() {
       this.$refs.monitorDialog.open();
+    },
+    batchAddMonitor() {
+      this.$refs.batchMonitorDialog.open();
+    },
+    batchSave(params) {
+      let targets = this._handleBatchVars(params);
+      targets.forEach(row => {
+        this.monitorParams.push(row);
+      });
+    },
+    _handleBatchVars(data) {
+      let params = data.split("\n");
+      let keyValues = [];
+      params.forEach(item => {
+        let line = item.split(/，|,/);
+        if (line.length < 3) {
+          return;
+        }
+        keyValues.push({
+          name: line[0],
+          ip: line[1],
+          port: line[2],
+          description: line[3] || '',
+        });
+      });
+      return keyValues;
     },
     modifyMonitor(row, index) {
       this.$refs.monitorDialog.open(row, index);
@@ -456,6 +656,14 @@ export default {
 
 .pointer {
   cursor: pointer;
+}
+
+.duration-input .el-input-number--mini {
+  width: 100px;
+}
+
+.el-select--mini {
+  width: 130px;
 }
 
 </style>

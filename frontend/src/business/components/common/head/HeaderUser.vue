@@ -9,73 +9,51 @@
         <el-dropdown-item command="about">{{ $t('commons.about_us') }} <i class="el-icon-info"/></el-dropdown-item>
         <el-dropdown-item command="help">{{ $t('commons.help_documentation') }}</el-dropdown-item>
         <el-dropdown-item command="ApiHelp">{{ $t('commons.api_help_documentation') }}</el-dropdown-item>
-        <el-dropdown-item command="old" v-show=isNewVersion @click.native="changeBar('old')">
-          {{ $t('commons.cut_back_old_version') }}
-        </el-dropdown-item>
-        <el-dropdown-item command="new" v-show=isOldVersion @click.native="changeBar('new')">
-          {{ $t('commons.cut_back_new_version') }}
-        </el-dropdown-item>
         <el-dropdown-item command="logout">{{ $t('commons.exit_system') }}</el-dropdown-item>
       </el-dropdown-menu>
     </template>
 
     <about-us ref="aboutUs"/>
+    <el-dialog :close-on-click-modal="false" width="80%"
+               :visible.sync="resVisible" class="api-import" destroy-on-close @close="closeDialog">
+      <ms-person-router @closeDialog = "closeDialog"/>
+    </el-dialog>
   </el-dropdown>
 </template>
 
 <script>
 import {getCurrentUser} from "@/common/js/utils";
 import AboutUs from "./AboutUs";
-import axios from "axios";
-import {mapGetters} from "vuex";
-import {TokenKey} from "@/common/js/constants";
-import {ORGANIZATION_ID, PROJECT_ID, WORKSPACE_ID} from "@/common/js/constants";
+import {logout} from "@/network/user";
+
+import  MsPersonRouter from "@/business/components/settings/components/PersonRouter"
 
 const requireComponent = require.context('@/business/components/xpack/', true, /\.vue$/);
 const auth = requireComponent.keys().length > 0 ? requireComponent("./auth/Auth.vue") : {};
 
 export default {
   name: "MsUser",
-  components: {AboutUs},
+  components: {AboutUs,MsPersonRouter},
   data() {
     return {
+      resVisible:false,
     }
   },
   computed: {
     currentUser: () => {
       return getCurrentUser();
     },
-    ...mapGetters([
-      'isNewVersion',
-      'isOldVersion',
-    ])
   },
   methods: {
     logout: function () {
-      axios.get("/signout").then(response => {
-        if (response.data.success) {
-          localStorage.removeItem(TokenKey);
-
-          sessionStorage.removeItem(ORGANIZATION_ID);
-          sessionStorage.removeItem(WORKSPACE_ID);
-          sessionStorage.removeItem(PROJECT_ID);
-
-          window.location.href = "/login";
-        }
-      }).catch(error => {
-        localStorage.removeItem(TokenKey);
-
-        sessionStorage.removeItem(ORGANIZATION_ID);
-        sessionStorage.removeItem(WORKSPACE_ID);
-        sessionStorage.removeItem(PROJECT_ID);
-        window.location.href = "/login";
-      });
+      logout();
     },
     handleCommand(command) {
       switch (command) {
         case "personal":
           // TODO 优化路由跳转，避免重复添加路由
-          this.$router.push('/setting/personsetting').catch(error => error);
+         // this.$router.push('/setting/personsetting').catch(error => error);
+          this.resVisible = true;
           break;
         case "logout":
           this.logout();
@@ -100,8 +78,11 @@ export default {
       } else {
         window.location.href = "/#/api/home";
       }
-
+    },
+    closeDialog(){
+      this.resVisible = false;
     }
+
   }
 }
 </script>

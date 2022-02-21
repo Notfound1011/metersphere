@@ -130,14 +130,14 @@
     </if>
   </delete>
   <insert id="insert" parameterType="io.metersphere.base.domain.TestCaseReview">
-    insert into test_case_review (id, `name`, creator, 
-      `status`, create_time, update_time, 
-      end_time, project_id, tags, 
-      create_user, description)
-    values (#{id,jdbcType=VARCHAR}, #{name,jdbcType=VARCHAR}, #{creator,jdbcType=VARCHAR}, 
-      #{status,jdbcType=VARCHAR}, #{createTime,jdbcType=BIGINT}, #{updateTime,jdbcType=BIGINT}, 
-      #{endTime,jdbcType=BIGINT}, #{projectId,jdbcType=VARCHAR}, #{tags,jdbcType=VARCHAR}, 
-      #{createUser,jdbcType=VARCHAR}, #{description,jdbcType=LONGVARCHAR})
+    insert into test_case_review (id, `name`, creator,
+                                  `status`, create_time, update_time,
+                                  end_time, project_id, tags,
+                                  create_user, description)
+    values (#{id,jdbcType=VARCHAR}, #{name,jdbcType=VARCHAR}, #{creator,jdbcType=VARCHAR},
+            #{status,jdbcType=VARCHAR}, #{createTime,jdbcType=BIGINT}, #{updateTime,jdbcType=BIGINT},
+            #{endTime,jdbcType=BIGINT}, #{projectId,jdbcType=VARCHAR}, #{tags,jdbcType=VARCHAR},
+            #{createUser,jdbcType=VARCHAR}, #{description,jdbcType=LONGVARCHAR})
   </insert>
   <insert id="insertSelective" parameterType="io.metersphere.base.domain.TestCaseReview">
     insert into test_case_review
@@ -279,15 +279,15 @@
   <update id="updateByExample" parameterType="map">
     update test_case_review
     set id = #{record.id,jdbcType=VARCHAR},
-      `name` = #{record.name,jdbcType=VARCHAR},
-      creator = #{record.creator,jdbcType=VARCHAR},
-      `status` = #{record.status,jdbcType=VARCHAR},
-      create_time = #{record.createTime,jdbcType=BIGINT},
-      update_time = #{record.updateTime,jdbcType=BIGINT},
-      end_time = #{record.endTime,jdbcType=BIGINT},
-      project_id = #{record.projectId,jdbcType=VARCHAR},
-      tags = #{record.tags,jdbcType=VARCHAR},
-      create_user = #{record.createUser,jdbcType=VARCHAR}
+    `name` = #{record.name,jdbcType=VARCHAR},
+    creator = #{record.creator,jdbcType=VARCHAR},
+    `status` = #{record.status,jdbcType=VARCHAR},
+    create_time = #{record.createTime,jdbcType=BIGINT},
+    update_time = #{record.updateTime,jdbcType=BIGINT},
+    end_time = #{record.endTime,jdbcType=BIGINT},
+    project_id = #{record.projectId,jdbcType=VARCHAR},
+    tags = #{record.tags,jdbcType=VARCHAR},
+    create_user = #{record.createUser,jdbcType=VARCHAR}
     <if test="_parameter != null">
       <include refid="Update_By_Example_Where_Clause" />
     </if>
@@ -344,15 +344,15 @@
   </update>
   <update id="updateByPrimaryKey" parameterType="io.metersphere.base.domain.TestCaseReview">
     update test_case_review
-    set `name` = #{name,jdbcType=VARCHAR},
-      creator = #{creator,jdbcType=VARCHAR},
-      `status` = #{status,jdbcType=VARCHAR},
-      create_time = #{createTime,jdbcType=BIGINT},
-      update_time = #{updateTime,jdbcType=BIGINT},
-      end_time = #{endTime,jdbcType=BIGINT},
-      project_id = #{projectId,jdbcType=VARCHAR},
-      tags = #{tags,jdbcType=VARCHAR},
-      create_user = #{createUser,jdbcType=VARCHAR}
+    set `name`      = #{name,jdbcType=VARCHAR},
+        creator     = #{creator,jdbcType=VARCHAR},
+        `status`    = #{status,jdbcType=VARCHAR},
+        create_time = #{createTime,jdbcType=BIGINT},
+        update_time = #{updateTime,jdbcType=BIGINT},
+        end_time    = #{endTime,jdbcType=BIGINT},
+        project_id  = #{projectId,jdbcType=VARCHAR},
+        tags        = #{tags,jdbcType=VARCHAR},
+        create_user = #{createUser,jdbcType=VARCHAR}
     where id = #{id,jdbcType=VARCHAR}
   </update>
 </mapper>

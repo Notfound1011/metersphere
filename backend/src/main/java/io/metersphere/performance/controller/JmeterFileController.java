@@ -44,11 +44,12 @@ public class JmeterFileController {
     }
 
     @GetMapping("download")
-    public ResponseEntity<byte[]> downloadJmeterFiles(@RequestParam("testId") String testId, @RequestParam("resourceId") String resourceId,
+    public ResponseEntity<byte[]> downloadJmeterFiles(@RequestParam("testId") String testId,
                                                       @RequestParam("ratio") String ratio,
-                                                      @RequestParam("reportId") String reportId, @RequestParam("resourceIndex") int resourceIndex) {
+                                                      @RequestParam("reportId") String reportId,
+                                                      @RequestParam("resourceIndex") int resourceIndex) {
         double[] ratios = Arrays.stream(ratio.split(",")).mapToDouble(Double::parseDouble).toArray();
-        byte[] bytes = jmeterFileService.downloadZip(testId, ratios, reportId, resourceIndex);
+        byte[] bytes = jmeterFileService.downloadZip(reportId, ratios, resourceIndex);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("application/octet-stream"))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + testId + ".zip\"")

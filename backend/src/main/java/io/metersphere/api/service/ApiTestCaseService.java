@@ -5,41 +5,45 @@ import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.metersphere.api.dto.ApiCaseBatchRequest;
+import io.metersphere.api.dto.ApiCaseEditRequest;
+import io.metersphere.api.dto.DeleteCheckResult;
+import io.metersphere.api.dto.JmxInfoDTO;
 import io.metersphere.api.dto.datacount.ApiDataCountResult;
 import io.metersphere.api.dto.definition.*;
-import io.metersphere.api.dto.definition.request.MsTestElement;
+import io.metersphere.api.dto.definition.request.ElementUtil;
 import io.metersphere.api.dto.definition.request.MsTestPlan;
 import io.metersphere.api.dto.definition.request.MsThreadGroup;
-import io.metersphere.api.dto.definition.request.ParameterConfig;
 import io.metersphere.api.dto.definition.request.sampler.MsHTTPSamplerProxy;
-import io.metersphere.api.dto.scenario.environment.EnvironmentConfig;
 import io.metersphere.api.dto.scenario.request.RequestType;
-import io.metersphere.api.jmeter.JMeterService;
 import io.metersphere.base.domain.*;
 import io.metersphere.base.mapper.*;
 import io.metersphere.base.mapper.ext.*;
-import io.metersphere.commons.constants.ApiRunMode;
+import io.metersphere.commons.constants.APITestStatus;
+import io.metersphere.commons.constants.MsTestElementConstants;
 import io.metersphere.commons.constants.TestPlanStatus;
 import io.metersphere.commons.exception.MSException;
 import io.metersphere.commons.utils.*;
+import io.metersphere.controller.request.OrderRequest;
+import io.metersphere.controller.request.ResetOrderRequest;
 import io.metersphere.i18n.Translator;
 import io.metersphere.log.utils.ReflexObjectUtil;
 import io.metersphere.log.vo.DetailColumn;
 import io.metersphere.log.vo.OperatingLogDetails;
 import io.metersphere.log.vo.api.DefinitionReference;
+import io.metersphere.plugin.core.MsTestElement;
 import io.metersphere.service.FileService;
-import io.metersphere.service.QuotaService;
 import io.metersphere.service.UserService;
 import io.metersphere.track.request.testcase.ApiCaseRelevanceRequest;
+import io.metersphere.track.service.TestPlanService;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.ibatis.session.ExecutorType;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
-import org.apache.jorphan.collections.HashTree;
-import org.apache.jorphan.collections.ListedHashTree;
 import org.aspectj.util.FileUtil;
+import org.mybatis.spring.SqlSessionUtils;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -75,13 +79,25 @@ public class ApiTestCaseService {
     @Resource
     private ApiDefinitionMapper apiDefinitionMapper;
     @Resource
-    private JMeterService jMeterService;
-    @Resource
     private ApiDefinitionExecResultMapper apiDefinitionExecResultMapper;
     @Resource
-    private TestPlanApiCaseMapper testPlanApiCaseMapper;
-    @Resource
     private EsbApiParamService esbApiParamService;
+    @Resource
+    private ApiScenarioReferenceIdService apiScenarioReferenceIdService;
+    @Resource
+    private ExtApiScenarioMapper extApiScenarioMapper;
+    @Resource
+    @Lazy
+    private APITestService apiTestService;
+    @Resource
+    @Lazy
+    private TestPlanService testPlanService;
+    @Resource
+    private ExtTestPlanApiCaseMapper extTestPlanApiCaseMapper;
+    @Resource
+    private ApiTestEnvironmentMapper apiTestEnvironmentMapper;
+    @Resource
+    private ApiTestCaseFollowMapper apiTestCaseFollowMapper;
 
     private static final String BODY_FILE_DIR = FileUtils.BODY_FILE_DIR;
 
@@ -92,14 +108,13 @@ public class ApiTestCaseService {
     }
 
     public List<ApiTestCaseResult> list(ApiTestCaseRequest request) {
-        request.setOrders(ServiceUtils.getDefaultOrder(request.getOrders()));
-        if (request.getModuleIds() == null) {
+        initRequest(request, true, false);
+        if (request.getModuleIds() == null && request.getModuleId() != null) {
             List<String> moduleIds = new ArrayList<>();
             moduleIds.add(request.getModuleId());
             request.setModuleIds(moduleIds);
         }
         List<ApiTestCaseResult> returnList = extApiTestCaseMapper.list(request);
-
         for (ApiTestCaseResult res : returnList) {
             if (StringUtils.equalsIgnoreCase(res.getApiMethod(), "esb")) {
                 esbApiParamService.handleApiEsbParams(res);
@@ -115,8 +130,20 @@ public class ApiTestCaseService {
         if (CollectionUtils.isEmpty(apiTestCases)) {
             return apiTestCases;
         }
+        if (BooleanUtils.isTrue(request.isSelectEnvironment())) {
+            setCaseEnvironment(apiTestCases);
+        }
         buildUserInfo(apiTestCases);
         return apiTestCases;
+    }
+
+    public void setCaseEnvironment(List<ApiTestCaseDTO> apiTestCases) {
+        for (ApiTestCaseDTO apiCase : apiTestCases) {
+            ApiTestEnvironment environment = getApiCaseEnvironment(apiCase.getId());
+            if (environment != null) {
+                apiCase.setEnvironment(environment.getName());
+            }
+        }
     }
 
     public List<String> idSimple(ApiTestCaseRequest request) {
@@ -136,7 +163,27 @@ public class ApiTestCaseService {
      */
     private ApiTestCaseRequest initRequest(ApiTestCaseRequest request, boolean setDefultOrders, boolean checkThisWeekData) {
         if (setDefultOrders) {
-            request.setOrders(ServiceUtils.getDefaultOrder(request.getOrders()));
+            List<OrderRequest> orders = ServiceUtils.getDefaultSortOrder(request.getOrders());
+            orders.forEach(i -> {
+                if (i.getName().equals("path")) {
+                    i.setPrefix("a");
+                } else {
+                    i.setPrefix("t1");
+                }
+            });
+            if (request.getFilters() != null) {
+                Map<String, List<String>> filters = request.getFilters();
+                List<String> status = filters.get("status");
+                if (status == null) {
+                    // sql 需要有这个字段
+                    filters.put("status", new ArrayList<>());
+                }
+            }
+            if (request.isToUpdate()) {
+                Long timestamp = DateUtils.getTimestamp(-3);
+                request.setUpdateTime(timestamp);
+            }
+            request.setOrders(orders);
         }
         if (checkThisWeekData) {
             if (request.isSelectThisWeedData()) {
@@ -185,23 +232,20 @@ public class ApiTestCaseService {
     }
 
     public ApiTestCase create(SaveApiTestCaseRequest request, List<MultipartFile> bodyFiles) {
-        ApiTestCase test = createTest(request);
-        FileUtils.createBodyFiles(request.getId(), bodyFiles);
+        ApiTestCase test = createTest(request, bodyFiles);
         return test;
-    }
-
-    private void checkQuota() {
-        QuotaService quotaService = CommonBeanFactory.getBean(QuotaService.class);
-        if (quotaService != null) {
-            quotaService.checkAPITestQuota();
-        }
     }
 
     public ApiTestCase update(SaveApiTestCaseRequest request, List<MultipartFile> bodyFiles) {
         deleteFileByTestId(request.getId());
         request.setBodyUploadIds(null);
         ApiTestCase test = updateTest(request);
-        FileUtils.createBodyFiles(request.getId(), bodyFiles);
+        if (request.getRequest() != null) {
+            // requestID 跟接口id 不一致的情况
+            FileUtils.createBodyFiles(request.getRequest().getId(), bodyFiles);
+        } else {
+            FileUtils.createBodyFiles(request.getId(), bodyFiles);
+        }
         return test;
     }
 
@@ -212,6 +256,13 @@ public class ApiTestCaseService {
         apiTestCaseMapper.deleteByPrimaryKey(testId);
         esbApiParamService.deleteByResourceId(testId);
         deleteBodyFiles(testId);
+        deleteFollows(testId);
+    }
+
+    private void deleteFollows(String testId) {
+        ApiTestCaseFollowExample example = new ApiTestCaseFollowExample();
+        example.createCriteria().andCaseIdEqualTo(testId);
+        apiTestCaseFollowMapper.deleteByExample(example);
     }
 
     public void deleteTestCase(String apiId) {
@@ -257,16 +308,39 @@ public class ApiTestCaseService {
     }
 
     public Boolean hasSameCase(SaveApiTestCaseRequest request) {
-        ApiTestCaseExample example = new ApiTestCaseExample();
-        ApiTestCaseExample.Criteria criteria = example.createCriteria();
-        criteria.andNameEqualTo(request.getName()).andApiDefinitionIdEqualTo(request.getApiDefinitionId());
-        if (StringUtils.isNotBlank(request.getId())) {
-            criteria.andIdNotEqualTo(request.getId());
-        }
-        if (apiTestCaseMapper.countByExample(example) > 0) {
+        if (getSameCase(request) != null) {
             return true;
         }
         return false;
+    }
+
+    public ApiTestCase getSameCase(SaveApiTestCaseRequest request) {
+        ApiTestCaseExample example = new ApiTestCaseExample();
+        ApiTestCaseExample.Criteria criteria = example.createCriteria();
+        criteria.andStatusNotEqualTo("Trash").andNameEqualTo(request.getName()).andApiDefinitionIdEqualTo(request.getApiDefinitionId());
+        if (StringUtils.isNotBlank(request.getId())) {
+            criteria.andIdNotEqualTo(request.getId());
+        }
+        List<ApiTestCase> apiTestCases = apiTestCaseMapper.selectByExample(example);
+        if (CollectionUtils.isNotEmpty(apiTestCases)) {
+            return apiTestCases.get(0);
+        }
+        return null;
+    }
+
+    public ApiTestCase getSameCaseById(SaveApiTestCaseRequest request) {
+        if (StringUtils.isNotBlank(request.getId())) {
+            ApiTestCaseExample example = new ApiTestCaseExample();
+            ApiTestCaseExample.Criteria criteria = example.createCriteria();
+            criteria.andStatusNotEqualTo("Trash")
+                    .andApiDefinitionIdEqualTo(request.getApiDefinitionId());
+            criteria.andIdEqualTo(request.getId());
+            List<ApiTestCase> apiTestCases = apiTestCaseMapper.selectByExample(example);
+            if (CollectionUtils.isNotEmpty(apiTestCases)) {
+                return apiTestCases.get(0);
+            }
+        }
+        return null;
     }
 
     private ApiTestCase updateTest(SaveApiTestCaseRequest request) {
@@ -276,35 +350,64 @@ public class ApiTestCaseService {
             request = esbApiParamService.handleEsbRequest(request);
         }
 
-        final ApiTestCaseWithBLOBs test = new ApiTestCaseWithBLOBs();
-        test.setId(request.getId());
-        test.setName(request.getName());
-        test.setApiDefinitionId(request.getApiDefinitionId());
-        test.setUpdateUserId(Objects.requireNonNull(SessionUtils.getUser()).getId());
-        test.setProjectId(request.getProjectId());
-        test.setRequest(JSONObject.toJSONString(request.getRequest()));
-        test.setPriority(request.getPriority());
-        test.setUpdateTime(System.currentTimeMillis());
-        test.setDescription(request.getDescription());
-        if (StringUtils.equals("[]", request.getTags())) {
-            test.setTags("");
-        } else {
-            test.setTags(request.getTags());
+        final ApiTestCaseWithBLOBs test = apiTestCaseMapper.selectByPrimaryKey(request.getId());
+        if (test != null) {
+            test.setName(request.getName());
+            test.setCaseStatus(request.getCaseStatus());
+            if (StringUtils.isEmpty(request.getCaseStatus())) {
+                test.setCaseStatus(APITestStatus.Underway.name());
+            }
+            test.setApiDefinitionId(request.getApiDefinitionId());
+            test.setUpdateUserId(Objects.requireNonNull(SessionUtils.getUser()).getId());
+            test.setProjectId(request.getProjectId());
+            test.setRequest(JSONObject.toJSONString(request.getRequest()));
+            test.setPriority(request.getPriority());
+            test.setUpdateTime(System.currentTimeMillis());
+            test.setDescription(request.getDescription());
+            test.setVersion(request.getVersion() == null ? 0 : request.getVersion() + 1);
+            if (StringUtils.equals("[]", request.getTags())) {
+                test.setTags("");
+            } else {
+                test.setTags(request.getTags());
+            }
+            apiTestCaseMapper.updateByPrimaryKeySelective(test);
+            saveFollows(test.getId(), request.getFollows());
         }
-        apiTestCaseMapper.updateByPrimaryKeySelective(test);
         return test;
     }
 
-    private ApiTestCase createTest(SaveApiTestCaseRequest request) {
+    public void saveFollows(String testId, List<String> follows) {
+        ApiTestCaseFollowExample example = new ApiTestCaseFollowExample();
+        example.createCriteria().andCaseIdEqualTo(testId);
+        apiTestCaseFollowMapper.deleteByExample(example);
+        if (!org.springframework.util.CollectionUtils.isEmpty(follows)) {
+            for (String follow : follows) {
+                ApiTestCaseFollow caseFollow = new ApiTestCaseFollow();
+                caseFollow.setCaseId(testId);
+                caseFollow.setFollowId(follow);
+                apiTestCaseFollowMapper.insert(caseFollow);
+            }
+        }
+    }
+
+
+    private ApiTestCase createTest(SaveApiTestCaseRequest request, List<MultipartFile> bodyFiles) {
         checkNameExist(request);
+        FileUtils.createBodyFiles(request.getId(), bodyFiles);
 
         if (StringUtils.isNotEmpty(request.getEsbDataStruct()) || StringUtils.isNotEmpty(request.getBackEsbDataStruct())) {
             request = esbApiParamService.handleEsbRequest(request);
         }
+        FileUtils.copyBdyFile(request.getApiDefinitionId(), request.getId());
 
         final ApiTestCaseWithBLOBs test = new ApiTestCaseWithBLOBs();
         test.setId(request.getId());
         test.setName(request.getName());
+        test.setStatus("");
+        test.setCaseStatus(request.getCaseStatus());
+        if (StringUtils.isEmpty(request.getCaseStatus())) {
+            test.setCaseStatus(APITestStatus.Underway.name());
+        }
         test.setApiDefinitionId(request.getApiDefinitionId());
         test.setCreateUserId(Objects.requireNonNull(SessionUtils.getUser()).getId());
         test.setUpdateUserId(Objects.requireNonNull(SessionUtils.getUser()).getId());
@@ -315,13 +418,17 @@ public class ApiTestCaseService {
         test.setUpdateTime(System.currentTimeMillis());
         test.setDescription(request.getDescription());
         test.setNum(getNextNum(request.getApiDefinitionId()));
+        test.setOrder(ServiceUtils.getNextOrder(request.getProjectId(), extApiTestCaseMapper::getLastOrder));
         if (StringUtils.equals("[]", request.getTags())) {
             test.setTags("");
         } else {
             test.setTags(request.getTags());
         }
-        FileUtils.copyBdyFile(request.getApiDefinitionId(), request.getId());
-        apiTestCaseMapper.insert(test);
+        ApiTestCaseWithBLOBs apiTestCaseWithBLOBs = apiTestCaseMapper.selectByPrimaryKey(test.getId());
+        if (apiTestCaseWithBLOBs == null) {
+            apiTestCaseMapper.insert(test);
+            saveFollows(test.getId(), request.getFollows());
+        }
         return test;
     }
 
@@ -336,6 +443,18 @@ public class ApiTestCaseService {
         }
     }
 
+    public int getNextNum(String definitionId, Integer definitionNum) {
+        ApiTestCase apiTestCase = extApiTestCaseMapper.getNextNum(definitionId);
+        if (apiTestCase == null) {
+            if (definitionNum == null) {
+                return apiDefinitionMapper.selectByPrimaryKey(definitionId).getNum() * 1000 + 1;
+            }
+            return definitionNum * 1000 + 1;
+        } else {
+            return Optional.of(apiTestCase.getNum() + 1)
+                    .orElse(apiDefinitionMapper.selectByPrimaryKey(definitionId).getNum() * 1000 + 1);
+        }
+    }
 
     private void deleteFileByTestId(String testId) {
         ApiTestFileExample ApiTestFileExample = new ApiTestFileExample();
@@ -355,7 +474,7 @@ public class ApiTestCaseService {
         // todo
     }
 
-    public void editApiBath(ApiCaseBatchRequest request) {
+    public void editApiBath(ApiCaseEditRequest request) {
         ApiTestCaseExample apiDefinitionExample = new ApiTestCaseExample();
         apiDefinitionExample.createCriteria().andIdIn(request.getIds());
         ApiTestCaseWithBLOBs apiDefinitionWithBLOBs = new ApiTestCaseWithBLOBs();
@@ -367,16 +486,31 @@ public class ApiTestCaseService {
     public void deleteBatch(List<String> ids) {
         for (String testId : ids) {
             extTestPlanTestCaseMapper.deleteByTestCaseID(testId);
+            deleteFollows(testId);
         }
         ApiTestCaseExample example = new ApiTestCaseExample();
         example.createCriteria().andIdIn(ids);
         apiTestCaseMapper.deleteByExample(example);
     }
 
+    public void deleteBatchByDefinitionId(List<String> definitionIds) {
+        ApiTestCaseExample example = new ApiTestCaseExample();
+        example.createCriteria().andApiDefinitionIdIn(definitionIds);
+        apiTestCaseMapper.deleteByExample(example);
+        List<ApiTestCase> apiTestCases = apiTestCaseMapper.selectByExample(example);
+        List<String> caseIds = apiTestCases.stream().map(ApiTestCase::getId).collect(Collectors.toList());
+        for (String testId : caseIds) {
+            extTestPlanTestCaseMapper.deleteByTestCaseID(testId);
+        }
+    }
+
     public void relevanceByApi(ApiCaseRelevanceRequest request) {
         if (CollectionUtils.isEmpty(request.getSelectIds())) {
             return;
         }
+        // 尽量保持与用例顺序一致
+        Collections.reverse(request.getSelectIds());
+
         ApiTestCaseExample example = new ApiTestCaseExample();
         example.createCriteria().andApiDefinitionIdIn(request.getSelectIds());
         List<ApiTestCase> apiTestCases = apiTestCaseMapper.selectByExample(example);
@@ -388,6 +522,9 @@ public class ApiTestCaseService {
         if (CollectionUtils.isEmpty(ids)) {
             return;
         }
+        // 尽量保持与用例顺序一致
+        Collections.reverse(ids);
+
         ApiTestCaseExample example = new ApiTestCaseExample();
         example.createCriteria().andIdIn(ids);
         List<ApiTestCase> apiTestCases = apiTestCaseMapper.selectByExample(example);
@@ -409,7 +546,10 @@ public class ApiTestCaseService {
         SqlSession sqlSession = sqlSessionFactory.openSession(ExecutorType.BATCH);
 
         ExtTestPlanApiCaseMapper batchMapper = sqlSession.getMapper(ExtTestPlanApiCaseMapper.class);
-        apiTestCases.forEach(apiTestCase -> {
+        TestPlanApiCaseMapper batchBaseMapper = sqlSession.getMapper(TestPlanApiCaseMapper.class);
+        Long nextOrder = ServiceUtils.getNextOrder(request.getPlanId(), extTestPlanApiCaseMapper::getLastOrder);
+
+        for (ApiTestCase apiTestCase : apiTestCases) {
             TestPlanApiCase testPlanApiCase = new TestPlanApiCase();
             testPlanApiCase.setId(UUID.randomUUID().toString());
             testPlanApiCase.setCreateUser(SessionUtils.getUserId());
@@ -418,8 +558,15 @@ public class ApiTestCaseService {
             testPlanApiCase.setEnvironmentId(request.getEnvironmentId());
             testPlanApiCase.setCreateTime(System.currentTimeMillis());
             testPlanApiCase.setUpdateTime(System.currentTimeMillis());
-            batchMapper.insertIfNotExists(testPlanApiCase);
-        });
+            testPlanApiCase.setOrder(nextOrder);
+            nextOrder += ServiceUtils.ORDER_STEP;
+            if (testPlanService.isAllowedRepeatCase(request.getPlanId())) {
+                batchBaseMapper.insert(testPlanApiCase);
+            } else {
+                batchMapper.insertIfNotExists(testPlanApiCase);
+            }
+        }
+
         TestPlan testPlan = testPlanMapper.selectByPrimaryKey(request.getPlanId());
         if (StringUtils.equals(testPlan.getStatus(), TestPlanStatus.Prepare.name())
                 || StringUtils.equals(testPlan.getStatus(), TestPlanStatus.Completed.name())) {
@@ -451,6 +598,9 @@ public class ApiTestCaseService {
             testCaseReviewMapper.updateByPrimaryKey(testCaseReview);
         }
         sqlSession.flushStatements();
+        if (sqlSession != null && sqlSessionFactory != null) {
+            SqlSessionUtils.closeSqlSession(sqlSession, sqlSessionFactory);
+        }
     }
 
     public List<String> selectIdsNotExistsInPlan(String projectId, String planId) {
@@ -503,7 +653,7 @@ public class ApiTestCaseService {
     public void deleteBatchByParam(ApiTestBatchRequest request) {
         List<String> ids = request.getIds();
         if (request.isSelectAll()) {
-            ids = this.getAllApiCaseIdsByFontedSelect(request.getFilters(), request.getModuleIds(), request.getName(), request.getProjectId(), request.getProtocol(), request.getUnSelectIds(), request.getStatus());
+            ids = this.getAllApiCaseIdsByFontedSelect(request.getFilters(), request.getModuleIds(), request.getName(), request.getProjectId(), request.getProtocol(), request.getUnSelectIds(), request.getStatus(), null, request.getCombine());
         }
         this.deleteBatch(ids);
     }
@@ -511,7 +661,7 @@ public class ApiTestCaseService {
     public void editApiBathByParam(ApiTestBatchRequest request) {
         List<String> ids = request.getIds();
         if (request.isSelectAll()) {
-            ids = this.getAllApiCaseIdsByFontedSelect(request.getFilters(), request.getModuleIds(), request.getName(), request.getProjectId(), request.getProtocol(), request.getUnSelectIds(), request.getStatus());
+            ids = this.getAllApiCaseIdsByFontedSelect(request.getFilters(), request.getModuleIds(), request.getName(), request.getProjectId(), request.getProtocol(), request.getUnSelectIds(), request.getStatus(), null, request.getCombine());
         }
         ApiTestCaseExample apiDefinitionExample = new ApiTestCaseExample();
         apiDefinitionExample.createCriteria().andIdIn(ids);
@@ -521,7 +671,29 @@ public class ApiTestCaseService {
             apiDefinitionWithBLOBs.setUpdateTime(System.currentTimeMillis());
             apiTestCaseMapper.updateByExampleSelective(apiDefinitionWithBLOBs, apiDefinitionExample);
         }
-        if ((StringUtils.isNotEmpty(request.getMethod()) || StringUtils.isNotEmpty(request.getPath())) && RequestType.HTTP.equals(request.getProtocol())) {
+        if (StringUtils.isNotEmpty(request.getEnvId())) {
+            List<ApiTestCaseWithBLOBs> bloBs = apiTestCaseMapper.selectByExampleWithBLOBs(apiDefinitionExample);
+            SqlSession sqlSession = sqlSessionFactory.openSession(ExecutorType.BATCH);
+            ApiTestCaseMapper batchMapper = sqlSession.getMapper(ApiTestCaseMapper.class);
+
+            bloBs.forEach(apiTestCase -> {
+                JSONObject req = JSON.parseObject(apiTestCase.getRequest());
+                req.put("useEnvironment", request.getEnvId());
+                String requestStr = JSON.toJSONString(req);
+                apiTestCase.setRequest(requestStr);
+                batchMapper.updateByPrimaryKeySelective(apiTestCase);
+            });
+            sqlSession.flushStatements();
+            if (sqlSession != null && sqlSessionFactory != null) {
+                SqlSessionUtils.closeSqlSession(sqlSession, sqlSessionFactory);
+            }
+        }
+    }
+
+    public void updateByApiDefinitionId(List<String> ids, String path, String method, String protocol) {
+        if ((StringUtils.isNotEmpty(method) || StringUtils.isNotEmpty(path) && RequestType.HTTP.equals(protocol))) {
+            ApiTestCaseExample apiDefinitionExample = new ApiTestCaseExample();
+            apiDefinitionExample.createCriteria().andApiDefinitionIdIn(ids);
             List<ApiTestCaseWithBLOBs> bloBs = apiTestCaseMapper.selectByExampleWithBLOBs(apiDefinitionExample);
             SqlSession sqlSession = sqlSessionFactory.openSession(ExecutorType.BATCH);
             ApiTestCaseMapper batchMapper = sqlSession.getMapper(ApiTestCaseMapper.class);
@@ -532,47 +704,34 @@ public class ApiTestCaseService {
                 MsHTTPSamplerProxy req = JSON.parseObject(apiTestCase.getRequest(), MsHTTPSamplerProxy.class);
                 try {
                     JSONObject element = JSON.parseObject(apiTestCase.getRequest());
+                    ElementUtil.dataFormatting(element);
+
                     if (element != null && StringUtils.isNotEmpty(element.getString("hashTree"))) {
                         LinkedList<MsTestElement> elements = mapper.readValue(element.getString("hashTree"), new TypeReference<LinkedList<MsTestElement>>() {
                         });
                         req.setHashTree(elements);
                     }
-                    if (StringUtils.isNotEmpty(request.getMethod())) {
-                        req.setMethod(request.getMethod());
+                    if (StringUtils.isNotEmpty(method)) {
+                        req.setMethod(method);
                     }
-                    if (StringUtils.isNotEmpty(request.getPath())) {
-                        req.setPath(request.getPath());
+                    if (StringUtils.isNotEmpty(path)) {
+                        req.setPath(path);
                     }
                 } catch (Exception e) {
-                    e.printStackTrace();
-                    LogUtil.error(e.getMessage());
+                    LogUtil.error(e);
                 }
                 String requestStr = JSON.toJSONString(req);
                 apiTestCase.setRequest(requestStr);
                 batchMapper.updateByPrimaryKeySelective(apiTestCase);
             });
             sqlSession.flushStatements();
-
-        }
-        if (StringUtils.isNotEmpty(request.getEnvId())) {
-            List<ApiTestCaseWithBLOBs> bloBs = apiTestCaseMapper.selectByExampleWithBLOBs(apiDefinitionExample);
-            SqlSession sqlSession = sqlSessionFactory.openSession(ExecutorType.BATCH);
-            ApiTestCaseMapper batchMapper = sqlSession.getMapper(ApiTestCaseMapper.class);
-
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-            bloBs.forEach(apiTestCase -> {
-                JSONObject req = JSON.parseObject(apiTestCase.getRequest());
-                req.put("useEnvironment", request.getEnvId());
-                String requestStr = JSON.toJSONString(req);
-                apiTestCase.setRequest(requestStr);
-                batchMapper.updateByPrimaryKeySelective(apiTestCase);
-            });
-            sqlSession.flushStatements();
+            if (sqlSession != null && sqlSessionFactory != null) {
+                SqlSessionUtils.closeSqlSession(sqlSession, sqlSessionFactory);
+            }
         }
     }
 
-    private List<String> getAllApiCaseIdsByFontedSelect(Map<String, List<String>> filters, List<String> moduleIds, String name, String projectId, String protocol, List<String> unSelectIds, String status) {
+    private List<String> getAllApiCaseIdsByFontedSelect(Map<String, List<String>> filters, List<String> moduleIds, String name, String projectId, String protocol, List<String> unSelectIds, String status, String apiId, Map<String, Object> combine) {
         ApiTestCaseRequest selectRequest = new ApiTestCaseRequest();
         selectRequest.setFilters(filters);
         selectRequest.setModuleIds(moduleIds);
@@ -581,110 +740,18 @@ public class ApiTestCaseService {
         selectRequest.setProtocol(protocol);
         selectRequest.setStatus(status);
         selectRequest.setWorkspaceId(SessionUtils.getCurrentWorkspaceId());
-        List<ApiTestCaseResult> list = extApiTestCaseMapper.list(selectRequest);
-        List<String> allIds = list.stream().map(ApiTestCaseResult::getId).collect(Collectors.toList());
+        selectRequest.setApiDefinitionId(apiId);
+        if (combine != null) {
+            selectRequest.setCombine(combine);
+        }
+        List<ApiTestCaseDTO> list = extApiTestCaseMapper.listSimple(selectRequest);
+        List<String> allIds = list.stream().map(ApiTestCaseDTO::getId).collect(Collectors.toList());
         List<String> ids = allIds.stream().filter(id -> !unSelectIds.contains(id)).collect(Collectors.toList());
         return ids;
     }
 
-    public String run(RunCaseRequest request) {
-        ApiTestCaseWithBLOBs testCaseWithBLOBs = new ApiTestCaseWithBLOBs();
-        if (StringUtils.equals(request.getRunMode(), ApiRunMode.JENKINS_API_PLAN.name())) {
-            testCaseWithBLOBs = apiTestCaseMapper.selectByPrimaryKey(request.getReportId());
-            request.setCaseId(request.getReportId());
-        } else {
-            testCaseWithBLOBs = apiTestCaseMapper.selectByPrimaryKey(request.getCaseId());
-
-        }
-        if (StringUtils.equals(request.getRunMode(), ApiRunMode.JENKINS.name())) {
-            request.setReportId(request.getEnvironmentId());
-        }
-        if (StringUtils.equals(request.getRunMode(), ApiRunMode.JENKINS_API_PLAN.name())) {
-            //通过测试计划id查询环境
-            request.setReportId(request.getTestPlanId());
-        }
-        // 多态JSON普通转换会丢失内容，需要通过 ObjectMapper 获取
-        if (testCaseWithBLOBs != null && StringUtils.isNotEmpty(testCaseWithBLOBs.getRequest())) {
-            try {
-                HashTree jmeterHashTree = this.generateHashTree(request, testCaseWithBLOBs);
-/*
-                String runMode = ApiRunMode.JENKINS.name();
-*/
-                // 调用执行方法
-                jMeterService.runDefinition(request.getCaseId(), jmeterHashTree, request.getReportId(), request.getRunMode());
-
-            } catch (Exception ex) {
-                LogUtil.error(ex.getMessage());
-            }
-        }
-        return request.getReportId();
-    }
-
-    public String run(ApiTestCaseWithBLOBs apiCaseBolbs, String id, String debugReportId, String testPlanID, String runMode) {
-        // 多态JSON普通转换会丢失内容，需要通过 ObjectMapper 获取
-        if (apiCaseBolbs != null && StringUtils.isNotEmpty(apiCaseBolbs.getRequest())) {
-            try {
-                ApiTestCase apiTestCase = apiTestCaseMapper.selectByPrimaryKey(apiCaseBolbs.getId());
-                RunCaseRequest request = new RunCaseRequest();
-                request.setCaseId(apiTestCase.getId());
-                request.setTestPlanId(testPlanID);
-                HashTree jmeterHashTree = this.generateHashTree(request, apiCaseBolbs);
-                // 调用执行方法
-                jMeterService.runDefinition(id, jmeterHashTree, debugReportId, runMode);
-            } catch (Exception ex) {
-                LogUtil.error(ex.getMessage());
-            }
-        }
-        return id;
-    }
-
-    public HashTree generateHashTree(RunCaseRequest request, ApiTestCaseWithBLOBs testCaseWithBLOBs) throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        MsTestElement element = mapper.readValue(testCaseWithBLOBs.getRequest(), new TypeReference<MsTestElement>() {
-        });
-        element.setProjectId(testCaseWithBLOBs.getProjectId());
-        if (StringUtils.isBlank(request.getEnvironmentId())) {
-            TestPlanApiCaseExample example = new TestPlanApiCaseExample();
-            example.createCriteria().andTestPlanIdEqualTo(request.getTestPlanId()).andApiCaseIdEqualTo(request.getCaseId());
-            List<TestPlanApiCase> list = testPlanApiCaseMapper.selectByExample(example);
-            request.setEnvironmentId(list.get(0).getEnvironmentId());
-            element.setName(list.get(0).getId());
-        } else {
-            element.setName(request.getCaseId());
-        }
-
-        // 测试计划
-        MsTestPlan testPlan = new MsTestPlan();
-        testPlan.setHashTree(new LinkedList<>());
-        HashTree jmeterHashTree = new ListedHashTree();
-
-        // 线程组
-        MsThreadGroup group = new MsThreadGroup();
-        group.setLabel(testCaseWithBLOBs.getName());
-        group.setName(testCaseWithBLOBs.getId());
-        group.setOnSampleError(true);
-        LinkedList<MsTestElement> hashTrees = new LinkedList<>();
-        hashTrees.add(element);
-        group.setHashTree(hashTrees);
-        testPlan.getHashTree().add(group);
-        ApiTestEnvironmentService environmentService = CommonBeanFactory.getBean(ApiTestEnvironmentService.class);
-        ApiTestEnvironmentWithBLOBs environment = environmentService.get(request.getEnvironmentId());
-        ParameterConfig parameterConfig = new ParameterConfig();
-
-        Map<String, EnvironmentConfig> envConfig = new HashMap<>(16);
-        if (environment != null && environment.getConfig() != null) {
-            EnvironmentConfig environmentConfig = JSONObject.parseObject(environment.getConfig(), EnvironmentConfig.class);
-            envConfig.put(testCaseWithBLOBs.getProjectId(), environmentConfig);
-            parameterConfig.setConfig(envConfig);
-        }
-
-        testPlan.toHashTree(jmeterHashTree, testPlan.getHashTree(), parameterConfig);
-        return jmeterHashTree;
-    }
-
     public String getExecResult(String id) {
-        String status = apiDefinitionExecResultMapper.selectExecResult(id);
+        String status = extApiDefinitionExecResultMapper.selectExecResult(id);
         return status;
     }
 
@@ -705,9 +772,9 @@ public class ApiTestCaseService {
             request.setIds(ids);
         }
         List<ApiTestCaseInfo> list = null;
-        if(StringUtils.isEmpty(request.getId()) && CollectionUtils.isEmpty(request.getIds())){
+        if (StringUtils.isEmpty(request.getId()) && CollectionUtils.isEmpty(request.getIds())) {
             list = new ArrayList<>();
-        }else {
+        } else {
             list = extApiTestCaseMapper.getCaseInfo(request);
         }
         for (ApiTestCaseInfo model : list) {
@@ -765,5 +832,220 @@ public class ApiTestCaseService {
 
     public ApiDefinition findApiUrlAndMethodById(String id) {
         return extApiTestCaseMapper.findApiUrlAndMethodById(id);
+    }
+
+    public void deleteToGc(String id) {
+        ApiTestCaseRequest request = new ApiTestCaseRequest();
+        List<String> ids = new ArrayList<>();
+        ids.add(id);
+        request.setIds(ids);
+        request.setDeleteUserId(SessionUtils.getUserId());
+        request.setDeleteTime(System.currentTimeMillis());
+        extApiTestCaseMapper.deleteToGc(request);
+    }
+
+    public void deleteToGc(List<String> ids) {
+        if (CollectionUtils.isNotEmpty(ids)) {
+            ApiTestCaseRequest request = new ApiTestCaseRequest();
+            request.setIds(ids);
+            request.setDeleteUserId(SessionUtils.getUserId());
+            request.setDeleteTime(System.currentTimeMillis());
+            extApiTestCaseMapper.deleteToGc(request);
+        }
+    }
+
+    public void deleteToGcByParam(ApiTestBatchRequest request) {
+        List<String> ids = request.getIds();
+        if (request.isSelectAll()) {
+            ids = this.getAllApiCaseIdsByFontedSelect(request.getFilters(), request.getModuleIds(), request.getName(), request.getProjectId(), request.getProtocol(), request.getUnSelectIds(), request.getStatus(), request.getApiDefinitionId(), request.getCombine());
+        }
+        this.deleteToGc(ids);
+    }
+
+    public List<String> reduction(ApiTestBatchRequest request) {
+        List<String> ids = request.getIds();
+        if (request.isSelectAll()) {
+            ids = this.getAllApiCaseIdsByFontedSelect(request.getFilters(), request.getModuleIds(), request.getName(), request.getProjectId(), request.getProtocol(), request.getUnSelectIds(), request.getStatus(), null, request.getCombine());
+        }
+
+        List<String> cannotReductionAPiName = new ArrayList<>();
+        if (CollectionUtils.isNotEmpty(ids)) {
+            List<ApiTestCaseDTO> cannotReductionApiCaseList = extApiTestCaseMapper.getCannotReductionApiCaseList(ids);
+            List<String> cannotReductionCaseId = new ArrayList<>();
+            for (ApiTestCaseDTO apiTestCaseDTO : cannotReductionApiCaseList) {
+                if (!cannotReductionAPiName.contains(apiTestCaseDTO.getApiName())) {
+                    cannotReductionAPiName.add(apiTestCaseDTO.getApiName());
+                }
+                cannotReductionCaseId.add(apiTestCaseDTO.getId());
+            }
+            cannotReductionApiCaseList.stream().map(ApiTestCaseDTO::getId).collect(Collectors.toList());
+            List<String> deleteIds = ids.stream().filter(id -> !cannotReductionCaseId.contains(id)).collect(Collectors.toList());
+            if (CollectionUtils.isNotEmpty(deleteIds)) {
+                extApiTestCaseMapper.reduction(deleteIds);
+            }
+        }
+        return cannotReductionAPiName;
+    }
+
+    public List<String> selectCaseIdsByApiIds(List<String> apiIds) {
+        if (CollectionUtils.isEmpty(apiIds)) {
+            return new ArrayList<>(0);
+        } else {
+            return extApiTestCaseMapper.selectCaseIdsByApiIds(apiIds);
+        }
+    }
+
+    public DeleteCheckResult checkDeleteDatas(ApiTestBatchRequest request) {
+        List<String> deleteIds = request.getIds();
+        if (request.isSelectAll()) {
+            deleteIds = this.getAllApiCaseIdsByFontedSelect(request.getFilters(), request.getModuleIds(), request.getName(), request.getProjectId(), request.getProtocol(), request.getUnSelectIds(), request.getStatus(), request.getApiDefinitionId(), request.getCombine());
+        }
+        DeleteCheckResult result = new DeleteCheckResult();
+        List<String> checkMsgList = new ArrayList<>();
+
+        if (CollectionUtils.isNotEmpty(deleteIds)) {
+            List<ApiScenarioReferenceId> apiScenarioReferenceIdList = apiScenarioReferenceIdService.findByReferenceIdsAndRefType(deleteIds, MsTestElementConstants.REF.name());
+            if (CollectionUtils.isNotEmpty(apiScenarioReferenceIdList)) {
+                Map<String, List<String>> scenarioDic = new HashMap<>();
+                apiScenarioReferenceIdList.forEach(item -> {
+                    String refreceID = item.getReferenceId();
+                    String scenarioId = item.getApiScenarioId();
+                    if (scenarioDic.containsKey(refreceID)) {
+                        scenarioDic.get(refreceID).add(scenarioId);
+                    } else {
+                        List<String> list = new ArrayList<>();
+                        list.add(scenarioId);
+                        scenarioDic.put(refreceID, list);
+                    }
+                });
+
+                for (Map.Entry<String, List<String>> entry : scenarioDic.entrySet()) {
+                    String refreceId = entry.getKey();
+                    List<String> scenarioIdList = entry.getValue();
+                    if (CollectionUtils.isNotEmpty(scenarioIdList)) {
+                        List<String> scenarioNameList = extApiScenarioMapper.selectNameByIdIn(scenarioIdList);
+                        String deleteCaseName = extApiTestCaseMapper.selectNameById(refreceId);
+
+                        if (StringUtils.isNotEmpty(deleteCaseName) && CollectionUtils.isNotEmpty(scenarioNameList)) {
+                            String nameListStr = "[";
+                            for (String name : scenarioNameList) {
+                                nameListStr += name + ",";
+                            }
+                            if (nameListStr.length() > 1) {
+                                nameListStr = nameListStr.substring(0, nameListStr.length() - 1) + "]";
+                            }
+                            String msg = deleteCaseName + " " + Translator.get("delete_check_reference_by") + ": " + nameListStr + " ";
+                            checkMsgList.add(msg);
+                        }
+                    }
+                }
+            }
+        }
+
+        result.setDeleteFlag(checkMsgList.isEmpty());
+        result.setCheckMsg(checkMsgList);
+        return result;
+    }
+
+    public List<JmxInfoDTO> exportJmx(List<String> caseIds, String envId) {
+        ApiTestCaseExample example = new ApiTestCaseExample();
+        example.createCriteria().andIdIn(caseIds);
+        List<ApiTestCaseWithBLOBs> apiTestCases = apiTestCaseMapper.selectByExampleWithBLOBs(example);
+        List<JmxInfoDTO> list = new ArrayList<>();
+        apiTestCases.forEach(item -> {
+            list.add(parse2Jmx(item, envId));
+        });
+        return list;
+    }
+
+    private JmxInfoDTO parse2Jmx(ApiTestCaseWithBLOBs apiTestCase, String envId) {
+        String request = apiTestCase.getRequest();
+        MsHTTPSamplerProxy msHTTPSamplerProxy = JSONObject.parseObject(request, MsHTTPSamplerProxy.class);
+        msHTTPSamplerProxy.setName(apiTestCase.getId());
+        msHTTPSamplerProxy.setUseEnvironment(envId);
+
+        LinkedList<MsTestElement> hashTree = new LinkedList<>();
+        hashTree.add(msHTTPSamplerProxy);
+        MsThreadGroup msThreadGroup = new MsThreadGroup();
+        msThreadGroup.setHashTree(hashTree);
+        msThreadGroup.setName("ThreadGroup");
+        msThreadGroup.setLabel("ThreadGroup");
+        msThreadGroup.setId(UUID.randomUUID().toString());
+
+        LinkedList<MsTestElement> planHashTree = new LinkedList<>();
+        planHashTree.add(msThreadGroup);
+        MsTestPlan msTestPlan = new MsTestPlan();
+        msTestPlan.setHashTree(planHashTree);
+        msTestPlan.setId(UUID.randomUUID().toString());
+        msTestPlan.setName("TestPlan");
+        msTestPlan.setLabel("TestPlan");
+
+        HashMap<String, String> envMap = new HashMap<>();
+        envMap.put(apiTestCase.getProjectId(), envId);
+
+        RunDefinitionRequest runRequest = new RunDefinitionRequest();
+        runRequest.setEnvironmentMap(envMap);
+        runRequest.setEnvironmentId(envId);
+        runRequest.setId(apiTestCase.getId());
+        runRequest.setTestElement(msTestPlan);
+        runRequest.setProjectId(apiTestCase.getProjectId());
+
+        JmxInfoDTO jmxInfoDTO = apiTestService.getJmxInfoDTO(runRequest, new ArrayList<>());
+        jmxInfoDTO.setId(apiTestCase.getId());
+        jmxInfoDTO.setVersion(apiTestCase.getVersion());
+        jmxInfoDTO.setName(apiTestCase.getName());
+        return jmxInfoDTO;
+    }
+
+    public List<ApiTestCase> getApiCaseByIds(List<String> apiCaseIds) {
+        if (CollectionUtils.isNotEmpty(apiCaseIds)) {
+            ApiTestCaseExample example = new ApiTestCaseExample();
+            example.createCriteria().andIdIn(apiCaseIds);
+            return apiTestCaseMapper.selectByExample(example);
+        }
+        return new ArrayList<>();
+    }
+
+    public void initOrderField() {
+        ServiceUtils.initOrderField(ApiTestCaseWithBLOBs.class, ApiTestCaseMapper.class,
+                extApiTestCaseMapper::selectProjectIds,
+                extApiTestCaseMapper::getIdsOrderByUpdateTime);
+    }
+
+    /**
+     * 用例自定义排序
+     *
+     * @param request
+     */
+    public void updateOrder(ResetOrderRequest request) {
+        ServiceUtils.updateOrderField(request, ApiTestCaseWithBLOBs.class,
+                apiTestCaseMapper::selectByPrimaryKey,
+                extApiTestCaseMapper::getPreOrder,
+                extApiTestCaseMapper::getLastOrder,
+                apiTestCaseMapper::updateByPrimaryKeySelective);
+    }
+
+    public ApiTestEnvironment getApiCaseEnvironment(String caseId) {
+        String environmentId = extApiTestCaseMapper.getApiCaseEnvironment(caseId);
+        if (StringUtils.isBlank(environmentId)) {
+            return null;
+        }
+        try {
+            return apiTestEnvironmentMapper.selectByPrimaryKey(environmentId);
+        } catch (Exception e) {
+            LogUtil.error("api case environmentId incorrect parsing. api case id: " + caseId);
+        }
+        return null;
+    }
+
+    public List<String> getFollows(String testId) {
+        List<String> result = new ArrayList<>();
+        if (StringUtils.isBlank(testId)) {
+            return result;
+        }
+        ApiTestCaseFollowExample example = new ApiTestCaseFollowExample();
+        example.createCriteria().andCaseIdEqualTo(testId);
+        List<ApiTestCaseFollow> follows = apiTestCaseFollowMapper.selectByExample(example);
+        return follows.stream().map(ApiTestCaseFollow::getFollowId).distinct().collect(Collectors.toList());
     }
 }

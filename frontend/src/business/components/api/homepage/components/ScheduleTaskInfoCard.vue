@@ -7,14 +7,7 @@
     </div>
     <el-container>
       <el-main style="padding: 0px 0px 0px 0px; line-height: 100px; text-align: center;">
-        <div class="main-number-show" style="margin: 0px auto;">
-          <span class="count-number">
-            {{scheduleTaskCountData.allApiDataCountNumber}}
-          </span>
-          <span style="color: #6C317C;">
-            {{$t('api_test.home_page.unit_of_measurement')}}
-          </span>
-        </div>
+        <ms-count-ring-chart :content="scheduleTaskCountData.allApiDataCountNumber"/>
       </el-main>
     </el-container>
 
@@ -48,13 +41,13 @@
           <el-aside width="60%" class="count-number-show" style="margin-bottom: 0px;margin-top: 0px">
             <el-container>
               <el-aside width="30%">
-                {{$t('api_test.home_page.detail_card.rate.success')+":"}}
+                {{ $t('api_test.home_page.detail_card.rate.success') + ":" }}
               </el-aside>
               <el-main style="padding: 0px 0px 0px 0px; line-height: 100px; text-align: center;">
                 <span class="count-number">
-                {{scheduleTaskCountData.successRage}}
+                {{ scheduleTaskCountData.successRage }}
                   <el-tooltip placement="top" class="info-tool-tip">
-                    <div slot="content">{{ $t('api_test.home_page.formula.success')}}</div>
+                    <div slot="content">{{ $t('api_test.home_page.formula.success') }}</div>
                     <el-button icon="el-icon-info" style="padding:0px;border: 0px"></el-button>
                   </el-tooltip>
               </span>
@@ -93,13 +86,14 @@
 
 <script>
 import 'element-ui/lib/theme-chalk/display.css';
+import MsCountRingChart from "@/business/components/common/chart/MsCountRingChart";
 
 
 export default {
 
   name: "MsScheduleTaskInfoCard",
 
-  components: {},
+  components: {MsCountRingChart},
 
   data() {
     return {
@@ -133,13 +127,7 @@ export default {
 }
 
 .main-number-show {
-  width: 100px;
-  height: 100px;
-  border-style: solid;
-  border-width: 7px;
-  border-color: var(--count_number_shallow);
-  border-radius:50%;
-
+  margin: 0px auto;
 }
 
 .count-number-show{

@@ -1,18 +1,18 @@
 package io.metersphere.notice.service;
 
-import com.alibaba.nacos.client.utils.StringUtils;
+import io.metersphere.base.domain.Project;
 import io.metersphere.commons.constants.NoticeConstants;
 import io.metersphere.commons.utils.LogUtil;
 import io.metersphere.notice.domain.MessageDetail;
+import io.metersphere.notice.sender.AbstractNoticeSender;
 import io.metersphere.notice.sender.NoticeModel;
-import io.metersphere.notice.sender.NoticeSender;
-import io.metersphere.notice.sender.impl.DingNoticeSender;
-import io.metersphere.notice.sender.impl.LarkNoticeSender;
-import io.metersphere.notice.sender.impl.MailNoticeSender;
-import io.metersphere.notice.sender.impl.WeComNoticeSender;
+import io.metersphere.notice.sender.impl.*;
+import org.apache.commons.lang3.SerializationUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -27,9 +27,12 @@ public class NoticeSendService {
     private LarkNoticeSender larkNoticeSender;
     @Resource
     private NoticeService noticeService;
+    @Resource
+    private InSiteNoticeSender inSiteNoticeSender;
 
-    private NoticeSender getNoticeSender(MessageDetail messageDetail) {
-        NoticeSender noticeSender = null;
+
+    private AbstractNoticeSender getNoticeSender(MessageDetail messageDetail) {
+        AbstractNoticeSender noticeSender = null;
         switch (messageDetail.getType()) {
             case NoticeConstants.Type.EMAIL:
                 noticeSender = mailNoticeSender;
@@ -42,6 +45,10 @@ public class NoticeSendService {
                 break;
             case NoticeConstants.Type.LARK:
                 noticeSender = larkNoticeSender;
+                break;
+            case NoticeConstants.Type.IN_SITE:
+                noticeSender = inSiteNoticeSender;
+                break;
             default:
                 break;
         }
@@ -49,26 +56,93 @@ public class NoticeSendService {
         return noticeSender;
     }
 
+    /**
+     * 在线操作发送通知
+     */
     public void send(String taskType, NoticeModel noticeModel) {
-        String loadReportId = (String) noticeModel.getParamMap().get("id");
+        try {
+            List<MessageDetail> messageDetails = noticeService.searchMessageByType(taskType);
+
+            // 异步发送通知
+            messageDetails.stream()
+                    .filter(messageDetail -> StringUtils.equals(messageDetail.getEvent(), noticeModel.getEvent()))
+                    .forEach(messageDetail -> {
+                        MessageDetail m = SerializationUtils.clone(messageDetail);
+                        NoticeModel n =  SerializationUtils.clone(noticeModel);
+                        this.getNoticeSender(m).send(m, n);
+                    });
+
+        } catch (Exception e) {
+            LogUtil.error(e.getMessage(), e);
+        }
+    }
+
+    /**
+     * jenkins 和定时任务触发的发送
+     */
+    public void send(String triggerMode, String taskType, NoticeModel noticeModel) {
+        // api和定时任务调用不排除自己
+        noticeModel.setExcludeSelf(false);
+        try {
+            List<MessageDetail> messageDetails = new ArrayList<>();
+
+            if (StringUtils.equals(triggerMode, NoticeConstants.Mode.SCHEDULE)) {
+                switch (taskType) {
+                    case NoticeConstants.TaskType.API_AUTOMATION_TASK:
+                    case NoticeConstants.TaskType.PERFORMANCE_TEST_TASK:
+                    default:
+                        break;
+                }
+                messageDetails = noticeService.searchMessageByTestId(noticeModel.getTestId());
+            }
+
+            if (StringUtils.equals(triggerMode, NoticeConstants.Mode.API)) {
+                String projectId = (String) noticeModel.getParamMap().get("projectId");
+                messageDetails = noticeService.searchMessageByTypeBySend(NoticeConstants.TaskType.JENKINS_TASK, projectId);
+            }
+
+            // 异步发送通知
+            messageDetails.stream()
+                    .filter(messageDetail -> StringUtils.equals(messageDetail.getEvent(), noticeModel.getEvent()))
+                    .forEach(messageDetail -> {
+                        MessageDetail m = SerializationUtils.clone(messageDetail);
+                        NoticeModel n =  SerializationUtils.clone(noticeModel);
+                        this.getNoticeSender(m).send(m, n);
+                    });
+
+        } catch (Exception e) {
+            LogUtil.error(e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 后台触发的发送，没有session
+     */
+    public void send(Project project, String taskType, NoticeModel noticeModel) {
         try {
             List<MessageDetail> messageDetails;
-            switch (taskType) {
-                case NoticeConstants.Mode.API:
-                    messageDetails = noticeService.searchMessageByTypeBySend(NoticeConstants.TaskType.JENKINS_TASK, loadReportId);
-                    break;
-                case NoticeConstants.Mode.SCHEDULE:
-                    messageDetails = noticeService.searchMessageByTestId(noticeModel.getTestId());
-                    break;
-                default:
-                    messageDetails = noticeService.searchMessageByType(taskType);
-                    break;
-            }
-            messageDetails.forEach(messageDetail -> {
-                if (StringUtils.equals(messageDetail.getEvent(), noticeModel.getEvent())) {
-                    this.getNoticeSender(messageDetail).send(messageDetail, noticeModel);
-                }
-            });
+//            switch (taskType) {
+//                case NoticeConstants.Mode.API:
+//                    String projectId = (String) noticeModel.getParamMap().get("projectId");
+//                    messageDetails = noticeService.searchMessageByTypeBySend(NoticeConstants.TaskType.JENKINS_TASK, projectId);
+//                    break;
+//                case NoticeConstants.Mode.SCHEDULE:
+//                    messageDetails = noticeService.searchMessageByTestId(noticeModel.getTestId());
+//                    break;
+//                default:
+//                    break;
+//            }
+            messageDetails = noticeService.searchMessageByTypeAndWorkspaceId(taskType, project.getWorkspaceId());
+
+            // 异步发送通知
+            messageDetails.stream()
+                    .filter(messageDetail -> StringUtils.equals(messageDetail.getEvent(), noticeModel.getEvent()))
+                    .forEach(messageDetail -> {
+                        MessageDetail m = SerializationUtils.clone(messageDetail);
+                        NoticeModel n =  SerializationUtils.clone(noticeModel);
+                        this.getNoticeSender(m).send(m, n);
+                    });
+
         } catch (Exception e) {
             LogUtil.error(e.getMessage(), e);
         }

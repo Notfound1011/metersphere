@@ -1,6 +1,7 @@
 package io.metersphere.base.mapper.ext;
 
 import io.metersphere.controller.request.BaseQueryRequest;
+import io.metersphere.track.dto.PlanReportCaseDTO;
 import io.metersphere.track.dto.TestCaseReportStatusResultDTO;
 import io.metersphere.track.dto.TestCaseTestDTO;
 import io.metersphere.track.dto.TestPlanCaseDTO;
@@ -33,8 +34,6 @@ public interface ExtTestPlanTestCaseMapper {
 
     int updateTestCaseStates(@Param("ids") List<String> ids, @Param("reportStatus") String reportStatus);
 
-    List<String> getTestPlanTestCaseIds(String testId);
-
     /**
      * 根据项目 ids 查询 TestPlanCaseDTO 列表
      * @param ids project id list
@@ -57,4 +56,16 @@ public interface ExtTestPlanTestCaseMapper {
     List<String> selectIdsByQuery(@Param("request") BaseQueryRequest query);
 
     void update(@Param("count") int count, @Param("id") String id, @Param("caseId") String caseId, @Param("issues") String issues);
+
+    List<PlanReportCaseDTO> selectForPlanReport(String planId);
+
+    List<TestPlanCaseDTO> getCases(@Param("planId") String planId, @Param("status") String status);
+
+    List<String> selectPlanIds();
+
+    List<String> getIdsOrderByUpdateTime(@Param("planId") String planId);
+
+    Long getPreOrder(@Param("planId")String planId, @Param("baseOrder") Long baseOrder);
+
+    Long getLastOrder(@Param("planId")String planId, @Param("baseOrder") Long baseOrder);
 }

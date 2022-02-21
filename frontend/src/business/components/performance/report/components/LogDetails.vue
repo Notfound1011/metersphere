@@ -1,30 +1,45 @@
 <template>
   <div>
-    <el-tabs @tab-click="selectTab" v-model="active">
-      <el-tab-pane v-for="item in resource"
-                   :key="item.resourceId"
-                   :label="item.resourceName"
-                   v-loading="result.loading"
-                   class="logging-content">
-        <ul class="infinite-list" v-infinite-scroll="load(item.resourceId)">
-          <li class="infinite-list-item" v-for="(log, index) in logContent[item.resourceId]"
-              :key="item.resourceId+index">
-            {{ log.content }}
-          </li>
-        </ul>
-        <el-link type="primary" @click="downloadLogFile(item)">{{ $t('load_test.download_log_file') }}</el-link>
-      </el-tab-pane>
-    </el-tabs>
+    <el-row :gutter="10">
+      <el-col :span="4">
+        <el-select v-model="currentInstance" placeholder="" size="small" style="width: 100%"
+                   @change="changeInstance(currentInstance)">
+          <el-option
+            v-for="item in resource"
+            :key="item.resourceId"
+            :label="item.resourceName"
+            :value="item.resourceId">
+          </el-option>
+        </el-select>
+      </el-col>
+      <el-col :span="20">
+        <div v-if="currentInstance" class="logging-content">
+          <ul class="infinite-list" v-infinite-scroll="load(currentInstance)">
+            <li class="infinite-list-item" v-for="(log, index) in logContent[currentInstance]"
+                :key="currentInstance+index">
+              {{ log.content }}
+            </li>
+          </ul>
+          <el-link type="primary" @click="downloadLogFile(currentInstance)">{{ $t('load_test.download_log_file') }}</el-link>
+        </div>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
 <script>
 
+import {
+  getPerformanceReportLogResource,
+  getPerformanceReportLogResourceDetail,
+  getSharePerformanceReportLogResource,
+  getSharePerformanceReportLogResourceDetail,
+} from "@/network/load-test";
+
 export default {
   name: "LogDetails",
   data() {
     return {
-      active: '0',
       resource: [],
       logContent: {},
       result: {},
@@ -32,28 +47,38 @@ export default {
       page: {},
       pageCount: 5,
       loading: false,
-      init: false,
-      logStatus: {}
+      logStatus: {},
+      currentInstance: ''
     };
   },
+  props: ['report', 'export', 'isShare', 'shareId', 'planReportTemplate'],
   methods: {
     getResource() {
-      this.init = true;
-      this.active = '0';
-      this.result = this.$get("/performance/report/log/resource/" + this.id, data => {
-        this.resource = data.data;
-        if (!this.resource || this.resource.length === 0) {
-          this.init = false;
-        }
-        this.page = data.data.map(item => item.resourceId).reduce((result, curr) => {
-          result[curr] = 1;
-          return result;
-        }, {});
-        this.logContent = data.data.map(item => item.resourceId).reduce((result, curr) => {
-          result[curr] = [];
-          return result;
-        }, {});
-      });
+      if (this.planReportTemplate) {
+        this.handleGetLogResource(this.planReportTemplate.reportLogResource);
+      } else if (this.isShare) {
+        getSharePerformanceReportLogResource(this.shareId, this.id, (data) => {
+          this.handleGetLogResource(data);
+        });
+      } else {
+        getPerformanceReportLogResource(this.id, (data) => {
+          this.handleGetLogResource(data);
+        });
+      }
+    },
+    handleGetLogResource(data) {
+      this.resource = data;
+      if (!this.currentInstance) {
+        this.currentInstance = this.resource[0]?.resourceId;
+      }
+      this.page = data.map(item => item.resourceId).reduce((result, curr) => {
+        result[curr] = 1;
+        return result;
+      }, {});
+      this.logContent = data.map(item => item.resourceId).reduce((result, curr) => {
+        result[curr] = [];
+        return result;
+      }, {});
     },
     load(resourceId) {
       if (this.loading || this.page[resourceId] > this.pageCount) {
@@ -61,29 +86,38 @@ export default {
       }
       this.logStatus[resourceId] = true;
       this.loading = true;
-      let url = "/performance/report/log/" + this.id + "/" + resourceId + "/" + this.page[resourceId];
-      this.$get(url, res => {
-        let data = res.data;
-        data.listObject.forEach(log => {
-          this.logContent[resourceId].push(log);
+      if (this.planReportTemplate) {
+        // this.handleGetLogResourceDetail(this.planReportTemplate.logResourceDetail, resourceId);
+      } else if (this.isShare) {
+        getSharePerformanceReportLogResourceDetail(this.shareId, this.id, resourceId, this.page[resourceId] || 1, data => {
+          this.handleGetLogResourceDetail(data, resourceId);
         });
-        this.page[resourceId]++;
-        this.loading = false;
-      });
+      } else {
+        getPerformanceReportLogResourceDetail(this.id, resourceId, this.page[resourceId] || 1, data => {
+          this.handleGetLogResourceDetail(data, resourceId);
+        });
+      }
     },
-    selectTab(tab) {
-      let resourceId = tab.$vnode.key;
-      if (this.logStatus[resourceId]) {
+    handleGetLogResourceDetail(data, resourceId) {
+      data.listObject.forEach(log => {
+        this.logContent[resourceId].push(log);
+      });
+      this.page[resourceId]++;
+      this.loading = false;
+    },
+    changeInstance(instance) {
+      this.currentInstance = instance;
+      if (this.logStatus[instance]) {
         return;
       }
       this.loading = false;
-      this.page[resourceId] = 1;
-      this.logContent[resourceId] = [];
-      this.load(resourceId);
+      this.page[instance] = 1;
+      this.logContent[instance] = [];
+      this.load(instance);
     },
-    downloadLogFile(item) {
+    downloadLogFile(resourceId) {
       let config = {
-        url: '/performance/report/log/download/' + this.id + '/' + item.resourceId,
+        url: '/performance/report/log/download/' + this.id + '/' + resourceId,
         method: 'get',
         responseType: 'blob'
       };
@@ -113,29 +147,31 @@ export default {
     '$route'(to) {
       if (to.name === "perReportView") {
         this.id = to.path.split('/')[4];
-        this.init = false;
         this.getResource();
       }
     },
     report: {
       handler(val) {
-        if (!val.status || !val.id || !this.id) {
-          return;
-        }
-        if (this.init) {
+        if (!val.status || !val.id) {
           return;
         }
         let status = val.status;
-        if (status === "Completed" || status === "Running") {
+        this.id = val.id;
+        if (status === "Running") {
           this.getResource();
-        } else {
-          this.resource = [];
+        }
+      },
+      deep: true
+    },
+    planReportTemplate: {
+      handler() {
+        if (this.planReportTemplate) {
+          this.getResource();
         }
       },
       deep: true
     }
   },
-  props: ['report']
 };
 </script>
 
@@ -146,7 +182,7 @@ export default {
 }
 
 .infinite-list {
-  height: calc(100vh - 390px);
+  height: calc(100vh - 250px);
   padding: 0;
   margin: 0;
   list-style: none;

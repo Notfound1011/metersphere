@@ -7,14 +7,7 @@
     </div>
     <el-container>
       <el-main style="padding: 0px 0px 0px 0px; line-height: 100px; text-align: center;">
-        <div class="main-number-show" style="margin: 0px auto;">
-          <span class="count-number">
-            {{sceneCountData.allApiDataCountNumber}}
-          </span>
-          <span style="color: #6C317C;">
-            {{$t('api_test.home_page.unit_of_measurement')}}
-          </span>
-        </div>
+        <ms-count-ring-chart :content="sceneCountData.allApiDataCountNumber"/>
       </el-main>
     </el-container>
     <el-container class="detail-container">
@@ -49,18 +42,18 @@
         </el-col>
       </el-row>
       </el-header>
-      <el-main style="padding: 5px;margin-top: 10px">
+      <el-main style="padding: 5px 5px 0px 5px;margin-top: 10px">
         <el-container>
           <el-aside width="60%" class="count-number-show" style="margin-bottom: 0px;margin-top: 0px">
             <el-container style="height: 50px;margin-top: 10px">
               <el-aside width="50%" style="line-height: 40px;">
-                {{$t('api_test.home_page.detail_card.rate.pass')+":"}}
+                {{ $t('api_test.home_page.detail_card.rate.pass') + ":" }}
               </el-aside>
               <el-main style="padding: 0px 0px 0px 0px; line-height: 40px; text-align: center;">
                 <span class="rows-count-number">
-                {{sceneCountData.passRage}}
+                {{ sceneCountData.passRage }}
                   <el-tooltip placement="top" class="info-tool-tip">
-                    <div slot="content">{{ $t('api_test.home_page.formula.pass')}}</div>
+                    <div slot="content">{{ $t('api_test.home_page.formula.pass') }}</div>
                     <el-button icon="el-icon-info" style="padding:0px;border: 0px"></el-button>
                   </el-tooltip>
               </span>
@@ -127,10 +120,11 @@
 
 <script>
 
+import MsCountRingChart from "@/business/components/common/chart/MsCountRingChart";
 export default {
   name: "MsSceneInfoCard",
 
-  components: {},
+  components: {MsCountRingChart},
 
   data() {
     return {
@@ -176,12 +170,7 @@ export default {
   font-weight: bold;
 }
 .main-number-show {
-  width: 100px;
-  height: 100px;
-  border-style: solid;
-  border-width: 7px;
-  border-color: var(--count_number_shallow);
-  border-radius:50%;
+  margin: 0 auto;
 }
 
 .count-number-show{

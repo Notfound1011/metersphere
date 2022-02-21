@@ -1,11 +1,15 @@
 package io.metersphere.performance.engine.docker;
 
 import com.alibaba.fastjson.JSON;
-import io.metersphere.base.domain.LoadTestWithBLOBs;
+import io.metersphere.base.domain.LoadTestReportResult;
+import io.metersphere.base.domain.LoadTestReportWithBLOBs;
 import io.metersphere.base.domain.TestResource;
+import io.metersphere.base.mapper.LoadTestReportResultMapper;
+import io.metersphere.commons.constants.ReportKeys;
 import io.metersphere.commons.constants.ResourceStatusEnum;
 import io.metersphere.commons.exception.MSException;
 import io.metersphere.commons.utils.CommonBeanFactory;
+import io.metersphere.commons.utils.LocalAddressUtils;
 import io.metersphere.commons.utils.UrlTestUtils;
 import io.metersphere.config.KafkaProperties;
 import io.metersphere.controller.ResultHolder;
@@ -20,19 +24,20 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 public class DockerTestEngine extends AbstractEngine {
     private static final String BASE_URL = "http://%s:%d";
     private RestTemplate restTemplate;
     private RestTemplate restTemplateWithTimeOut;
 
-    public DockerTestEngine(LoadTestWithBLOBs loadTest) {
-        this.init(loadTest);
+    public DockerTestEngine(LoadTestReportWithBLOBs loadTestReport) {
+        this.init(loadTestReport);
     }
 
     @Override
-    protected void init(LoadTestWithBLOBs loadTest) {
-        super.init(loadTest);
+    protected void init(LoadTestReportWithBLOBs loadTestReport) {
+        super.init(loadTestReport);
         this.restTemplate = (RestTemplate) CommonBeanFactory.getBean("restTemplate");
         this.restTemplateWithTimeOut = (RestTemplate) CommonBeanFactory.getBean("restTemplateWithTimeOut");
     }
@@ -54,11 +59,18 @@ public class DockerTestEngine extends AbstractEngine {
                 .map(r -> r * 1.0 / totalThreadNum)
                 .map(r -> String.format("%.2f", r))
                 .toArray();
+        // 保存一个 completeCount
+        LoadTestReportResult completeCount = new LoadTestReportResult();
+        completeCount.setId(UUID.randomUUID().toString());
+        completeCount.setReportId(loadTestReport.getId());
+        completeCount.setReportKey(ReportKeys.ReportCompleteCount.name());
+        completeCount.setReportValue("" + resourceRatios.length); // 初始化一个 completeCount, 这个值用在data-streaming中
+        LoadTestReportResultMapper loadTestReportResultMapper = CommonBeanFactory.getBean(LoadTestReportResultMapper.class);
+        loadTestReportResultMapper.insertSelective(completeCount);
 
         for (int i = 0, size = resourceList.size(); i < size; i++) {
             runTest(resourceList.get(i), resourceRatios, i);
         }
-
     }
 
     private void runTest(TestResource resource, Object[] ratios, int resourceIndex) {
@@ -74,10 +86,14 @@ public class DockerTestEngine extends AbstractEngine {
         if (baseInfo != null) {
             metersphereUrl = baseInfo.getUrl();
         }
+        // docker 不能从 localhost 中下载文件, 本地开发
+        if (StringUtils.contains(metersphereUrl, "http://localhost") ||
+                StringUtils.contains(metersphereUrl, "http://127.0.0.1")) {
+            metersphereUrl = "http://" + LocalAddressUtils.getIpAddress("en0") + ":8081";
+        }
+
         String jmeterPingUrl = metersphereUrl + "/jmeter/ping"; // 检查下载地址是否正确
-        // docker 不能从 localhost 中下载文件
-        if (StringUtils.contains(metersphereUrl, "http://localhost")
-                || !UrlTestUtils.testUrlWithTimeOut(jmeterPingUrl, 1000)) {
+        if (!UrlTestUtils.testUrlWithTimeOut(jmeterPingUrl, 1000)) {
             MSException.throwException(Translator.get("run_load_test_file_init_error"));
         }
 
@@ -85,15 +101,18 @@ public class DockerTestEngine extends AbstractEngine {
         env.put("RATIO", StringUtils.join(ratios, ","));
         env.put("RESOURCE_INDEX", "" + resourceIndex);
         env.put("METERSPHERE_URL", metersphereUrl);
-        env.put("START_TIME", "" + this.getStartTime());
-        env.put("TEST_ID", this.loadTest.getId());
-        env.put("REPORT_ID", this.getReportId());
+        env.put("START_TIME", "" + System.currentTimeMillis());
+        env.put("TEST_ID", this.loadTestReport.getTestId());
+        env.put("REPORT_ID", this.loadTestReport.getId());
         env.put("BOOTSTRAP_SERVERS", kafkaProperties.getBootstrapServers());
         env.put("LOG_TOPIC", kafkaProperties.getLog().getTopic());
+        env.put("JMETER_REPORTS_TOPIC", kafkaProperties.getReport().getTopic());
         env.put("RESOURCE_ID", resource.getId());
         env.put("THREAD_NUM", "0");// 传入0表示不用修改线程数
         env.put("HEAP", HEAP);
         env.put("GC_ALGO", GC_ALGO);
+        env.put("GRANULARITY", performanceTestService.getGranularity(this.loadTestReport.getId()).toString());
+        env.put("BACKEND_LISTENER", resourcePool.getBackendListener().toString());
 
 
         StartTestRequest startTestRequest = new StartTestRequest();
@@ -118,7 +137,7 @@ public class DockerTestEngine extends AbstractEngine {
 
     @Override
     public void stop() {
-        String testId = loadTest.getId();
+        String testId = loadTestReport.getTestId();
         this.resourceList.forEach(r -> {
             NodeDTO node = JSON.parseObject(r.getConfiguration(), NodeDTO.class);
             String ip = node.getIp();

@@ -14,6 +14,15 @@
       </el-option>
     </el-select>
 
+    <el-cascader
+      v-else-if="data.type === 'cascadingSelect'"
+      expand-trigger="hover"
+      @change="handleChange"
+      :props="{label: 'text'}"
+      :options="data.options"
+      v-model="data[prop]">
+    </el-cascader>
+
     <el-input
       v-else-if="data.type === 'textarea'"
       type="textarea"
@@ -32,7 +41,9 @@
       <el-checkbox v-for="(item, index) in data.options ? data.options : []"
                    :key="index"
                    @change="handleChange"
-                   :label="getTranslateOption(item)"></el-checkbox>
+                   :label="item.value">
+        {{ getTranslateOption(item) }}
+      </el-checkbox>
     </el-checkbox-group>
 
     <el-radio
@@ -42,27 +53,29 @@
       v-for="(item,index) in data.options ? data.options : []"
       :key="index"
       @change="handleChange"
-      :label="getTranslateOption(item)"></el-radio>
+      :label="item.value">
+      {{ getTranslateOption(item) }}
+    </el-radio>
 
     <el-input-number
       v-else-if="data.type === 'int'"
       v-model="data[prop]"
       :disabled="disabled"
-      @change="handleChange"></el-input-number>
+      @change="handleChange"/>
 
     <el-input-number
       v-else-if="data.type === 'float'"
       :disabled="disabled"
       @change="handleChange"
-      v-model="data[prop]" :precision="2" :step="0.1"></el-input-number>
+      v-model="data[prop]" :precision="2" :step="0.1"/>
 
      <el-date-picker
        class="custom-with"
        @change="handleChange"
-       v-else-if="data.type === 'data'"
+       v-else-if="data.type === 'date' || data.type === 'datetime'"
        :disabled="disabled"
        v-model="data[prop]"
-       type="date"
+       :type="data.type === 'date' ? 'date' : 'datetime'"
        :placeholder="$t('commons.select_date')">
     </el-date-picker>
 
@@ -79,8 +92,17 @@
        </el-option>
     </el-select>
 
+    <ms-input-tag v-else-if="data.type === 'multipleInput'"
+                  @input="handleChange"
+                  :read-only="disabled" :currentScenario="data" :prop="prop"/>
+
+    <ms-mark-down-text v-else-if="data.type === 'richText'"
+                       :prop="prop"
+                       @change="handleChange"
+                       :data="data" :disabled="disabled"/>
+
     <el-input class="custom-with"
-              @change="handleChange"
+              @input="handleChange"
               :disabled="disabled"
               v-else v-model="data[prop]"/>
 
@@ -90,10 +112,12 @@
 
 <script>
 import MsTableColumn from "@/business/components/common/components/table/MsTableColumn";
-import {getCurrentProjectID, getCurrentWorkspaceId} from "@/common/js/utils";
+import {getCurrentProjectID} from "@/common/js/utils";
+import MsInputTag from "@/business/components/api/automation/scenario/MsInputTag";
+import MsMarkDownText from "@/business/components/track/case/components/MsMarkDownText";
 export default {
   name: "CustomFiledComponent",
-  components: {MsTableColumn},
+  components: {MsMarkDownText, MsInputTag, MsTableColumn},
   props: [
     'data',
     'prop',
@@ -106,11 +130,9 @@ export default {
     };
   },
   mounted() {
-    if (this.data.type === 'member' || this.data.type === 'multipleMember') {
-      this.$post('/user/project/member/tester/list', {projectId: getCurrentProjectID()}, response => {
-        this.memberOptions = response.data;
-      });
-    }
+    this.$post('/user/project/member/tester/list', {projectId: getCurrentProjectID()}, response => {
+      this.memberOptions = response.data;
+    });
   },
   methods: {
     getTranslateOption(item) {
@@ -119,9 +141,8 @@ export default {
     handleChange() {
       if (this.form) {
         this.$set(this.form, this.data.name, this.data[this.prop]);
-        this.$emit('reload');
       }
-    }
+    },
   }
 };
 </script>

@@ -20,14 +20,18 @@
       </template>
     </ms-test-plan-header-bar>
     <test-plan-functional v-if="activeIndex === 'functional'" :redirectCharType="redirectCharType"
-                          :clickType="clickType" :plan-id="planId"/>
+                          :clickType="clickType" :plan-id="planId" ref="testPlanFunctional"/>
     <test-plan-api v-if="activeIndex === 'api'" :redirectCharType="redirectCharType" :clickType="clickType"
                    :plan-id="planId"/>
     <test-plan-load v-if="activeIndex === 'load'" :redirectCharType="redirectCharType" :clickType="clickType"
                     :plan-id="planId"/>
-    <test-case-statistics-report-view :test-plan="currentPlan" v-if="activeIndex === 'report'"/>
+    <test-plan-report-content v-if="activeIndex === 'report'" :plan-id="planId"/>
 
-    <test-report-template-list @openReport="openReport" ref="testReportTemplateList"/>
+    <is-change-confirm
+      :title="'请保存脑图'"
+      :tip="'脑图未保存，确认保存脑图吗？'"
+      @confirm="changeConfirm"
+      ref="isChangeConfirm"/>
 
   </div>
 
@@ -37,7 +41,6 @@
 
 import NodeTree from "../../common/NodeTree";
 import TestPlanTestCaseList from "./comonents/functional/FunctionalTestCaseList";
-import TestCaseRelevance from "./comonents/functional/TestCaseFunctionalRelevance";
 import SelectMenu from "../../common/SelectMenu";
 import MsContainer from "../../../common/components/MsContainer";
 import MsAsideContainer from "../../../common/components/MsAsideContainer";
@@ -45,20 +48,21 @@ import MsMainContainer from "../../../common/components/MsMainContainer";
 import MsTestPlanHeaderBar from "./comonents/head/TestPlanHeaderBar";
 import TestPlanFunctional from "./comonents/functional/TestPlanFunctional";
 import TestPlanApi from "./comonents/api/TestPlanApi";
-import TestCaseStatisticsReportView from "./comonents/report/statistics/TestCaseStatisticsReportView";
-import TestReportTemplateList from "./comonents/TestReportTemplateList";
 import TestPlanLoad from "@/business/components/track/plan/view/comonents/load/TestPlanLoad";
+import {getCurrentProjectID} from "@/common/js/utils";
+import TestPlanReportContent from "@/business/components/track/plan/view/comonents/report/detail/TestPlanReportContent";
+import IsChangeConfirm from "@/business/components/common/components/IsChangeConfirm";
 
 export default {
   name: "TestPlanView",
   components: {
-    TestReportTemplateList,
-    TestCaseStatisticsReportView,
+    IsChangeConfirm,
+    TestPlanReportContent,
     TestPlanApi,
     TestPlanFunctional,
     MsTestPlanHeaderBar,
     MsMainContainer,
-    MsAsideContainer, MsContainer, NodeTree, TestPlanTestCaseList, TestCaseRelevance, SelectMenu, TestPlanLoad
+    MsAsideContainer, MsContainer, NodeTree, TestPlanTestCaseList, SelectMenu, TestPlanLoad
   },
   data() {
     return {
@@ -70,6 +74,7 @@ export default {
       redirectCharType: '',
       //报表跳转过来的参数-通过哪种数据跳转的
       clickType: '',
+      tmpActiveIndex: ''
     };
   },
   computed: {
@@ -84,6 +89,13 @@ export default {
     '$route.params.planId'() {
       this.genRedirectParam();
       this.getTestPlans();
+    },
+  },
+  beforeRouteLeave(to, from, next) {
+    if (!this.$refs.testPlanFunctional) {
+      next();
+    } else if (this.$refs.testPlanFunctional.handleBeforeRouteLeave(to)) {
+      next();
     }
   },
   created() {
@@ -114,7 +126,7 @@ export default {
       }
     },
     getTestPlans() {
-      this.$post('/test/plan/list/all', {}, response => {
+      this.$post('/test/plan/list/all', {projectId: getCurrentProjectID()}, response => {
         this.testPlans = response.data;
         this.testPlans.forEach(plan => {
           if (this.planId && plan.id === this.planId) {
@@ -128,16 +140,25 @@ export default {
       this.$router.push('/track/plan/view/' + plan.id);
     },
     handleSelect(key) {
-      this.activeIndex = key;
-      if (key === 'report' && !this.currentPlan.reportId) {
-        this.$refs.testReportTemplateList.open(this.planId);
+      let isTestCaseMinderChanged = this.$store.state.isTestCaseMinderChanged;
+      if (key !== 'functional' && isTestCaseMinderChanged) {
+        this.$refs.isChangeConfirm.open();
+        this.tmpActiveIndex = key;
+        return;
       }
+      this.activeIndex = key;
     },
-    openTemplateReport() {
-      this.$refs.testReportTemplateList.open(this.planId);
-    },
-    openReport(planId, id) {
-      this.currentPlan.reportId = id;
+    changeConfirm(isSave) {
+      if (isSave) {
+        this.$refs.testPlanFunctional.$refs.minder.save(window.minder.exportJson());
+      }
+      this.$store.commit('setIsTestCaseMinderChanged', false);
+      this.$nextTick(() => {
+        if (this.tmpActiveIndex) {
+          this.activeIndex = this.tmpActiveIndex;
+          this.tmpActiveIndex = null;
+        }
+      });
     },
     reloadMenu() {
       this.isMenuShow = false;
@@ -153,15 +174,6 @@ export default {
 
 .select-menu {
   display: inline-block;
-}
-
-/deep/ .ms-main-container {
-  height: calc(100vh - 80px - 53px);
-}
-
-/deep/ .ms-aside-container {
-  height: calc(100vh - 80px - 53px);
-  margin-top: 1px;
 }
 
 .header-menu.el-menu--horizontal > li {

@@ -4,6 +4,8 @@ import io.metersphere.base.domain.Schedule;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
+
 @Getter
 @Setter
 public class TestPlanRequest {
@@ -26,13 +28,11 @@ public class TestPlanRequest {
 
     private String runtimeConfiguration;
 
-    private Integer scenarioVersion;
-
-    private String scenarioId;
-
     private Schedule schedule;
 
     private String testResourcePoolId;
+
+    private List<String> follows;
 
     private static final long serialVersionUID = 1L;
 

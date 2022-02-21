@@ -2,6 +2,7 @@ import {Message, MessageBox} from 'element-ui';
 import axios from "axios";
 import i18n from '../../i18n/i18n';
 import {TokenKey} from "@/common/js/constants";
+import {getCurrentProjectID, getCurrentWorkspaceId} from "@/common/js/utils";
 
 export function registerRequestHeaders() {
   axios.interceptors.request.use(config => {
@@ -9,6 +10,9 @@ export function registerRequestHeaders() {
     if (user && user.csrfToken) {
       config.headers['CSRF-TOKEN'] = user.csrfToken;
     }
+    // 包含 工作空间 项目的标识
+    config.headers['WORKSPACE'] = getCurrentWorkspaceId();
+    config.headers['PROJECT'] = getCurrentProjectID();
     return config;
   });
 }
@@ -146,6 +150,30 @@ export function fileUpload(url, file, files, param, success, failure) {
   return request(axiosRequestConfig, success, failure);
 }
 
+export function download(config, fileName, success) {
+  let result = {loading: true};
+  this.$request(config).then(response => {
+    const content = response.data;
+    const blob = new Blob([content], {type: "application/octet-stream"});
+    if ("download" in document.createElement("a")) {
+      // 非IE下载
+      //  chrome/firefox
+      let aTag = document.createElement('a');
+      aTag.download = fileName;
+      aTag.href = URL.createObjectURL(blob);
+      aTag.click();
+      URL.revokeObjectURL(aTag.href);
+      then(success, response, result);
+    } else {
+      // IE10+下载
+      navigator.msSaveBlob(blob, this.filename);
+    }
+  }).catch(error => {
+    exception(error, result, "");
+  });
+  return result;
+}
+
 export function all(array, callback) {
   if (array.length < 1) return;
   axios.all(array).then(axios.spread(callback));
@@ -166,7 +194,8 @@ export default {
 
     // let login = login;
 
-    axios.defaults.withCredentials = true;
+    axios.defaults.withCredentials = false;
+    axios.defaults.baseURL = '/api/tc';
 
     axios.interceptors.response.use(response => {
       if (response.headers["authentication-status"] === "invalid") {
@@ -174,8 +203,19 @@ export default {
       }
       return response;
     }, error => {
+      if (error.response.data.message === 'No valid crumb was included in the request' && error.response.status === 403) {
+        MessageBox.alert(i18n.t('commons.jenkins_tips'), i18n.t('commons.prompt'), {
+          callback: () => {
+            window.location.href = "/#/api/jobScheduler";
+            window.location.reload()
+          }
+        });
+        return;
+      }
       return Promise.reject(error);
     });
+
+    Vue.prototype.$axios = axios;
 
     Vue.prototype.$get = get;
 
@@ -188,5 +228,7 @@ export default {
     Vue.prototype.$fileDownload = fileDownload;
 
     Vue.prototype.$fileUpload = fileUpload;
+
+    Vue.prototype.$download = download;
   }
 };

@@ -2,7 +2,8 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="io.metersphere.base.mapper.ext.ExtApiDefinitionExecResultMapper">
     <delete id="deleteByResourceId" parameterType="java.lang.String">
-      delete from api_definition_exec_result  where resource_id = #{id,jdbcType=VARCHAR}
+        delete
+        from api_definition_exec_result  where resource_id = #{id,jdbcType=VARCHAR}
     </delete>
 
     <select id="selectMaxResultByResourceId" parameterType="java.lang.String" resultType="io.metersphere.base.domain.ApiDefinitionExecResult">
@@ -12,9 +13,8 @@
     <select id="selectMaxResultByResourceIdAndType"
             resultType="io.metersphere.base.domain.ApiDefinitionExecResult">
         select  * from api_definition_exec_result
-        where resource_id = #{resourceId,jdbcType=VARCHAR}
-          and `type` = #{type, jdbcType=VARCHAR}
-        ORDER BY start_time DESC LIMIT 1
+        where resource_id = #{resourceId,jdbcType=VARCHAR} and `type` = #{type, jdbcType=VARCHAR}
+        ORDER BY start_time DESC LIMIT 5, 1
     </select>
 
     <select id="countByProjectIDAndCreateInThisWeek" resultType="java.lang.Long">
@@ -35,9 +35,9 @@
     <select id="findFaliureCaseInfoByProjectIDAndExecuteTimeAndLimitNumber" resultType="io.metersphere.api.dto.datacount.ExecutedCaseInfoResult">
         SELECT * FROM (
             -- api_test_case 只查找测试计划执行的结果
-            SELECT testCase.testCaseID,testCase.testCaseName AS caseName,testCase.testPlanName AS testPlan ,caseErrorCountData.dataCountNumber AS failureTimes,'apiCase' AS caseType
+            SELECT testCase.testCaseID AS testCaseID,testCase.id AS id,testCase.testCaseName AS caseName,testCase.testPlanName AS testPlan ,caseErrorCountData.dataCountNumber AS failureTimes,'apiCase' AS caseType
             FROM (
-            SELECT testPlanCase.id AS testCaseID,apiCase.`name` AS testCaseName,group_concat(testPlan.`name`)  AS testPlanName, testPlanCase.update_time as updateTime
+            SELECT testPlanCase.id AS testCaseID,apiCase.id AS id,apiCase.`name` AS testCaseName,group_concat(testPlan.`name`)  AS testPlanName, testPlanCase.update_time as updateTime
             FROM api_test_case apiCase
             inner join api_definition on api_definition.id = apiCase.api_definition_id
            INNER JOIN test_plan_api_case testPlanCase ON testPlanCase.api_case_id = apiCase.id
@@ -56,7 +56,7 @@
             ) caseErrorCountData ON caseErrorCountData.testPlanCaseID =testCase.testCaseID
             WHERE testCase.updateTime >= #{startTimestamp}
             UNION
-            SELECT scene.id AS testCaseID,scene.`name` AS caseName,apiScene.testPlanName AS testPlan,count(report.id) AS failureTimes,'scenario' AS caseType
+            SELECT scene.id AS testCaseID,scene.id AS id,scene.`name` AS caseName,apiScene.testPlanName AS testPlan,count(report.id) AS failureTimes,'scenario' AS caseType
             FROM api_scenario_report report
             INNER JOIN api_scenario_report_detail reportDetail ON report.id = reportDetail.report_id
             INNER JOIN api_scenario scene ON report.scenario_id = scene.id
@@ -70,7 +70,7 @@
               AND ( report.STATUS = 'Error' OR report.STATUS = 'Fail' )  AND report.create_time >= #{startTimestamp}
             GROUP BY scene.id
             UNION
-            SELECT ltr.test_id as testCaseID, ltr.name as caseName,tplt.testPlanName AS testPlan, count(ltr.id) as failureTimes, 'load' as caseType FROM load_test_report ltr
+            SELECT ltr.test_id as testCaseID,ltr.id AS id, ltr.name as caseName,tplt.testPlanName AS testPlan, count(ltr.id) as failureTimes, 'load' as caseType FROM load_test_report ltr
             join load_test on load_test.id = ltr.test_id
             JOIN (
                 select tplc.load_case_id, group_concat(tp.`name`) AS testPlanName, tp.project_id
@@ -84,4 +84,50 @@
           ) showTable
         ORDER BY showTable.failureTimes DESC
     </select>
+    <select id="selectExecResult" resultType="java.lang.String">
+        select ader.status from api_definition_exec_result ader where ader.resource_id=#{resourceId}
+     </select>
+    <select id="selectPlanApiMaxResultByTestIdAndType"
+            resultType="io.metersphere.base.domain.ApiDefinitionExecResult">
+        select  * from api_definition_exec_result
+        where resource_id = #{resourceId,jdbcType=VARCHAR} and `type` = #{type, jdbcType=VARCHAR}
+        ORDER BY start_time DESC LIMIT 1
+    </select>
+
+    <select id="selectStatusByIdList"
+            resultType="io.metersphere.base.domain.ApiDefinitionExecResult">
+        select id,status from api_definition_exec_result
+        where id in
+        <foreach collection="ids" item="v" separator="," open="(" close=")">
+            #{v}
+        </foreach>
+    </select>
+
+    <select id="selectApiResultByProjectId" resultType="io.metersphere.base.domain.ApiDefinitionExecResult">
+        select *
+        from api_definition_exec_result t
+                 left join `user` t1 ON t.user_id = t1.id
+                 left join test_resource_pool t2 on t.actuator = t2.id
+                 left join api_definition t3 on t.resource_id = t3.id
+                 left join api_test_case t4 on t4.id = t.resource_id
+                 left join test_plan_api_case t5 on t.resource_id = t5.id
+                 left join test_plan t6 on t5.test_plan_id = t6.id
+        where to_days(FROM_UNIXTIME(t.create_time / 1000)) = to_days(now())
+          and (t3.project_id = #{projectId} OR t4.project_id = #{projectId} OR t6.project_id = #{projectId})
+          and t.`STATUS` in ('running', 'waiting')
+    </select>
+    <select id="selectForPlanReport" resultType="io.metersphere.track.dto.PlanReportCaseDTO">
+        select status from api_definition_exec_result
+        where id in
+        <foreach collection="ids" item="id" separator="," open="(" close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <update id="update" parameterType="java.util.List">
+        update api_definition_exec_result set status="STOP" where id in
+        <foreach collection="ids" item="value" separator="," open="(" close=")">
+            #{value}
+        </foreach>
+    </update>
 </mapper>

@@ -14,15 +14,23 @@ public class BaseQueryRequest {
 
     private String name;
 
-    private String workspaceId;
+    /**
+     * 状态不等于 notEqStatus
+     */
+    private String notEqStatus;
 
-    private String organizationId;
+    private String workspaceId;
 
     private List<String> ids;
 
     private List<String> moduleIds;
 
     private List<String> nodeIds;
+
+    /**
+     * 排除哪些id
+     */
+    private List<String> notInIds;
 
     /**
      * selectAll：选择的数据是否是全部数据（全部数据是不受分页影响的数据）

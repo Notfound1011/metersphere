@@ -1,13 +1,15 @@
 package io.metersphere.api.dto.scenario;
 
 import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import io.metersphere.api.dto.scenario.request.BodyFile;
-import io.metersphere.commons.json.JSONSchemaGenerator;
+import io.metersphere.commons.json.JSONSchemaRunTest;
 import io.metersphere.commons.utils.FileUtils;
-import io.metersphere.commons.utils.ScriptEngineUtils;
+import io.metersphere.jmeter.utils.ScriptEngineUtils;
 import lombok.Data;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.entity.ContentType;
 import org.apache.jmeter.protocol.http.sampler.HTTPSamplerProxy;
 import org.apache.jmeter.protocol.http.util.HTTPFileArg;
 
@@ -69,12 +71,14 @@ public class Body {
                 sampler.setDoMultipart(true);
             }
         } else {
-            parseJonBodyMock();
-            KeyValue keyValue = new KeyValue("", "JSON-SCHEMA", this.getRaw(), true, true);
-            sampler.setPostBodyRaw(true);
-            keyValue.setEnable(true);
-            keyValue.setEncode(false);
-            body.add(keyValue);
+            if(StringUtils.isNotEmpty(this.getRaw()) || this.getJsonSchema()!= null ) {
+                parseJonBodyMock();
+                KeyValue keyValue = new KeyValue("", "JSON-SCHEMA", this.getRaw(), true, true);
+                sampler.setPostBodyRaw(true);
+                keyValue.setEnable(true);
+                keyValue.setUrlEncode(false);
+                body.add(keyValue);
+            }
         }
         return body;
     }
@@ -83,12 +87,12 @@ public class Body {
         if (StringUtils.isNotBlank(this.type) && StringUtils.equals(this.type, "JSON")) {
             if(StringUtils.isNotEmpty(this.format) && this.getJsonSchema() != null
                     && "JSON-SCHEMA".equals(this.format)) {
-                this.raw = JSONSchemaGenerator.getJson(com.alibaba.fastjson.JSON.toJSONString(this.getJsonSchema()));
+                this.raw = JSONSchemaRunTest.getJson(com.alibaba.fastjson.JSON.toJSONString(this.getJsonSchema()));
             } else {    //  json 文本也支持 mock 参数
                 try {
                     JSONObject jsonObject = com.alibaba.fastjson.JSON.parseObject(this.getRaw());
                     jsonMockParse(jsonObject);
-                    this.raw = JSONObject.toJSONString(jsonObject);
+                    this.raw = JSONObject.toJSONString(jsonObject, SerializerFeature.WriteMapNullValue);
                 } catch (Exception e) {}
             }
         }
@@ -100,8 +104,8 @@ public class Body {
             if(value instanceof JSONObject) {
                 jsonMockParse((JSONObject) value);
             } else if(value instanceof String) {
-                if (StringUtils.isNotBlank((String) value) && ((String) value).trim().startsWith("@")) {
-                    value = ScriptEngineUtils.calculate((String) value);
+                if (StringUtils.isNotBlank((String) value)) {
+                    value = ScriptEngineUtils.buildFunctionCallString((String) value);
                 }
                 jsonObject.put(key, value);
             }
@@ -137,6 +141,9 @@ public class Body {
                     path = FileUtils.BODY_FILE_DIR + '/' + requestId + '/' + file.getName();
                 }
                 String mimetype = keyValue.getContentType();
+                if (StringUtils.isBlank(mimetype)) {
+                    mimetype = ContentType.APPLICATION_OCTET_STREAM.getMimeType();
+                }
                 list.add(new HTTPFileArg(path, paramName, mimetype));
             });
         }

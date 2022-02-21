@@ -23,6 +23,8 @@ public class Project implements Serializable {
 
     private String zentaoId;
 
+    private String azureDevopsId;
+
     private Boolean repeatable;
 
     private String caseTemplateId;
@@ -36,6 +38,20 @@ public class Project implements Serializable {
     private String createUser;
 
     private String systemId;
+
+    private Integer mockTcpPort;
+
+    private Boolean isMockTcpOpen;
+
+    private String azureFilterId;
+
+    private String apiQuick;
+
+    private Boolean casePublic;
+
+    private String platform;
+
+    private Boolean thirdPartTemplate;
 
     private static final long serialVersionUID = 1L;
 }

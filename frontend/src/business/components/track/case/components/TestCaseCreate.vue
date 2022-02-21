@@ -2,7 +2,7 @@
   <el-dialog :close-on-click-modal="false" :title="$t('test_track.case.create')" :visible.sync="visible"
              width="45%"
              :destroy-on-close="true">
-    <el-form :model="testCaseForm" label-position="right" label-width="80px" size="small" :rules="rule"
+    <el-form :model="testCaseForm" label-position="right" label-width="100px" size="small" :rules="rule"
              ref="testCaseForm">
       <el-form-item :label="$t('commons.name')" prop="name">
         <el-input v-model="testCaseForm.name" autocomplete="off" :placeholder="$t('commons.name')"/>
@@ -22,7 +22,8 @@
       </el-form-item>
 
       <el-form-item :label="$t('api_test.automation.scenario.follow_people')" prop="followPeople">
-        <el-select v-model="testCaseForm.followPeople"
+        <el-select v-model="testCaseForm.follows"
+                   multiple
                    :placeholder="$t('api_test.automation.scenario.follow_people')" filterable size="small"
                    style="width: 100%">
           <el-option
@@ -46,7 +47,7 @@
       <ms-dialog-footer
         @cancel="visible = false"
         :isShow="true"
-        title="编辑详情"
+        :title="$t('commons.edit_info')"
         @saveAsEdit="saveTestCase(true)"
         @confirm="saveTestCase">
       </ms-dialog-footer>
@@ -95,7 +96,7 @@ export default {
   watch: {
     treeNodes() {
       this.getModuleOptions();
-    }
+    },
   },
   computed: {
     projectId() {
@@ -117,7 +118,7 @@ export default {
             this.testCaseForm.nodePath = this.currentModule.path;
             this.testCaseForm.nodeId = this.currentModule.id;
           } else {
-            this.testCaseForm.nodePath = "/默认模块"
+            this.testCaseForm.nodePath = "/未规划用例"
             this.testCaseForm.nodeId = "default-module"
           }
           this.result = this.$post(path, this.testCaseForm, response => {
@@ -141,7 +142,7 @@ export default {
       // this.treeNodes.forEach(node => {
       //   buildNodePath(node, {path: ''}, moduleOptions);
       // });
-      if(this.currentModule!==undefined){
+      if (this.currentModule !== undefined) {
         this.moduleOptions.forEach(item => {
           if (this.currentModule.id === item.id) {
             this.currentModule.path = item.path;

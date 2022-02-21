@@ -5,11 +5,13 @@
       @isApiListEnableChange="isApiListEnableChange">
 
       <ms-environment-select :project-id="projectId" v-if="isTestPlan" :is-read-only="isReadOnly"
-                             @setEnvironment="setEnvironment"/>
+                             @setEnvironment="setEnvironment" ref="msEnvironmentSelect"/>
 
       <el-input :placeholder="$t('commons.search_by_name_or_id')" @blur="initTable"
                 @keyup.enter.native="initTable" class="search-input" size="small" v-model="condition.name"/>
-
+      <ms-table-adv-search-bar :condition.sync="condition" class="adv-search-bar"
+                               v-if="condition.components !== undefined && condition.components.length > 0"
+                               @search="initTable"/>
       <ms-table :data="tableData" :select-node-ids="selectNodeIds" :condition="condition" :page-size="pageSize"
                 :total="total" enableSelection
                 :screenHeight="screenHeight"
@@ -23,13 +25,6 @@
           label="ID"
           width="80px"
           sortable=true>
-          <!--          <template slot-scope="scope">-->
-          <!--            &lt;!&ndash; 判断为只读用户的话不可点击ID进行编辑操作 &ndash;&gt;-->
-          <!--            <span style="cursor:pointer" v-if="isReadOnly"> {{ scope.row.num }} </span>-->
-          <!--            <el-tooltip v-else content="编辑">-->
-          <!--              <a style="cursor:pointer" @click="editApi(scope.row)"> {{ scope.row.num }} </a>-->
-          <!--            </el-tooltip>-->
-          <!--          </template>-->
         </ms-table-column>
 
         <ms-table-column prop="name" width="160px" :label="$t('test_track.case.name')"/>
@@ -50,12 +45,6 @@
           prop="path"
           width="180px"
           :label="'API'+ $t('api_test.definition.api_path')"/>
-
-        <ms-table-column
-          sortable="custom"
-          prop="casePath"
-          width="180px"
-          :label="$t('api_test.definition.request.case')+ $t('api_test.definition.api_path')"/>
 
         <ms-table-column prop="tags" width="120px" :label="$t('commons.tag')">
           <template v-slot:default="scope">
@@ -105,7 +94,8 @@ import PriorityTableItem from "../../../../track/common/tableItems/planview/Prio
 import MsEnvironmentSelect from "../../../definition/components/case/MsEnvironmentSelect";
 import TableSelectCountBar from "./TableSelectCountBar";
 import {_filter, _sort, buildBatchParam} from "@/common/js/tableUtils";
-import {API_CASE_LIST} from "@/common/js/constants";
+import MsTableAdvSearchBar from "@/business/components/common/components/search/MsTableAdvSearchBar";
+import {TEST_PLAN_RELEVANCE_API_CASE_CONFIGS} from "@/business/components/common/components/search/search-components";
 
 export default {
   name: "RelevanceCaseList",
@@ -122,11 +112,14 @@ export default {
     ShowMoreBtn,
     MsBatchEdit,
     MsTable,
-    MsTableColumn
+    MsTableColumn,
+    MsTableAdvSearchBar
   },
   data() {
     return {
-      condition: {},
+      condition: {
+        components: TEST_PLAN_RELEVANCE_API_CASE_CONFIGS
+      },
       selectCase: {},
       result: {},
       moduleId: "",
@@ -143,7 +136,7 @@ export default {
         priority: CASE_PRIORITY,
       },
       methodColorMap: new Map(API_METHOD_COLOUR),
-      screenHeight: 'calc(100vh - 400px)',//屏幕高度
+      screenHeight: 'calc(100vh - 300px)',//屏幕高度
       tableData: [],
       currentPage: 1,
       pageSize: 10,
@@ -228,18 +221,19 @@ export default {
             item.tags = JSON.parse(item.tags);
           }
         });
-        this.$nextTick(function () {
-          if (this.$refs.table) {
-            this.$refs.table.doLayout();
-            this.$refs.table.checkTableRowIsSelect();
-          }
-        });
       });
     },
     clear() {
       if (this.$refs.table) {
         this.$refs.table.clear();
       }
+    },
+    clearEnvAndSelect() {
+      this.environmentId = "";
+      if (this.$refs.msEnvironmentSelect) {
+        this.$refs.msEnvironmentSelect.environmentId = "";
+      }
+      this.clear();
     },
     showExecResult(row) {
       this.visible = false;
@@ -288,7 +282,7 @@ export default {
     },
     getConditions() {
       let sampleSelectRows = this.$refs.table.getSelectRows();
-      let batchParam = buildBatchParam(this);
+      let batchParam = buildBatchParam(this, undefined, this.projectId);
       let param = {};
       if (batchParam.condition) {
         param = batchParam.condition;
@@ -323,6 +317,12 @@ export default {
   width: 300px;
   /*margin-bottom: 20px;*/
   margin-right: 20px;
+}
+
+.adv-search-bar {
+  float: right;
+  margin-top: 5px;
+  margin-right: 10px;
 }
 
 </style>

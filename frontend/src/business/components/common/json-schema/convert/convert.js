@@ -51,15 +51,20 @@ class Convert {
     // root节点基本信息
     let result = this._value2object(this._object, this._option.$id, "", true);
     if (this._object.length > 0) {
-      // 创建items对象的基本信息
-      let objectItem = this._object[0]
-      result["items"] = this._value2object(objectItem, `#/items`, 'items');
-      if (isObject(objectItem) && !isEmpty(objectItem)) {
-        // 递归遍历
-        let objectItemSchema = this._json2schema(objectItem, `#/items`);
-        // 合并对象
-        result["items"] = Object.assign(result["items"], objectItemSchema);
+      let itemArr = [];
+      for (let index = 0; index < this._object.length; index++) {
+        // 创建items对象的基本信息
+        let objectItem = this._object[index]
+        let item = this._value2object(objectItem, `#/items`, 'items');
+        if (isObject(objectItem) && !isEmpty(objectItem)) {
+          // 递归遍历
+          let objectItemSchema = this._json2schema(objectItem, `#/items`);
+          // 合并对象
+          item = Object.assign(item, objectItemSchema);
+        }
+        itemArr.push(item);
       }
+      result["items"] = itemArr;
     }
     return result
   }
@@ -105,21 +110,35 @@ class Convert {
         }
         let $id = `${name}/properties/${key}`
         // 判断当前 element 的值 是否也是对象，如果是就继续递归，不是就赋值给result
+        if (!result["properties"]) {
+          continue;
+        }
         if (isObject(element)) {
           // 创建当前属性的基本信息
           result["properties"][key] = this._value2object(element, $id, key)
           if (isArray(element)) {
             // 针对空数组和有值的数组做不同处理
             if (element.length > 0) {
-              // 如果是数组，那么就取第一项
-              let elementItem = element[0];
-              // 创建items对象的基本信息
-              result["properties"][key]["items"] = this._value2object(elementItem, `${$id}/items`, key + 'items');
-              // 判断第一项是否是对象,且对象属性不为空
-              if (isObject(elementItem) && !isEmpty(elementItem)) {
-                // 新增的properties才合并进来
-                result["properties"][key]["items"] = Object.assign(result["properties"][key]["items"], this._json2schema(elementItem, `${$id}/items`));
+              // 是数组
+              let itemArr = [];
+              for (let index = 0; index < element.length; index++) {
+                let elementItem = element[index];
+                // 创建items对象的基本信息
+                if (isArray(elementItem)) {
+                  let innerItemArr = this._deepTraversal(elementItem, `${$id}/items`, key + 'items');
+                  // let item = this._value2object(element, `${$id}/items`, key + 'items');
+                  // item["items"] = innerItemArr;
+                  itemArr.push(innerItemArr);
+
+                } else if (isObject(elementItem) && !isEmpty(elementItem)) {
+                  let item = this._value2object(elementItem, `${$id}/items`, key + 'items');
+                  // 判断第一项是否是对象,且对象属性不为空
+                  // 新增的properties才合并进来
+                  item = Object.assign(item, this._json2schema(elementItem, `${$id}/items`));
+                  itemArr.push(item);
+                }
               }
+              result["properties"][key]["items"] = itemArr;
             }
           } else {
             // 不是数组，递归遍历获取，然后合并对象属性
@@ -127,11 +146,58 @@ class Convert {
           }
         } else {
           // 一般属性直接获取基本信息
-          result["properties"][key] = this._value2object(element, $id, key);
+          if (result["properties"]) {
+            result["properties"][key] = this._value2object(element, $id, key);
+          }
         }
       }
     }
     return result;
+  }
+
+  /**
+   * 深度遍历array中的元素
+   * @private
+   */
+  _deepTraversal(element, name = "", key) {
+    // 处理当前路径$id
+    if (name === "" || name == undefined) {
+      name = "#"
+    }
+    let $id = `${name}/`;
+
+    let innerItemArr = [];
+
+    let innerIsObject = false;
+    let innerIsArray = false;
+    element.forEach(f => {
+      if (isArray(f)) {
+        innerIsArray = true;
+        innerIsObject = true;
+      } else if (isObject(f)) {
+        innerIsObject = true;
+      }
+    });
+    if (innerIsArray) {
+      element.forEach(f => {
+        let innerArr = this._deepTraversal(f);
+        innerItemArr.push(innerArr);
+      });
+    } else if (innerIsObject) {
+      let item = this._value2object(element, `${$id}/items`, key + 'items');
+      // 判断第一项是否是对象,且对象属性不为空
+      // 新增的properties才合并进来
+      item = Object.assign(item, this._json2schema(element, `${$id}/items`));
+      innerItemArr.push(item);
+    } else {
+      element.forEach(f => {
+        let innerItem = this._value2object(f, `${$id}/items`, key + 'items');
+        innerItemArr.push(innerItem);
+      });
+    }
+    let item = this._value2object(element, `${$id}/items`, key + 'items');
+    item["items"] = innerItemArr;
+    return item;
   }
 
   /**
@@ -155,15 +221,14 @@ class Convert {
       objectTemplate["title"] = `The Root Schema`;
       objectTemplate["mock"] = undefined;
     }
-
-    if (isInteger(value)) {
+    if (isBoolean(value)) {
+      objectTemplate.type = "boolean";
+    } else if (isInteger(value)) {
       objectTemplate.type = "integer";
     } else if (isNumber(value)) {
       objectTemplate.type = "number";
     } else if (isString(value)) {
       objectTemplate.type = "string";
-    } else if (isBoolean(value)) {
-      objectTemplate.type = "boolean";
     } else if (isNull(value)) {
       objectTemplate.type = "null";
     } else if (isArray(value)) {

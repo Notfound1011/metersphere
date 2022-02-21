@@ -27,8 +27,6 @@ public class ApiScenario implements Serializable {
 
     private Integer stepTotal;
 
-    private String followPeople;
-
     private String schedule;
 
     private Long createTime;
@@ -50,6 +48,18 @@ public class ApiScenario implements Serializable {
     private String createUser;
 
     private Integer version;
+
+    private Long deleteTime;
+
+    private String deleteUserId;
+
+    private Integer executeTimes;
+
+    private Long order;
+
+    private String environmentType;
+
+    private String environmentGroupId;
 
     private static final long serialVersionUID = 1L;
 }

@@ -1,10 +1,7 @@
 package io.metersphere.controller;
 
-import io.metersphere.commons.constants.RoleConstants;
 import io.metersphere.controller.request.MdUploadRequest;
 import io.metersphere.service.ResourceService;
-import org.apache.shiro.authz.annotation.Logical;
-import org.apache.shiro.authz.annotation.RequiresRoles;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,8 +20,18 @@ public class ResourceController {
         resourceService.mdUpload(request, file);
     }
 
+    @GetMapping(value = "/md/get")
+    public ResponseEntity<FileSystemResource> getFile(@RequestParam ("fileName") String fileName) {
+        return resourceService.getMdImage(fileName);
+    }
+
+    /**
+     * 兼容旧版本
+     * @param fileName
+     * @return
+     */
     @GetMapping(value = "/md/get/{fileName}")
-    public ResponseEntity<FileSystemResource> getFile(@PathVariable("fileName") String fileName) {
+    public ResponseEntity<FileSystemResource> getFileCompatible(@PathVariable("fileName") String fileName) {
         return resourceService.getMdImage(fileName);
     }
 

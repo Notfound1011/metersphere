@@ -9,28 +9,32 @@
       :delete-permission="['PROJECT_TRACK_CASE:READ+DELETE']"
       :add-permission="['PROJECT_TRACK_CASE:READ+CREATE']"
       :update-permission="['PROJECT_TRACK_CASE:READ+EDIT']"
+      :default-label="'未规划用例'"
       @add="add"
       @edit="edit"
       @drag="drag"
       @remove="remove"
       @nodeSelectEvent="nodeChange"
       @refresh="list"
+      @filter="filter"
       ref="nodeTree">
       <template v-slot:header>
         <ms-search-bar
           :show-operator="showOperator"
           :condition="condition"
           :commands="operators"/>
+          <module-trash-button :condition="condition" :total="total" :exe="enableTrash"/>
+        <module-public-button :condition="condition" :public-total="publicTotal" :exe="enablePublic"/>
       </template>
     </ms-node-tree>
-    <test-case-import @refreshAll="refreshAll" ref="testCaseImport"></test-case-import>
+    <test-case-import @refreshAll="refreshAll" ref="testCaseImport"/>
+    <test-case-export @refreshAll="refreshAll" @exportTestCase="exportTestCase" ref="testCaseExport"/>
     <test-case-create
       :tree-nodes="treeNodes"
       @saveAsEdit="saveAsEdit"
       @createCase="createCase"
       @refresh="refresh"
-      ref="testCaseCreate"
-    ></test-case-create>
+      ref="testCaseCreate"/>
   </div>
 
 </template>
@@ -40,14 +44,27 @@ import NodeEdit from "./NodeEdit";
 import MsNodeTree from "./NodeTree";
 import TestCaseCreate from "@/business/components/track/case/components/TestCaseCreate";
 import TestCaseImport from "@/business/components/track/case/components/TestCaseImport";
+import TestCaseExport from "@/business/components/track/case/components/TestCaseExport";
 import MsSearchBar from "@/business/components/common/components/search/MsSearchBar";
 import {buildTree} from "../../api/definition/model/NodeTree";
 import {buildNodePath} from "@/business/components/api/definition/model/NodeTree";
 import {getCurrentProjectID} from "@/common/js/utils";
+import ModuleTrashButton from "@/business/components/api/definition/components/module/ModuleTrashButton";
+import ModulePublicButton from "@/business/components/api/definition/components/module/ModulePublicButton";
+import {getTestCaseNodes} from "@/network/testCase";
 
 export default {
   name: "TestCaseNodeTree",
-  components: {MsSearchBar, TestCaseImport, TestCaseCreate, MsNodeTree, NodeEdit},
+  components: {
+    MsSearchBar,
+    TestCaseImport,
+    TestCaseExport,
+    TestCaseCreate,
+    MsNodeTree,
+    NodeEdit,
+    ModuleTrashButton,
+    ModulePublicButton
+  },
   data() {
     return {
       defaultProps: {
@@ -58,7 +75,8 @@ export default {
       treeNodes: [],
       condition: {
         filterText: "",
-        trashEnable: false
+        trashEnable: false,
+        publicEnable: false
       },
       operators: [
         {
@@ -73,9 +91,7 @@ export default {
         },
         {
           label: this.$t('api_test.export_config'),
-          callback: () => {
-            this.$emit('exportTestCase');
-          },
+          callback: this.handleExport,
           permissions: ['PROJECT_TRACK_CASE:READ+EXPORT']
         }
       ]
@@ -87,13 +103,15 @@ export default {
       default: "view"
     },
     showOperator: Boolean,
+    total: Number,
+    publicTotal: Number,
   },
   watch: {
     treeNodes() {
       this.$emit('setTreeNodes', this.treeNodes);
     },
-    'condition.filterText'(val) {
-      this.$refs.nodeTree.filter(val);
+    'condition.filterText'() {
+      this.filter();
     },
   },
   mounted() {
@@ -112,6 +130,9 @@ export default {
       }
      this.$refs.testCaseCreate.open(this.currentModule)
     },
+    filter() {
+      this.$refs.nodeTree.filter(this.condition.filterText);
+    },
     saveAsEdit(data) {
       this.$emit('saveAsEdit', data);
     },
@@ -124,16 +145,26 @@ export default {
     refreshAll() {
       this.$emit('refreshAll');
     },
+    enableTrash() {
+      this.condition.trashEnable = true;
+      this.$emit('enableTrash', this.condition.trashEnable);
+      this.$emit('toPublic', 'trash');
+    },
+    enablePublic() {
+      this.condition.publicEnable = true;
+      this.$emit('enablePublic', this.condition.publicEnable);
+      this.$emit('toPublic', 'public');
+    },
     list() {
       if (this.projectId) {
-        this.result = this.$get("/case/node/list/" + this.projectId, response => {
-          this.treeNodes = response.data;
+        this.result = getTestCaseNodes(this.projectId, data => {
+          this.treeNodes = data;
           this.treeNodes.forEach(node => {
             buildTree(node, {path: ''});
           });
           this.setModuleOptions();
           if (this.$refs.nodeTree) {
-            this.$refs.nodeTree.filter();
+            this.$refs.nodeTree.filter(this.condition.filterText);
           }
         });
       }
@@ -169,6 +200,16 @@ export default {
         return;
       }
       this.$refs.testCaseImport.open();
+    },
+    handleExport() {
+      if (!this.projectId) {
+        this.$warning(this.$t('commons.check_project_tip'));
+        return;
+      }
+      this.$refs.testCaseExport.open();
+    },
+    exportTestCase(type){
+      this.$emit('exportTestCase',type);
     },
     remove(nodeIds) {
       this.$post("/case/node/delete", nodeIds, () => {

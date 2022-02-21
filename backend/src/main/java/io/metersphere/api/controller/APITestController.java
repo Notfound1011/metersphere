@@ -1,6 +1,5 @@
 package io.metersphere.api.controller;
 
-import com.alibaba.fastjson.JSONObject;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import io.metersphere.api.dto.*;
@@ -11,28 +10,31 @@ import io.metersphere.api.dto.datacount.response.ApiDataCountDTO;
 import io.metersphere.api.dto.datacount.response.ExecutedCaseInfoDTO;
 import io.metersphere.api.dto.datacount.response.TaskInfoResult;
 import io.metersphere.api.dto.definition.RunDefinitionRequest;
-import io.metersphere.api.dto.definition.request.ParameterConfig;
-import io.metersphere.api.dto.scenario.environment.EnvironmentConfig;
 import io.metersphere.api.dto.scenario.request.dubbo.RegistryCenter;
 import io.metersphere.api.service.*;
-import io.metersphere.base.domain.*;
-import io.metersphere.commons.utils.CronUtils;
-import io.metersphere.commons.utils.PageUtils;
-import io.metersphere.commons.utils.Pager;
-import io.metersphere.commons.utils.SessionUtils;
+import io.metersphere.base.domain.ApiDefinition;
+import io.metersphere.base.domain.ApiScenarioWithBLOBs;
+import io.metersphere.base.domain.ApiTest;
+import io.metersphere.base.domain.Schedule;
+import io.metersphere.commons.constants.NoticeConstants;
+import io.metersphere.commons.utils.*;
 import io.metersphere.controller.request.BaseQueryRequest;
 import io.metersphere.controller.request.QueryScheduleRequest;
 import io.metersphere.controller.request.ScheduleRequest;
 import io.metersphere.dto.ScheduleDao;
+import io.metersphere.notice.annotation.SendNotice;
 import io.metersphere.service.CheckPermissionService;
 import io.metersphere.service.ScheduleService;
-import org.apache.jorphan.collections.HashTree;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import java.text.DecimalFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
 
 import static io.metersphere.commons.utils.JsonPathUtils.getListJson;
 
@@ -41,6 +43,7 @@ import static io.metersphere.commons.utils.JsonPathUtils.getListJson;
 @RequestMapping(value = "/api")
 public class APITestController {
     @Resource
+    @Lazy
     private APITestService apiTestService;
     @Resource
     private ApiDefinitionService apiDefinitionService;
@@ -58,8 +61,6 @@ public class APITestController {
     private ScheduleService scheduleService;
     @Resource
     private HistoricalDataUpgradeService historicalDataUpgradeService;
-    @Resource
-    private ApiTestEnvironmentService environmentService;
 
     @GetMapping("recent/{count}")
     public List<APITestResult> recentTest(@PathVariable int count) {
@@ -252,7 +253,7 @@ public class APITestController {
         apiCountResult.setThisWeekAddedCount(dateCountByCreateInThisWeek);
         long executedInThisWeekCountNumber = apiScenarioReportService.countByProjectIdAndCreateInThisWeek(projectId);
         apiCountResult.setThisWeekExecutedCount(executedInThisWeekCountNumber);
-        long executedCountNumber = apiScenarioReportService.countByProjectID(projectId);
+        long executedCountNumber = apiAutomationService.countExecuteTimesByProjectID(projectId);
         apiCountResult.setExecutedCount(executedCountNumber);
 
         //未执行、未通过、已通过
@@ -266,6 +267,27 @@ public class APITestController {
             apiCountResult.setPassRage(df.format(coverageRageNumber) + "%");
         }
         return apiCountResult;
+    }
+
+    @GetMapping("/countApiCoverage/{projectId}")
+    public String countApiCoverage(@PathVariable String projectId) {
+        String returnStr = "100%";
+        /**
+         * 接口覆盖率
+         * 接口有案例/被场景引用 ： 所有的接口
+         */
+        long effectiveApiCount = apiDefinitionService.countEffectiveByProjectId(projectId);
+        long sourceIdCount = apiDefinitionService.countQuotedApiByProjectId(projectId);
+        try {
+            if(sourceIdCount != 0){
+                float coverageRageNumber = (float) sourceIdCount * 100 / effectiveApiCount;
+                DecimalFormat df = new DecimalFormat("0.0");
+                returnStr = df.format(coverageRageNumber) + "%";
+            }
+        }catch (Exception e){
+            LogUtil.error(e);
+        }
+        return  returnStr;
     }
 
     @GetMapping("/countInterfaceCoverage/{projectId}")
@@ -283,7 +305,7 @@ public class APITestController {
             DecimalFormat df = new DecimalFormat("0.0");
             returnStr = df.format(intetfaceCoverageRageNumber) + "%";
         }catch (Exception e){
-            e.printStackTrace();
+            LogUtil.error(e);
         }
         return  returnStr;
     }
@@ -318,7 +340,7 @@ public class APITestController {
     @GetMapping("/faliureCaseAboutTestPlan/{projectId}/{limitNumber}")
     public List<ExecutedCaseInfoDTO> faliureCaseAboutTestPlan(@PathVariable String projectId, @PathVariable int limitNumber) {
 
-        List<ExecutedCaseInfoResult> selectDataList = apiDefinitionExecResultService.findFaliureCaseInfoByProjectIDAndLimitNumberInSevenDays(projectId, limitNumber);
+        List<ExecutedCaseInfoResult> selectDataList = apiDefinitionExecResultService.findFailureCaseInfoByProjectIDAndLimitNumberInSevenDays(projectId, limitNumber);
 
         List<ExecutedCaseInfoDTO> returnList = new ArrayList<>(limitNumber);
 
@@ -334,6 +356,7 @@ public class APITestController {
                 dataDTO.setTestPlan(selectData.getTestPlan());
                 dataDTO.setFailureTimes(selectData.getFailureTimes());
                 dataDTO.setCaseType(selectData.getCaseType());
+                dataDTO.setId(selectData.getId());
                 dataDTO.setTestPlanDTOList(selectData.getTestPlanDTOList());
             } else {
                 dataDTO.setCaseName("");
@@ -360,10 +383,20 @@ public class APITestController {
     }
 
     @PostMapping(value = "/schedule/updateEnableByPrimyKey")
-    public void updateScheduleEnableByPrimyKey(@RequestBody ScheduleInfoRequest request) {
+    public Schedule updateScheduleEnableByPrimyKey(@RequestBody ScheduleInfoRequest request) {
         Schedule schedule = scheduleService.getSchedule(request.getTaskID());
         schedule.setEnable(request.isEnable());
         apiAutomationService.updateSchedule(schedule);
+        return schedule;
+    }
+
+    @PostMapping(value = "/schedule/updateEnableByPrimyKey/disable")
+    @SendNotice(taskType = NoticeConstants.TaskType.API_HOME_TASK, event = NoticeConstants.Event.CLOSE_SCHEDULE, mailTemplate = "api/ScheduleClose", subject = "接口测试通知")
+    public Schedule disableSchedule(@RequestBody ScheduleInfoRequest request) {
+        Schedule schedule = scheduleService.getSchedule(request.getTaskID());
+        schedule.setEnable(false);
+        apiAutomationService.updateSchedule(schedule);
+        return schedule;
     }
 
     @PostMapping(value = "/historicalDataUpgrade")
@@ -373,27 +406,7 @@ public class APITestController {
 
     @PostMapping(value = "/genPerformanceTestXml", consumes = {"multipart/form-data"})
     public JmxInfoDTO genPerformanceTest(@RequestPart("request") RunDefinitionRequest runRequest, @RequestPart(value = "files", required = false) List<MultipartFile> bodyFiles) throws Exception {
-
-        ParameterConfig config = new ParameterConfig();
-        config.setProjectId(runRequest.getProjectId());
-
-        Map<String, EnvironmentConfig> envConfig = new HashMap<>();
-        Map<String, String> map = runRequest.getEnvironmentMap();
-        if (map != null && map.size() > 0) {
-            ApiTestEnvironmentWithBLOBs environment = environmentService.get(map.get(runRequest.getProjectId()));
-            EnvironmentConfig env = JSONObject.parseObject(environment.getConfig(), EnvironmentConfig.class);
-            envConfig.put(runRequest.getProjectId(), env);
-            config.setConfig(envConfig);
-        }
-        HashTree hashTree = runRequest.getTestElement().generateHashTree(config);
-        String jmxString = runRequest.getTestElement().getJmx(hashTree);
-
-        String testName = runRequest.getName();
-
-        //将jmx处理封装为通用方法
-        JmxInfoDTO dto = apiTestService.updateJmxString(jmxString, testName, false);
-        dto.setName(runRequest.getName() + ".jmx");
-        return dto;
+        return apiTestService.getJmxInfoDTO(runRequest, bodyFiles);
     }
 
 }

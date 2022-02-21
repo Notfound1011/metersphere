@@ -25,7 +25,7 @@
         <el-col :span="12">
           <el-form-item :label="$t('commons.status')" prop="status">
             <el-select class="ms-http-input" size="small" v-model="basicForm.status" style="width: 100%">
-              <el-option v-for="item in options" :key="item.id" :label="item.label" :value="item.id"/>
+              <el-option v-for="item in options" :key="item.id" :label="$t(item.label)" :value="item.id"/>
             </el-select>
           </el-form-item>
         </el-col>
@@ -37,7 +37,7 @@
               <el-option
                 v-for="item in maintainerOptions"
                 :key="item.id"
-                :label="item.id + ' (' + item.name + ')'"
+                :label="item.name + ' (' + item.id + ')'"
                 :value="item.id">
               </el-option>
             </el-select>
@@ -47,18 +47,18 @@
       </el-row>
 
       <el-row>
-        <el-col :span="12">
+        <el-col :span="8">
           <el-form-item :label="$t('commons.tag')" prop="tag">
             <ms-input-tag :currentScenario="basicForm" ref="tag"/>
           </el-form-item>
         </el-col>
-        <el-col :span="12">
+        <el-col :span="8">
           <el-form-item :label="$t('commons.description')" prop="description">
             <el-input class="ms-http-textarea"
                       v-model="basicForm.description"
                       type="textarea"
-                      :autosize="{ minRows: 2, maxRows: 10}"
-                      :rows="2" size="small"/>
+                      :autosize="{ minRows: 1, maxRows: 10}"
+                      :rows="1" size="small"/>
           </el-form-item>
         </el-col>
       </el-row>
@@ -91,6 +91,9 @@
       if (this.basicForm.protocol == null) {
         this.basicForm.protocol = "TCP";
       }
+      this.$get('/api/definition/follow/' + this.basisData.id, response => {
+        this.basicForm.follows = response.data;
+      });
     },
     data() {
       return {
@@ -117,7 +120,57 @@
 
       }
     },
+    watch: {
+      'basicForm.name': {
+        handler(v, v1) {
+          if (v && v1 && v !== v1) {
+            this.apiMapStatus();
+          }
+        }
+      },
+      'basicForm.userId': {
+        handler(v, v1) {
+          if (v && v1 && v !== v1) {
+            this.apiMapStatus();
+          }
+        }
+      },
+      'basicForm.moduleId': {
+        handler(v, v1) {
+          if (v && v1 && v !== v1) {
+            this.apiMapStatus();
+          }
+        }
+      },
+      'basicForm.status': {
+        handler(v, v1) {
+          if (v && v1 && v !== v1) {
+            this.apiMapStatus();
+          }
+        }
+      },
+      'basicForm.follows': {
+        handler(v, v1) {
+          if (v && v1 && JSON.stringify(v) !== JSON.stringify(v1)) {
+            this.apiMapStatus();
+          }
+        }
+      },
+      'basicForm.description': {
+        handler(v, v1) {
+          if (v && v1 && v !== v1) {
+            this.apiMapStatus();
+          }
+        }
+      },
+    },
     methods: {
+      apiMapStatus() {
+        this.$store.state.apiStatus.set("fromChange", true);
+        if (this.httpForm.id) {
+          this.$store.state.apiMap.set(this.httpForm.id, this.$store.state.apiStatus);
+        }
+      },
       getMaintainerOptions() {
         this.$post('/user/project/member/tester/list', {projectId: getCurrentProjectID()}, response => {
           this.maintainerOptions = response.data;
@@ -151,4 +204,7 @@
 </script>
 
 <style scoped>
+.ms-http-textarea {
+  width: 100%;
+}
 </style>

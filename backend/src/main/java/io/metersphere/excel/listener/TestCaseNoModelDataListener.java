@@ -3,17 +3,13 @@ package io.metersphere.excel.listener;
 import com.alibaba.excel.annotation.ExcelProperty;
 import com.alibaba.excel.context.AnalysisContext;
 import com.alibaba.excel.event.AnalysisEventListener;
-import com.alibaba.excel.exception.ExcelAnalysisException;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import io.metersphere.base.domain.TestCase;
 import io.metersphere.base.domain.TestCaseWithBLOBs;
 import io.metersphere.commons.constants.TestCaseConstants;
 import io.metersphere.commons.exception.MSException;
-import io.metersphere.commons.utils.BeanUtils;
-import io.metersphere.commons.utils.CommonBeanFactory;
-import io.metersphere.commons.utils.ListUtils;
-import io.metersphere.commons.utils.LogUtil;
+import io.metersphere.commons.utils.*;
 import io.metersphere.dto.CustomFieldDao;
 import io.metersphere.excel.annotation.NotRequired;
 import io.metersphere.excel.domain.ExcelErrData;
@@ -27,6 +23,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.lang.reflect.Field;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -116,21 +113,21 @@ public class TestCaseNoModelDataListener extends AnalysisEventListener<Map<Integ
     }
 
     @Override
-    public void invokeHeadMap(Map<Integer, String> headMap, AnalysisContext context) {
+    public void invokeHeadMap(Map <Integer, String> headMap, AnalysisContext context) {
         this.headMap = headMap;
-        if (excelDataClass != null) {
+//        if (excelDataClass != null) {
             try {
-                Set<String> fieldNameSet = this.genExcelHeadToFieldNameDicAndGetNotRequiredFields();;
-                Collection<String> values = headMap.values();
-                for (String key : fieldNameSet) {
-                    if (!values.contains(key)) {
-                        throw new ExcelAnalysisException(Translator.get("missing_header_information") + ":" + key);
-                    }
-                }
+                this.genExcelHeadToFieldNameDicAndGetNotRequiredFields();
+//                Collection<String> values = headMap.values();
+//                for (String key : fieldNameSet) {
+//                    if (!values.contains(key)) {
+//                        throw new ExcelAnalysisException(Translator.get("missing_header_information") + ":" + key);
+//                    }
+//                }
             } catch (NoSuchFieldException e) {
-                e.printStackTrace();
+                LogUtil.error(e);
             }
-        }
+//        }
         this.formatHeadMap();
         super.invokeHeadMap(headMap, context);
     }
@@ -231,8 +228,12 @@ public class TestCaseNoModelDataListener extends AnalysisEventListener<Map<Integ
                 }else if (StringUtils.equals(customName, "maintainer")) {
                     value = data.getMaintainer();
                     //校验维护人
-                    if (!userIds.contains(data.getMaintainer())) {
-                        stringBuilder.append(Translator.get("user_not_exists") + "：" + data.getMaintainer() + "; ");
+                    if (StringUtils.isBlank(data.getMaintainer())) {
+                        data.setMaintainer(SessionUtils.getUserId());
+                    } else {
+                        if (!userIds.contains(data.getMaintainer())) {
+                            stringBuilder.append(Translator.get("user_not_exists") + "：" + data.getMaintainer() + "; ");
+                        }
                     }
                     continue;
                 } else {
@@ -404,17 +405,20 @@ public class TestCaseNoModelDataListener extends AnalysisEventListener<Map<Integ
 
         JSONArray customArr = new JSONArray();
         String caseStatusValue = "";
-        if (StringUtils.equalsAny(data.getStatus(), "Underway", "进行中", "進行中")) {
+        if (StringUtils.equalsAny(data.getStatus(), "Underway","underway", "进行中", "進行中")) {
             caseStatusValue = "Underway";
-        } else if (StringUtils.equalsAny(data.getStatus(), "Prepare", "未开始", "未開始")) {
+        } else if (StringUtils.equalsAny(data.getStatus(), "Prepare","prepare", "未开始", "未開始")) {
             caseStatusValue = "Prepare";
-        } else if (StringUtils.equalsAny(data.getStatus(), "Completed", "已完成", "已完成")) {
+        } else if (StringUtils.equalsAny(data.getStatus(), "Completed", "completed","已完成", "已完成")) {
             caseStatusValue = "Completed";
         }
         data.setStatus(caseStatusValue);
 
         String customFieldsJson = this.getCustomFieldsJson(data);
         testCase.setCustomFields(customFieldsJson);
+        if (StringUtils.isNotBlank(data.getMaintainer())) {
+            testCase.setMaintainer(data.getMaintainer());
+        }
 
         if (StringUtils.isNotBlank(data.getStepModel())
                 && StringUtils.equals(data.getStepModel(), TestCaseConstants.StepModel.TEXT.name())) {
@@ -454,17 +458,20 @@ public class TestCaseNoModelDataListener extends AnalysisEventListener<Map<Integ
 
         JSONArray customArr = new JSONArray();
         String caseStatusValue = "";
-        if (StringUtils.equalsAny(data.getStatus(), "Underway", "进行中", "進行中")) {
+        if (StringUtils.equalsAny(data.getStatus(), "Underway","underway" ,"进行中", "進行中")) {
             caseStatusValue = "Underway";
-        } else if (StringUtils.equalsAny(data.getStatus(), "Prepare", "未开始", "未開始")) {
+        } else if (StringUtils.equalsAny(data.getStatus(), "Prepare","prepare" ,"未开始", "未開始")) {
             caseStatusValue = "Prepare";
-        } else if (StringUtils.equalsAny(data.getStatus(), "Completed", "已完成", "已完成")) {
+        } else if (StringUtils.equalsAny(data.getStatus(), "Completed", "completed","已完成", "已完成")) {
             caseStatusValue = "Completed";
         }
         data.setStatus(caseStatusValue);
 
         String customFieldsJson = this.getCustomFieldsJson(data);
         testCase.setCustomFields(customFieldsJson);
+        if (StringUtils.isNotBlank(data.getMaintainer())) {
+            testCase.setMaintainer(data.getMaintainer());
+        }
 
         //将标签设置为前端可解析的格式
         String modifiedTags = modifyTagPattern(data);
@@ -486,8 +493,8 @@ public class TestCaseNoModelDataListener extends AnalysisEventListener<Map<Integ
         String tags = data.getTags();
         try {
             if (StringUtils.isNotBlank(tags)) {
-                JSONArray.parse(tags);
-                return tags;
+                JSONArray array = JSONArray.parseArray(tags);
+                return array.toJSONString();
             }
             return "[]";
         } catch (Exception e) {
@@ -512,7 +519,7 @@ public class TestCaseNoModelDataListener extends AnalysisEventListener<Map<Integ
         List<String> stepResList = new ArrayList<>();
         ListUtils<String> listUtils = new ListUtils<String>();
         if (data.getStepDesc() != null) {
-            String desc = data.getStepDesc().replaceAll("\\n([1-9]\\.)", "\r\n$1");
+            String desc = data.getStepDesc().replaceAll("\\n([0-9]+\\.)", "\r\n$1");
             String[] stepDesc = desc.split("\r\n");
             StringBuffer stepBuffer = new StringBuffer();
             int lastStepIndex = 1;
@@ -537,7 +544,7 @@ public class TestCaseNoModelDataListener extends AnalysisEventListener<Map<Integ
         }
 
         if (data.getStepResult() != null) {
-            String stepResult = data.getStepResult().replaceAll("\\n([1-9]\\.)", "\r\n$1");
+            String stepResult = data.getStepResult().replaceAll("\\n([0-9]+\\.)", "\r\n$1");
             String[] stepRes = stepResult.split("\r\n");
             StringBuffer stepBuffer = new StringBuffer();
             int lastStepIndex = 1;
@@ -738,7 +745,7 @@ public class TestCaseNoModelDataListener extends AnalysisEventListener<Map<Integ
                 }
                 excelHeadToFieldNameDic.put(value.toString(),field.getName());
                 // 检查是否必有的头部信息
-                if (field.getAnnotation(NotRequired.class) == null) {
+                if (field.getAnnotation(NotRequired.class) != null) {
                     result.add(value.toString());
                 }
             }

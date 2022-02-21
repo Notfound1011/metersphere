@@ -8,6 +8,8 @@ import io.metersphere.base.mapper.ext.ExtTestReviewCaseMapper;
 import io.metersphere.commons.exception.MSException;
 import io.metersphere.commons.utils.ServiceUtils;
 import io.metersphere.commons.utils.SessionUtils;
+import io.metersphere.controller.request.OrderRequest;
+import io.metersphere.controller.request.ResetOrderRequest;
 import io.metersphere.controller.request.member.QueryMemberRequest;
 import io.metersphere.log.vo.DetailColumn;
 import io.metersphere.log.vo.OperatingLogDetails;
@@ -59,22 +61,23 @@ public class TestReviewTestCaseService {
     ExtTestPlanTestCaseMapper extTestPlanTestCaseMapper;
 
     public List<TestReviewCaseDTO> list(QueryCaseReviewRequest request) {
-        request.setOrders(ServiceUtils.getDefaultOrder(request.getOrders()));
+        request.setOrders(ServiceUtils.getDefaultSortOrder(request.getOrders()));
         List<TestReviewCaseDTO> list = extTestReviewCaseMapper.list(request);
         QueryMemberRequest queryMemberRequest = new QueryMemberRequest();
-        queryMemberRequest.setWorkspaceId(SessionUtils.getCurrentWorkspaceId());
+        queryMemberRequest.setWorkspaceId(SessionUtils.getCurrentProjectId());
         Map<String, String> userMap = userService.getMemberList(queryMemberRequest)
                 .stream().collect(Collectors.toMap(User::getId, User::getName));
         list.forEach(item -> {
             String reviewId = item.getReviewId();
             List<String> userIds = getReviewUserIds(reviewId);
             item.setReviewerName(getReviewName(userIds, userMap));
+            item.setMaintainerName(userMap.get(item.getMaintainer()));
         });
         return list;
     }
 
     public List<String> selectIds(QueryCaseReviewRequest request) {
-        request.setOrders(ServiceUtils.getDefaultOrder(request.getOrders()));
+        request.setOrders(ServiceUtils.getDefaultSortOrder(request.getOrders()));
         List<String> list = extTestReviewCaseMapper.selectIds(request);
         return list;
     }
@@ -149,7 +152,7 @@ public class TestReviewTestCaseService {
     }
 
     public List<TestReviewCaseDTO> getTestCaseReviewDTOList(QueryCaseReviewRequest request) {
-        request.setOrders(ServiceUtils.getDefaultOrder(request.getOrders()));
+        request.setOrders(ServiceUtils.getDefaultSortOrder(request.getOrders()));
         return extTestReviewCaseMapper.list(request);
     }
 
@@ -229,7 +232,8 @@ public class TestReviewTestCaseService {
         }
     }
 
-    public void editTestCaseForMinder(List<TestCaseReviewTestCase> testCaseReviewTestCases) {
+    public void editTestCaseForMinder(String reviewId, List<TestCaseReviewTestCase> testCaseReviewTestCases) {
+        checkReviewCase(reviewId);
         if (!CollectionUtils.isEmpty(testCaseReviewTestCases)) {
             List<TestCaseWithBLOBs> testCaseList = new ArrayList<>();
             testCaseReviewTestCases.forEach((item) -> {
@@ -342,6 +346,31 @@ public class TestReviewTestCaseService {
     }
 
     public List<TestReviewCaseDTO> listForMinder(QueryCaseReviewRequest request) {
+        List<OrderRequest> orders = ServiceUtils.getDefaultSortOrder("tcrtc", request.getOrders());
+        orders.forEach(order -> {
+            if (order.getName().equals("update_time")) {
+                order.setPrefix("tcrtc");
+            }
+        });
+        request.setOrders(orders);
         return extTestReviewCaseMapper.listForMinder(request);
+    }
+
+    public void initOrderField() {
+        ServiceUtils.initOrderField(TestCaseReviewTestCase.class, TestCaseReviewTestCaseMapper.class,
+                extTestReviewCaseMapper::selectReviewIds,
+                extTestReviewCaseMapper::getIdsOrderByUpdateTime);
+    }
+
+    /**
+     * 用例自定义排序
+     * @param request
+     */
+    public void updateOrder(ResetOrderRequest request) {
+        ServiceUtils.updateOrderField(request, TestCaseReviewTestCase.class,
+                testCaseReviewTestCaseMapper::selectByPrimaryKey,
+                extTestReviewCaseMapper::getPreOrder,
+                extTestReviewCaseMapper::getLastOrder,
+                testCaseReviewTestCaseMapper::updateByPrimaryKeySelective);
     }
 }

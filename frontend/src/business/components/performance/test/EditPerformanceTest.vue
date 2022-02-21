@@ -3,16 +3,24 @@
     <ms-main-container>
       <el-card v-loading="result.loading">
         <el-row>
-          <el-col :span="10">
-            <el-input :disabled="isReadOnly" :placeholder="$t('load_test.input_name')" v-model="test.name"
-                      class="input-with-select"
-                      size="small"
-                      maxlength="30" show-word-limit
-            >
-              <template slot="prepend">{{ $t('load_test.name') }}</template>
-            </el-input>
+          <el-col :span="12">
+            <el-form :inline="true">
+              <el-form-item :label="$t('load_test.name') ">
+                <el-input :disabled="isReadOnly" :placeholder="$t('load_test.input_name')" v-model="test.name"
+                          class="input-with-select"
+                          size="small"
+                          maxlength="255" show-word-limit/>
+              </el-form-item>
+            </el-form>
           </el-col>
-          <el-col :span="12" :offset="2">
+
+          <el-col :span="12">
+            <el-tooltip :content="$t('commons.follow')" placement="bottom"  effect="dark" v-if="!showFollow">
+              <i class="el-icon-star-off" style="color: #783987; font-size: 25px; margin-right: 15px;cursor: pointer;position: relative; top: 5px; " @click="saveFollow" />
+            </el-tooltip>
+            <el-tooltip :content="$t('commons.cancel')" placement="bottom"  effect="dark" v-if="showFollow">
+              <i class="el-icon-star-on" style="color: #783987; font-size: 28px;  margin-right: 15px;cursor: pointer;position: relative; top: 5px; " @click="saveFollow" />
+            </el-tooltip>
             <el-link type="primary" size="small" style="margin-right: 20px" @click="openHis" v-if="test.id">
               {{ $t('operating_log.change_history') }}
             </el-link>
@@ -32,7 +40,7 @@
                                 v-permission="['PROJECT_PERFORMANCE_TEST:READ+SCHEDULE']"
                                 :check-open="checkScheduleEdit" :test-id="testId" :custom-validate="durationValidate"/>
 
-            <ms-tip-button v-if="test.scenarioId"
+            <ms-tip-button v-if="test.isNeedUpdate"
                            class="sync-btn" type="primary" size="small" circle
                            icon="el-icon-connection"
                            @click="syncScenario"
@@ -43,8 +51,7 @@
           </el-col>
         </el-row>
 
-
-        <el-tabs class="testplan-config" v-model="active" @tab-click="clickTab">
+        <el-tabs v-model="active" @tab-click="clickTab">
           <el-tab-pane :label="$t('load_test.basic_config')" class="advanced-config">
             <performance-basic-config :is-read-only="isReadOnly" :test="test" ref="basicConfig"
                                       @tgTypeChange="tgTypeChange"
@@ -73,7 +80,7 @@ import PerformancePressureConfig from "./components/PerformancePressureConfig";
 import PerformanceAdvancedConfig from "./components/PerformanceAdvancedConfig";
 import MsContainer from "../../common/components/MsContainer";
 import MsMainContainer from "../../common/components/MsMainContainer";
-import {getCurrentProjectID, getCurrentWorkspaceId, hasPermission} from "@/common/js/utils";
+import {getCurrentProjectID, getCurrentUser, getCurrentWorkspaceId, hasPermission} from "@/common/js/utils";
 import MsScheduleConfig from "../../common/components/MsScheduleConfig";
 import MsChangeHistory from "../../history/ChangeHistory";
 import MsTableOperatorButton from "@/business/components/common/components/MsTableOperatorButton";
@@ -98,7 +105,7 @@ export default {
   data() {
     return {
       result: {},
-      test: {schedule: {}},
+      test: {schedule: {}, follows: []},
       savePath: "/performance/save",
       editPath: "/performance/edit",
       runPath: "/performance/run",
@@ -106,6 +113,7 @@ export default {
       active: '0',
       testId: '',
       isReadOnly: false,
+      showFollow:false,
       tabs: [{
         title: this.$t('load_test.basic_config'),
         id: '0',
@@ -118,7 +126,8 @@ export default {
         title: this.$t('load_test.advanced_config'),
         id: '2',
         component: 'PerformanceAdvancedConfig'
-      }]
+      }],
+      maintainerOptions: [],
     };
   },
   watch: {
@@ -144,10 +153,19 @@ export default {
   },
   mounted() {
     this.importAPITest();
+    this.getMaintainerOptions();
   },
   methods: {
+    currentUser: () => {
+      return getCurrentUser();
+    },
+    getMaintainerOptions() {
+      this.$post('/user/project/member/tester/list', {projectId: getCurrentProjectID()}, response => {
+        this.maintainerOptions = response.data;
+      });
+    },
     openHis() {
-      this.$refs.changeHistory.open(this.test.id);
+      this.$refs.changeHistory.open(this.test.id,["性能测试" , "性能測試" , "Performance test"]);
     },
     importAPITest() {
       let apiTest = this.$store.state.test;
@@ -156,20 +174,33 @@ export default {
         if (apiTest.jmx.scenarioId) {
           this.$refs.basicConfig.importScenario(apiTest.jmx.scenarioId);
           this.$refs.basicConfig.handleUpload();
-          this.$set(this.test, "scenarioId", apiTest.jmx.scenarioId);
-          this.$set(this.test, "scenarioVersion", apiTest.jmx.version);
+          let relateApiList = [];
+          relateApiList.push({
+            apiId: apiTest.jmx.scenarioId,
+            apiVersion: apiTest.jmx.version,
+            type: 'SCENARIO'
+          });
+          this.$set(this.test, "apiList", relateApiList);
         }
         if (apiTest.jmx.caseId) {
           this.$refs.basicConfig.importCase(apiTest.jmx);
+          let relateApiList = [];
+          relateApiList.push({
+            apiId: apiTest.jmx.caseId,
+            apiVersion: apiTest.jmx.version,
+            envId: apiTest.jmx.envId,
+            type: 'API_CASE'
+          });
+          this.$set(this.test, "apiList", relateApiList);
         }
         if (JSON.stringify(apiTest.jmx.attachFiles) !== "{}") {
           let attachFiles = [];
           for (let fileID in apiTest.jmx.attachFiles) {
             attachFiles.push(fileID);
           }
-          if (attachFiles.length > 0) {
-            this.$refs.basicConfig.selectAttachFileById(attachFiles);
-          }
+          // if (attachFiles.length > 0) {
+          // this.$refs.basicConfig.selectAttachFileById(attachFiles);
+          // }
         }
         this.active = '1';
         this.$store.commit("clearTest");
@@ -177,11 +208,17 @@ export default {
         let scenarioJmxs = this.$store.state.scenarioJmxs;
         if (scenarioJmxs && scenarioJmxs.name) {
           this.$set(this.test, "name", scenarioJmxs.name);
+          let relateApiList = [];
           if (scenarioJmxs.jmxs) {
             scenarioJmxs.jmxs.forEach(item => {
               if (item.scenarioId) {
                 this.$refs.basicConfig.importScenario(item.scenarioId);
                 this.$refs.basicConfig.handleUpload();
+                relateApiList.push({
+                  apiId: item.scenarioId,
+                  apiVersion: item.version,
+                  type: 'SCENARIO'
+                });
               }
               if (item.caseId) {
                 this.$refs.basicConfig.importCase(item);
@@ -191,10 +228,11 @@ export default {
                 for (let fileID in item.attachFiles) {
                   attachFiles.push(fileID);
                 }
-                if (attachFiles.length > 0) {
-                  this.$refs.basicConfig.selectAttachFileById(attachFiles);
-                }
+                // if (attachFiles.length > 0) {
+                //   this.$refs.basicConfig.selectAttachFileById(attachFiles);
+                // }
               }
+              this.$set(this.test, "apiList", relateApiList);
             });
             this.active = '1';
             this.$store.commit("clearScenarioJmxs");
@@ -204,6 +242,8 @@ export default {
     },
     getTest(testId) {
       if (testId) {
+        this.test.follows = [];
+        this.showFollow = false;
         this.testId = testId;
         this.result = this.$get('/performance/get/' + testId, response => {
           if (response.data) {
@@ -211,6 +251,15 @@ export default {
             if (!this.test.schedule) {
               this.test.schedule = {};
             }
+            this.$get('/performance/test/follow/' + testId, response => {
+              this.$set(this.test, 'follows', response.data);
+              for (let i = 0; i < this.test.follows.length; i++) {
+                if(this.test.follows[i]===this.currentUser().id){
+                  this.showFollow = true;
+                  break;
+                }
+              }
+            });
           }
         });
       }
@@ -236,7 +285,7 @@ export default {
       let options = this.getSaveOption();
 
       this.result = this.$request(options, (response) => {
-        this.test.id = response.data;
+        this.test.id = response.data.id;
         this.$success(this.$t('commons.save_success'));
         this.result = this.$post(this.runPath, {id: this.test.id, triggerMode: 'MANUAL'}, (response) => {
           let reportId = response.data;
@@ -381,6 +430,9 @@ export default {
       threadGroups.forEach(tg => {
         tg.threadNumber = tg.threadNumber || 10;
         tg.duration = tg.duration || 10;
+        tg.durationHours = Math.floor(tg.duration / 3600);
+        tg.durationMinutes = Math.floor((tg.duration / 60 % 60));
+        tg.durationSeconds = Math.floor((tg.duration % 60));
         tg.rampUpTime = tg.rampUpTime || 5;
         tg.step = tg.step || 5;
         tg.rpsLimit = tg.rpsLimit || 10;
@@ -403,6 +455,7 @@ export default {
       this.$refs.pressureConfig.threadGroups = threadGroups;
       this.$refs.advancedConfig.csvFiles = csvFiles;
 
+      this.$refs.pressureConfig.resourcePoolChange();
       handler.calculateTotalChart();
     },
     tgTypeChange(threadGroup) {
@@ -413,6 +466,33 @@ export default {
       if (tab.index === '1') {
         this.$refs.pressureConfig.calculateTotalChart();
       }
+    },
+    saveFollow(){
+      if(this.showFollow){
+        this.showFollow = false;
+        for (let i = 0; i < this.test.follows.length; i++) {
+          if(this.test.follows[i]===this.currentUser().id){
+            this.test.follows.splice(i,1)
+            break;
+          }
+        }
+        if(this.testId){
+          this.$post("/performance/test/update/follows/"+this.testId, this.test.follows,() => {
+            this.$success(this.$t('commons.cancel_follow_success'));
+          });
+        }
+      }else {
+        this.showFollow = true;
+        if(!this.test.follows){
+          this.test.follows = [];
+        }
+        this.test.follows.push(this.currentUser().id)
+        if(this.testId){
+          this.$post("/performance/test/update/follows/"+this.testId, this.test.follows,() => {
+            this.$success(this.$t('commons.follow_success'));
+          });
+        }
+      }
     }
   }
 };
@@ -420,9 +500,6 @@ export default {
 
 <style scoped>
 
-.testplan-config {
-  margin-top: 5px;
-}
 
 .el-select {
   min-width: 130px;

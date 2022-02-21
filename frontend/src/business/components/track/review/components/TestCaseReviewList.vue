@@ -66,6 +66,14 @@
           </template>
         </el-table-column>
         <el-table-column
+          v-if="item.id=='follow'"
+          prop="follow"
+          :label="$t('test_track.review.review_follow_people')"
+          show-overflow-tooltip
+          :key="index"
+        >
+        </el-table-column>
+        <el-table-column
           v-if="item.id=='createTime'"
           prop="createTime"
           :label="$t('commons.create_time')"
@@ -88,19 +96,26 @@
         </el-table-column>
       </template>
       <el-table-column
-        min-width="100"
+        min-width="120"
         :label="$t('commons.operating')">
         <template slot="header">
           <header-label-operate @exec="customHeader"/>
         </template>
         <template v-slot:default="scope">
           <div>
-
             <ms-table-operator :edit-permission="['PROJECT_TRACK_REVIEW:READ+EDIT']"
                                :delete-permission="['PROJECT_TRACK_REVIEW:READ+DELETE']"
                                @editClick="handleEdit(scope.row)"
                                @deleteClick="handleDelete(scope.row)">
             </ms-table-operator>
+            <template>
+              <el-tooltip :content="$t('commons.follow')" placement="bottom"  effect="dark"  v-if="!scope.row.showFollow">
+                <i class="el-icon-star-off" style="color: #783987; font-size: 25px; padding-left: 5px;top: 5px; position: relative; cursor: pointer;width: 28px;height: 28px;" @click="saveFollow(scope.row)"></i>
+              </el-tooltip>
+              <el-tooltip :content="$t('commons.cancel')" placement="bottom"  effect="dark"  v-if="scope.row.showFollow">
+                <i  class="el-icon-star-on" style="color: #783987; font-size: 30px;padding-left: 5px; top: 5px; position: relative; cursor: pointer;width: 28px;height: 28px; " @click="saveFollow(scope.row)"></i>
+              </el-tooltip>
+            </template>
           </div>
 
         </template>
@@ -122,9 +137,8 @@ import MsTableOperator from "../../../common/components/MsTableOperator";
 import MsTableOperatorButton from "../../../common/components/MsTableOperatorButton";
 import MsDialogFooter from "../../../common/components/MsDialogFooter";
 import MsTableHeader from "../../../common/components/MsTableHeader";
-import MsCreateBox from "../../../settings/CreateBox";
 import MsTablePagination from "../../../common/pagination/TablePagination";
-import {getCurrentProjectID, getCurrentWorkspaceId} from "@/common/js/utils";
+import {getCurrentProjectID, getCurrentUser, getCurrentWorkspaceId} from "@/common/js/utils";
 import {_filter, _sort, deepClone, getLabel, getLastTableSortField,saveLastTableSortField} from "@/common/js/tableUtils";
 import PlanStatusTableItem from "../../common/tableItems/plan/PlanStatusTableItem";
 import {Test_Case_Review} from "@/business/components/common/model/JsonData";
@@ -144,7 +158,6 @@ export default {
     MsTableOperatorButton,
     MsDialogFooter,
     MsTableHeader,
-    MsCreateBox,
     MsTablePagination,
     PlanStatusTableItem
   },
@@ -178,10 +191,8 @@ export default {
   },
   created() {
     this.isTestManagerOrTestUser = true;
-    let orderArr = this.getSortField();
-    if(orderArr){
-      this.condition.orders = orderArr;
-    }
+    this.condition.orders = getLastTableSortField(this.tableHeaderKey);
+
     this.initTableData();
   },
   computed: {
@@ -190,6 +201,9 @@ export default {
     },
   },
   methods: {
+    currentUser: () => {
+      return getCurrentUser();
+    },
     customHeader() {
       const list = deepClone(this.tableLabel);
       this.$refs.headerCustom.open(list);
@@ -225,12 +239,30 @@ export default {
             this.$set(this.tableData[i], "reviewer", reviewer);
             this.$set(this.tableData[i], "userIds", userIds);
           });
+          this.$post('/test/case/review/follow', {id: this.tableData[i].id}, res => {
+            let arr = res.data;
+            let follow = arr.map(data => data.name).join("、");
+            let followIds = arr.map(data => data.id);
+            let showFollow = false;
+            if (arr) {
+              arr.forEach(d => {
+                if(this.currentUser().id===d.id){
+                  showFollow = true;
+                }
+              })
+            }
+            this.$set(this.tableData[i], "follow", follow);
+            this.$set(this.tableData[i], "followIds", followIds);
+            this.$set(this.tableData[i], "showFollow", showFollow);
+          });
         }
       });
       getLabel(this, TEST_CASE_REVIEW_LIST);
     },
-    intoReview(row) {
-      this.$router.push('/track/review/view/' + row.id);
+    intoReview(row,column, event) {
+      if (column.label !== this.$t('commons.operating')) {
+        this.$router.push('/track/review/view/' + row.id);
+      }
     },
     testCaseReviewCreate() {
       if (!this.projectId) {
@@ -271,17 +303,34 @@ export default {
     saveSortField(key,orders){
       saveLastTableSortField(key,JSON.stringify(orders));
     },
-    getSortField(){
-      let orderJsonStr = getLastTableSortField(this.tableHeaderKey);
-      let returnObj = null;
-      if(orderJsonStr){
-        try {
-          returnObj = JSON.parse(orderJsonStr);
-        }catch (e){
-          return null;
+    saveFollow(row){
+      let param = {};
+      param.id = row.id;
+      if(row.showFollow){
+        row.showFollow = false;
+        for (let i = 0; i < row.followIds.length; i++) {
+          if(row.followIds[i]===this.currentUser().id){
+            row.followIds.splice(i,1)
+            break;
+          }
         }
+        param.followIds = row.followIds
+        this.$post('/test/case/review/edit/follows', param,() => {
+          this.$success(this.$t('commons.cancel_follow_success'));
+        });
+        return
       }
-      return returnObj;
+      if(!row.showFollow){
+        row.showFollow = true;
+        if(!row.followIds){
+          row.followIds = [];
+        }
+        row.followIds.push(this.currentUser().id);
+        param.followIds = row.followIds
+        this.$post('/test/case/review/edit/follows', param,() => {
+          this.$success(this.$t('commons.follow_success'));
+        });
+      }
     }
   }
 };

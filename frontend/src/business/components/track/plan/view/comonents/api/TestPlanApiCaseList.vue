@@ -25,6 +25,10 @@
         :fields.sync="fields"
         :field-key="tableHeaderKey"
         @refresh="initTable"
+        :row-order-group-id="planId"
+        :row-order-func="editTestPlanApiCaseOrder"
+        :enable-order-drag="enableOrderDrag"
+        row-key="id"
         ref="table">
         <span v-for="(item) in fields" :key="item.key">
 
@@ -62,9 +66,21 @@
             sortable
             min-width="100"
             :filters="userFilters"
-            :label="'创建人'">
+            :label="$t('commons.create_user')">
             <template v-slot:default="scope">
               {{scope.row.creatorName}}
+            </template>
+          </ms-table-column>
+
+          <ms-table-column
+            :field="item"
+            :fields-width="fieldsWidth"
+            prop="environmentName"
+            min-width="120"
+            show-overflow-tooltip
+            :label="$t('commons.environment')">
+            <template v-slot:default="scope">
+              {{scope.row.environmentName || '-'}}
             </template>
           </ms-table-column>
 
@@ -97,13 +113,14 @@
           <ms-table-column :field="item"
                            prop="execResult"
                            :fields-width="fieldsWidth"
-                           :label="'执行状态'" min-width="150" align="center">
+                           :label="$t('test_track.plan.execute_result')" min-width="150" align="center">
             <template v-slot:default="scope">
               <div v-loading="rowLoading === scope.row.id">
                 <el-link type="danger"
                          v-if="scope.row.execResult && scope.row.execResult === 'error'"
                          @click="getReportResult(scope.row)" v-text="getResult(scope.row.execResult)"/>
                 <el-link v-else-if="scope.row.execResult && scope.row.execResult === 'success'"
+                         type="primary"
                          @click="getReportResult(scope.row)" v-text="getResult(scope.row.execResult)">
 
                 </el-link>
@@ -126,14 +143,15 @@
 
       <!-- 执行组件 -->
       <ms-run :debug="false" :type="'API_PLAN'" :reportId="reportId" :run-data="runData"
-              @runRefresh="runRefresh" ref="runTest" @autoCheckStatus="autoCheckStatus"/>
+              @runRefresh="runRefresh" @errorRefresh="errorRefresh" ref="runTest" @autoCheckStatus="autoCheckStatus"/>
 
       <!-- 批量编辑 -->
       <batch-edit :dialog-title="$t('test_track.case.batch_edit_case')" :type-arr="typeArr" :value-arr="valueArr"
                   :select-row="$refs.table ? $refs.table.selectRows : new Set()" ref="batchEdit" @batchEdit="batchEdit"/>
 
-      <ms-plan-run-mode @handleRunBatch="handleRunBatch" ref="runMode"/>
+      <ms-plan-run-mode @handleRunBatch="handleRunBatch" ref="runMode" :plan-case-ids="testPlanCaseIds" :type="'apiCase'"/>
     </el-card>
+    <ms-task-center ref="taskCenter" :show-menu="false"/>
   </div>
 
 </template>
@@ -151,12 +169,10 @@ import {API_METHOD_COLOUR, CASE_PRIORITY, RESULT_MAP} from "../../../../../api/d
 import {getCurrentProjectID, strMapToObj} from "@/common/js/utils";
 import ApiListContainer from "../../../../../api/definition/components/list/ApiListContainer";
 import PriorityTableItem from "../../../../common/tableItems/planview/PriorityTableItem";
-import {getBodyUploadFiles, getUUID} from "../../../../../../../common/js/utils";
+import {getUUID} from "../../../../../../../common/js/utils";
 import TestPlanCaseListHeader from "./TestPlanCaseListHeader";
 import MsRun from "../../../../../api/definition/components/Run";
 import TestPlanApiCaseResult from "./TestPlanApiCaseResult";
-import TestPlan from "../../../../../api/definition/components/jmeter/components/test-plan";
-import ThreadGroup from "../../../../../api/definition/components/jmeter/components/thread-group";
 import {TEST_PLAN_API_CASE} from "@/common/js/constants";
 import {
   buildBatchParam,
@@ -164,16 +180,18 @@ import {
 } from "@/common/js/tableUtils";
 import HeaderCustom from "@/business/components/common/head/HeaderCustom";
 import HeaderLabelOperate from "@/business/components/common/head/HeaderLabelOperate";
-import MsPlanRunMode from "../../../common/PlanRunMode";
+import MsTaskCenter from "../../../../../task/TaskCenter";
 import MsTable from "@/business/components/common/components/table/MsTable";
 import MsTableColumn from "@/business/components/common/components/table/MsTableColumn";
+import MsPlanRunMode from "@/business/components/track/plan/common/PlanRunModeWithEnv";
 import MsUpdateTimeColumn from "@/business/components/common/components/table/MsUpdateTimeColumn";
 import MsCreateTimeColumn from "@/business/components/common/components/table/MsCreateTimeColumn";
-
+import {editTestPlanApiCaseOrder} from "@/network/test-plan";
 
 export default {
   name: "TestPlanApiCaseList",
   components: {
+    MsPlanRunMode,
     MsCreateTimeColumn,
     MsUpdateTimeColumn,
     MsTableColumn,
@@ -192,7 +210,7 @@ export default {
     MsApiCaseList,
     MsContainer,
     MsBottomContainer,
-    MsPlanRunMode
+    MsTaskCenter
   },
   data() {
     return {
@@ -207,6 +225,7 @@ export default {
       moduleId: "",
       status: 'default',
       deletePath: "/test/case/delete",
+      enableOrderDrag: true,
       operators: [
         {
           tip: this.$t('api_test.run'), icon: "el-icon-video-play",
@@ -250,6 +269,7 @@ export default {
       // environmentId: undefined,
       currentCaseProjectId: "",
       runData: [],
+      testPlanCaseIds: [],
       reportId: "",
       response: {},
       rowLoading: "",
@@ -323,6 +343,9 @@ export default {
     isApiModel() {
       return this.model === 'api';
     },
+    editTestPlanApiCaseOrder() {
+      return editTestPlanApiCaseOrder;
+    }
   },
   methods: {
     customHeader() {
@@ -347,6 +370,9 @@ export default {
       if (this.currentProtocol != null) {
         this.condition.protocol = this.currentProtocol;
       }
+
+      this.enableOrderDrag = (this.condition.orders && this.condition.orders.length) > 0 ? false : true;
+
       if (this.clickType) {
         if (this.status == 'default') {
           this.condition.status = this.clickType;
@@ -365,13 +391,6 @@ export default {
               item.tags = JSON.parse(item.tags);
             }
           });
-          if (this.$refs.table) {
-            this.$refs.table.clear();
-            setTimeout(this.$refs.table.doLayout, 200);
-            this.$nextTick(() => {
-              checkTableRowIsSelect(this, this.condition, this.tableData, this.$refs.table, this.$refs.table.selectRows);
-            });
-          }
         });
       }
       if (this.planId) {
@@ -384,13 +403,6 @@ export default {
               item.tags = JSON.parse(item.tags);
             }
           });
-          if (this.$refs.table) {
-            this.$refs.table.clear();
-            setTimeout(this.$refs.table.doLayout, 200);
-            this.$nextTick(() => {
-              checkTableRowIsSelect(this, this.condition, this.tableData, this.$refs.table, this.$refs.table.selectRows);
-            });
-          }
         });
       }
     },
@@ -458,12 +470,14 @@ export default {
         let apiCase = response.data;
         let request = JSON.parse(apiCase.request);
         request.name = row.id;
-        request.id = row.id;
         request.useEnvironment = row.environmentId;
         this.runData.push(request);
         /*触发执行操作*/
         this.reportId = getUUID().substring(0, 8);
       });
+    },
+    errorRefresh() {
+      this.rowLoading = "";
     },
     handleBatchEdit() {
       this.$refs.batchEdit.open(this.$refs.table.selectRows.size);
@@ -473,6 +487,7 @@ export default {
       return new Promise((resolve) => {
         let index = 1;
         this.runData = [];
+        this.testPlanCaseIds = [];
         if (this.condition != null && this.condition.selectAll) {
           let selectAllRowParams = buildBatchParam(this);
           selectAllRowParams.ids = this.$refs.table.selectIds;
@@ -488,6 +503,7 @@ export default {
                 request.id = row.id;
                 request.useEnvironment = row.environmentId;
                 this.runData.unshift(request);
+                this.testPlanCaseIds.unshift(row.id);
                 if (dataRows.length === index) {
                   resolve();
                 }
@@ -506,6 +522,7 @@ export default {
               request.id = row.id;
               request.useEnvironment = row.environmentId;
               this.runData.unshift(request);
+              this.testPlanCaseIds.unshift(row.id);
               if (dataRows.length === index) {
                 resolve();
               }
@@ -525,6 +542,8 @@ export default {
           let dataRows = response.data;
           let map = new Map();
           param.projectEnvMap = strMapToObj(form.projectEnvMap);
+          param.environmentType = form.environmentType;
+          param.environmentGroupId = form.envGroupId;
           dataRows.forEach(row => {
             map[row.id] = row.projectId;
           });
@@ -556,51 +575,14 @@ export default {
       });
     },
     handleRunBatch(config) {
-      let testPlan = new TestPlan();
-      let projectId = getCurrentProjectID();
-      if (config.mode === 'serial') {
-        testPlan.serializeThreadgroups = true;
-        testPlan.hashTree = [];
-        this.runData.forEach(item => {
-          let threadGroup = new ThreadGroup();
-          threadGroup.onSampleError = !config.onSampleError;
-          threadGroup.hashTree = [];
-          threadGroup.hashTree.push(item);
-          testPlan.hashTree.push(threadGroup);
-        });
-        let reqObj = {
-          id: getUUID().substring(0, 8),
-          testElement: testPlan,
-          type: 'API_PLAN',
-          reportId: "run",
-          projectId: projectId,
-          config: config
-        };
-        let bodyFiles = getBodyUploadFiles(reqObj, this.runData);
-        this.$fileUpload("/api/definition/run", null, bodyFiles, reqObj, response => {
-          this.$message('任务执行中，请稍后刷新查看结果');
-        });
-      } else {
-        testPlan.serializeThreadgroups = false;
-        let threadGroup = new ThreadGroup();
-        threadGroup.hashTree = [];
-        testPlan.hashTree = [threadGroup];
-        this.runData.forEach(item => {
-          threadGroup.hashTree.push(item);
-        });
-        let reqObj = {
-          id: getUUID().substring(0, 8),
-          testElement: testPlan,
-          type: 'API_PLAN',
-          reportId: "run",
-          projectId: projectId
-        };
-        let bodyFiles = getBodyUploadFiles(reqObj, this.runData);
-        this.$fileUpload("/api/definition/run", null, bodyFiles, reqObj, response => {
-          this.$message('任务执行中，请稍后刷新查看结果');
-        });
-      }
-      this.search();
+      let obj = {planIds: this.testPlanCaseIds, config: config, triggerMode:"BATCH"};
+      this.$post("/test/plan/api/case/run", obj, response => {
+        this.$message(this.$t('commons.run_message'));
+        this.$refs.taskCenter.open();
+        this.search();
+      }, () => {
+        this.search();
+      });
     },
     autoCheckStatus() { //  检查执行结果，自动更新计划状态
       if (!this.planId) {
@@ -637,7 +619,7 @@ export default {
       //   this.environmentId = data.id;
     },
     getReportResult(apiCase) {
-      let url = "/api/definition/report/getReport/" + apiCase.id + '/' + 'API_PLAN';
+      let url = "/api/definition/report/plan/getReport/" + apiCase.id + '/' + 'API_PLAN';
       this.$get(url, response => {
         if (response.data) {
           this.response = JSON.parse(response.data.content);

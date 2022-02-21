@@ -2,7 +2,7 @@
   <el-dialog :close-on-click-modal="false" :title="$t('api_test.automation.add_scenario')" :visible.sync="visible"
              width="45%"
              :destroy-on-close="true">
-    <el-form :model="scenarioForm" label-position="right" label-width="80px" size="small" :rules="rule"
+    <el-form :model="scenarioForm" label-position="right" label-width="100px" size="small" :rules="rule"
              ref="scenarioForm">
       <el-form-item :label="$t('commons.name')" prop="name">
         <el-input v-model="scenarioForm.name" autocomplete="off" :placeholder="$t('commons.name')"/>
@@ -22,7 +22,8 @@
       </el-form-item>
 
       <el-form-item :label="$t('api_test.automation.scenario.follow_people')" prop="followPeople">
-        <el-select v-model="scenarioForm.followPeople"
+        <el-select v-model="scenarioForm.follows"
+                   multiple
                    :placeholder="$t('api_test.automation.scenario.follow_people')" filterable size="small"
                    style="width: 100%">
           <el-option
@@ -46,7 +47,7 @@
       <ms-dialog-footer
         @cancel="visible = false"
         :isShow="true"
-        title="编辑详情"
+        :title="$t('commons.edit_info')"
         @saveAsEdit="saveScenario(true)"
         @confirm="saveScenario">
       </ms-dialog-footer>
@@ -68,7 +69,7 @@
     props: {},
     data() {
       return {
-        scenarioForm: {},
+        scenarioForm: {follows:[]},
         visible: false,
         currentModule: {},
         userOptions: [],
@@ -101,7 +102,8 @@
               this.$emit('saveAsEdit', this.scenarioForm);
               this.visible = false;
             } else {
-              saveScenario(path, this.scenarioForm, [], () => {
+              saveScenario(path, this.scenarioForm, [], this,(response) => {
+                this.$success(this.$t('commons.save_success'));
                 this.visible = false;
                 this.$emit('refresh');
               });

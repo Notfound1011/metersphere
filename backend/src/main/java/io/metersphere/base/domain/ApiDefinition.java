@@ -47,5 +47,11 @@ public class ApiDefinition implements Serializable {
 
     private String casePassingRate;
 
+    private Long deleteTime;
+
+    private String deleteUserId;
+
+    private Long order;
+
     private static final long serialVersionUID = 1L;
 }

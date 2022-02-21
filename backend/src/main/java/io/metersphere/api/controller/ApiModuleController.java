@@ -5,13 +5,10 @@ import io.metersphere.api.dto.definition.DragModuleRequest;
 import io.metersphere.api.service.ApiModuleService;
 import io.metersphere.base.domain.ApiModule;
 import io.metersphere.commons.constants.OperLogConstants;
-import io.metersphere.commons.constants.RoleConstants;
 import io.metersphere.commons.utils.ApiDefinitionDefaultApiTypeUtil;
 import io.metersphere.commons.utils.SessionUtils;
 import io.metersphere.log.annotation.MsAuditLog;
 import io.metersphere.service.CheckPermissionService;
-import org.apache.shiro.authz.annotation.Logical;
-import org.apache.shiro.authz.annotation.RequiresRoles;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -32,6 +29,13 @@ public class ApiModuleController {
         String userId = SessionUtils.getUserId();
         ApiDefinitionDefaultApiTypeUtil.addUserSelectApiType(userId, protocol);
         return apiModuleService.getNodeTreeByProjectId(projectId, protocol);
+    }
+
+    @GetMapping("/trashCount/{projectId}/{protocol}")
+    public long trashCount(@PathVariable String projectId, @PathVariable String protocol) {
+        String userId = SessionUtils.getUserId();
+        ApiDefinitionDefaultApiTypeUtil.addUserSelectApiType(userId, protocol);
+        return apiModuleService.countTrashApiData(projectId, protocol);
     }
 
     @GetMapping("/getModuleByName/{projectId}/{protocol}")

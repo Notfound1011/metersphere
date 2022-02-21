@@ -1,8 +1,8 @@
 <template>
   <div>
     <el-row>
-      <el-col :span="21" style="padding-bottom: 20px">
-        <div style="border:1px #DCDFE6 solid; height: 100%;border-radius: 4px ;width: 100% ;margin: 10px">
+      <el-col :span="spanNum" style="padding-bottom: 20px">
+        <div style="border:1px #DCDFE6 solid; height: 100%;border-radius: 4px ;width: 100% ;">
           <el-form class="tcp" :model="request" :rules="rules" ref="request" :disabled="isReadOnly" style="margin: 20px">
             <el-tabs v-model="activeName" class="request-tabs">
               <!--test-->
@@ -28,18 +28,18 @@
                     raw
                   </el-radio>
                 </el-radio-group>
-                <div style="min-width: 1200px;" v-if="request.reportType === 'xml'">
+                <div v-if="request.reportType === 'xml'">
                   <tcp-xml-table :table-data="request.xmlDataStruct" :show-options-button="true"
                                  @xmlTablePushRow="xmlTablePushRow"
                                  @initXmlTableData="initXmlTableData"
                                  @saveTableData="saveXmlTableData" ref="treeTable"></tcp-xml-table>
                 </div>
-                <div style="min-width: 1200px;" v-if="request.reportType === 'json'">
+                <div v-if="request.reportType === 'json'">
                   <div class="send-request">
                     <ms-code-edit mode="json" :read-only="isReadOnly" :data.sync="request.jsonDataStruct" :modes="['text', 'json', 'xml', 'html']" theme="eclipse"/>
                   </div>
                 </div>
-                <div style="min-width: 1200px;" v-if="request.reportType === 'raw'">
+                <div v-if="request.reportType === 'raw'">
                   <div class="send-request">
                     <ms-code-edit mode="text" :read-only="isReadOnly" :data.sync="request.rawDataStruct" :modes="['text', 'json', 'xml', 'html']" theme="eclipse"/>
                   </div>
@@ -155,7 +155,7 @@
   import JSR223PreProcessor from "../../jmeter/components/pre-processors/jsr223-pre-processor";
   import ApiDefinitionStepButton from "../components/ApiDefinitionStepButton";
   import TcpXmlTable from "@/business/components/api/definition/components/complete/table/TcpXmlTable";
-
+  import {TYPE_TO_C} from "@/business/components/api/automation/scenario/Setting";
 
   export default {
     name: "MsTcpFormatParameters",
@@ -188,6 +188,7 @@
     },
     data() {
       return {
+        spanNum: 21,
         activeName: "request",
         classes: TCPSampler.CLASSES,
         reportType:"xml",
@@ -218,6 +219,11 @@
       }
     },
     created() {
+      if(!this.referenced && this.showScript){
+        this.spanNum = 21;
+      }else {
+        this.spanNum = 24;
+      }
       this.currentProjectId = getCurrentProjectID();
       if (!this.request.parameters) {
         this.$set(this.request, 'parameters', []);
@@ -225,6 +231,9 @@
       }
       if (!this.request.tcpPreProcessor) {
         this.$set(this.request, 'tcpPreProcessor', new JSR223PreProcessor())
+      }
+      if(this.request.tcpPreProcessor){
+        this.request.tcpPreProcessor.clazzName = TYPE_TO_C.get(this.request.tcpPreProcessor.type);
       }
       if(!this.request.connectEncoding){
         this.request.connectEncoding = "UTF-8";
@@ -396,19 +405,21 @@
       },
       checkXmlTableDataStructData(dataStruct){
         let allCheckResult = true;
-        if(dataStruct && dataStruct.length > 0){
-          for(let i = 0;i<dataStruct.length;i++){
-            let row = dataStruct[i];
-            allCheckResult = this.$refs.treeTable.validateRowData(row);
-            if(allCheckResult){
-              if(row.children != null && row.children.length > 0){
-                allCheckResult = this.checkXmlTableDataStructData(row.children);
-                if(!allCheckResult){
-                  return false;
+        if(this.$refs.treeTable){
+          if(dataStruct && dataStruct.length > 0){
+            for(let i = 0;i<dataStruct.length;i++){
+              let row = dataStruct[i];
+              allCheckResult = this.$refs.treeTable.validateRowData(row);
+              if(allCheckResult){
+                if(row.children != null && row.children.length > 0){
+                  allCheckResult = this.checkXmlTableDataStructData(row.children);
+                  if(!allCheckResult){
+                    return false;
+                  }
                 }
+              }else{
+                return false;
               }
-            }else{
-              return false;
             }
           }
         }

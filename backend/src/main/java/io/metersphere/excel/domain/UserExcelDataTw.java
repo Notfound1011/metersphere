@@ -33,7 +33,7 @@ public class UserExcelDataTw extends TestCaseExcelData {
     @Length(max = 255)
     @ExcelProperty("密碼")
     @ColumnWidth(30)
-    @Pattern(regexp = "^(?![0-9]+$)(?![^0-9]+$)(?![a-zA-Z]+$)(?![^a-zA-Z]+$)(?![a-zA-Z0-9]+$)[a-zA-Z0-9\\S]{8,30}$", message = "{user_import_format_wrong}")
+    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[\\s\\S]{8,30}$", message = "{user_import_format_wrong}")
     private String password;
 
     @ExcelProperty("電話")
@@ -46,26 +46,6 @@ public class UserExcelDataTw extends TestCaseExcelData {
     @ColumnWidth(30)
     @ExcelProperty("是否是系統管理員(是/否)")
     private String userIsAdmin;
-
-    @NotBlank(message = "{cannot_be_null}")
-    @ColumnWidth(30)
-    @ExcelProperty("是否是組織管理員(是/否)")
-    private String userIsOrgAdmin;
-
-    @Length(max = 100)
-    @ColumnWidth(30)
-    @ExcelProperty("組織管理員組織名稱")
-    private String orgAdminOrganization;
-
-    @NotBlank(message = "{cannot_be_null}")
-    @ColumnWidth(30)
-    @ExcelProperty("是否是組織成員(是/否)")
-    private String userIsOrgMember;
-
-    @Length(max = 100)
-    @ColumnWidth(30)
-    @ExcelProperty("組織成員組織名稱")
-    private String orgMemberOrganization;
 
     @NotBlank(message = "{cannot_be_null}")
     @ColumnWidth(30)

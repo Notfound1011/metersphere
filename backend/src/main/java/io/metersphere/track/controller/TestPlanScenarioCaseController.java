@@ -5,20 +5,22 @@ import com.github.pagehelper.PageHelper;
 import io.metersphere.api.dto.automation.*;
 import io.metersphere.commons.constants.ApiRunMode;
 import io.metersphere.commons.constants.OperLogConstants;
-import io.metersphere.commons.constants.RoleConstants;
 import io.metersphere.commons.utils.PageUtils;
 import io.metersphere.commons.utils.Pager;
-import io.metersphere.commons.utils.SessionUtils;
+import io.metersphere.constants.RunModeConstants;
+import io.metersphere.controller.request.ResetOrderRequest;
+import io.metersphere.dto.MsExecResponseDTO;
+import io.metersphere.dto.RunModeConfigDTO;
 import io.metersphere.log.annotation.MsAuditLog;
 import io.metersphere.track.dto.RelevanceScenarioRequest;
 import io.metersphere.track.request.testcase.TestPlanScenarioCaseBatchRequest;
 import io.metersphere.track.service.TestPlanScenarioCaseService;
-import org.apache.shiro.authz.annotation.Logical;
-import org.apache.shiro.authz.annotation.RequiresRoles;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RequestMapping("/test/plan/scenario/case")
 @RestController
@@ -33,6 +35,16 @@ public class TestPlanScenarioCaseController {
         return PageUtils.setPageInfo(page, testPlanScenarioCaseService.list(request));
     }
 
+    @GetMapping("/list/failure/{planId}")
+    public List<TestPlanFailureScenarioDTO> getFailureList(@PathVariable String planId) {
+        return testPlanScenarioCaseService.getFailureCases(planId);
+    }
+
+    @GetMapping("/list/all/{planId}")
+    public List<TestPlanFailureScenarioDTO> getAllList(@PathVariable String planId) {
+        return testPlanScenarioCaseService.getAllCases(planId);
+    }
+
     @PostMapping("/selectAllTableRows")
     public List<ApiScenarioDTO> selectAllTableRows(@RequestBody TestPlanScenarioCaseBatchRequest request) {
         return testPlanScenarioCaseService.selectAllTableRows(request);
@@ -40,8 +52,7 @@ public class TestPlanScenarioCaseController {
 
     @PostMapping("/relevance/list/{goPage}/{pageSize}")
     public Pager<List<ApiScenarioDTO>> relevanceList(@PathVariable int goPage, @PathVariable int pageSize, @RequestBody ApiScenarioRequest request) {
-        Page<Object> page = PageHelper.startPage(goPage, pageSize, true);
-        return PageUtils.setPageInfo(page, testPlanScenarioCaseService.relevanceList(request));
+        return testPlanScenarioCaseService.relevanceList(request, goPage, pageSize);
     }
 
     @GetMapping("/delete/{id}")
@@ -58,14 +69,20 @@ public class TestPlanScenarioCaseController {
 
     @PostMapping(value = "/run")
     @MsAuditLog(module = "track_test_plan", type = OperLogConstants.EXECUTE, content = "#msClass.getLogDetails(#request.planCaseIds)", msClass = TestPlanScenarioCaseService.class)
-    public String run(@RequestBody RunTestPlanScenarioRequest request) {
+    public List<MsExecResponseDTO> run(@RequestBody RunTestPlanScenarioRequest request) {
         request.setExecuteType(ExecuteType.Completed.name());
+        if(request.getConfig() == null){
+            RunModeConfigDTO config = new RunModeConfigDTO();
+            config.setMode(RunModeConstants.PARALLEL.toString());
+            config.setEnvMap(new HashMap<>());
+            request.setConfig(config);
+        }
         return testPlanScenarioCaseService.run(request);
     }
 
     @PostMapping(value = "/jenkins/run")
     @MsAuditLog(module = "track_test_plan", type = OperLogConstants.EXECUTE, content = "#msClass.getLogDetails(#request.ids)", msClass = TestPlanScenarioCaseService.class)
-    public String runByRun(@RequestBody RunTestPlanScenarioRequest request) {
+    public List<MsExecResponseDTO> runByRun(@RequestBody RunTestPlanScenarioRequest request) {
         request.setExecuteType(ExecuteType.Saved.name());
         request.setTriggerMode(ApiRunMode.API.name());
         request.setRunMode(ApiRunMode.SCENARIO.name());
@@ -76,5 +93,15 @@ public class TestPlanScenarioCaseController {
     @MsAuditLog(module = "track_test_plan", type = OperLogConstants.BATCH_UPDATE, beforeEvent = "#msClass.batchLogDetails(#request.ids)", content = "#msClass.getLogDetails(#request.ids)", msClass = TestPlanScenarioCaseService.class)
     public void batchUpdateEnv(@RequestBody RelevanceScenarioRequest request) {
         testPlanScenarioCaseService.batchUpdateEnv(request);
+    }
+
+    @PostMapping("/env")
+    public Map<String, String> getScenarioCaseEnv(@RequestBody HashMap<String, String> map) {
+        return testPlanScenarioCaseService.getScenarioCaseEnv(map);
+    }
+
+    @PostMapping("/edit/order")
+    public void orderCase(@RequestBody ResetOrderRequest request) {
+        testPlanScenarioCaseService.updateOrder(request);
     }
 }

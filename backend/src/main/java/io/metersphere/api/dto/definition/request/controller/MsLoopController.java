@@ -2,20 +2,20 @@ package io.metersphere.api.dto.definition.request.controller;
 
 import com.alibaba.fastjson.annotation.JSONField;
 import com.alibaba.fastjson.annotation.JSONType;
-import io.metersphere.api.dto.definition.request.MsTestElement;
+import io.metersphere.api.dto.definition.request.ElementUtil;
 import io.metersphere.api.dto.definition.request.ParameterConfig;
 import io.metersphere.api.dto.definition.request.controller.loop.CountController;
 import io.metersphere.api.dto.definition.request.controller.loop.MsForEachController;
 import io.metersphere.api.dto.definition.request.controller.loop.MsWhileController;
+import io.metersphere.api.dto.shell.filter.ScriptFilter;
 import io.metersphere.commons.constants.LoopConstants;
+import io.metersphere.plugin.core.MsParameter;
+import io.metersphere.plugin.core.MsTestElement;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.jmeter.control.ForeachController;
-import org.apache.jmeter.control.LoopController;
-import org.apache.jmeter.control.RunTime;
-import org.apache.jmeter.control.WhileController;
+import org.apache.jmeter.control.*;
 import org.apache.jmeter.modifiers.CounterConfig;
 import org.apache.jmeter.modifiers.JSR223PreProcessor;
 import org.apache.jmeter.protocol.java.sampler.JSR223Sampler;
@@ -33,6 +33,8 @@ import java.util.UUID;
 @JSONType(typeName = "LoopController")
 public class MsLoopController extends MsTestElement {
     private String type = "LoopController";
+    private String clazzName = "io.metersphere.api.dto.definition.request.controller.MsLoopController";
+
     @JSONField(ordinal = 20)
     private String loopType;
 
@@ -49,16 +51,18 @@ public class MsLoopController extends MsTestElement {
     private String ms_current_timer = UUID.randomUUID().toString();
 
     @Override
-    public void toHashTree(HashTree tree, List<MsTestElement> hashTree, ParameterConfig config) {
+    public void toHashTree(HashTree tree, List<MsTestElement> hashTree, MsParameter msParameter) {
+        ParameterConfig config = (ParameterConfig) msParameter;
+
         // 非导出操作，且不是启用状态则跳过执行
         if (!config.isOperating() && !this.isEnable()) {
             return;
         }
         final HashTree groupTree = controller(tree);
         if (CollectionUtils.isNotEmpty(config.getVariables())) {
-            this.addCsvDataSet(groupTree, config.getVariables(), config, "shareMode.thread");
-            this.addCounter(groupTree, config.getVariables());
-            this.addRandom(groupTree, config.getVariables());
+            ElementUtil.addCsvDataSet(groupTree, config.getVariables(), config, "shareMode.thread");
+            ElementUtil.addCounter(groupTree, config.getVariables(), true);
+            ElementUtil.addRandom(groupTree, config.getVariables());
         }
 
         // 循环下都增加一个计数器，用于结果统计
@@ -73,9 +77,9 @@ public class MsLoopController extends MsTestElement {
             groupTree.add(resultAction);
         }
         // 循环间隔时长设置
-        ConstantTimer cnstantTimer = getCnstantTimer();
-        if (cnstantTimer != null) {
-            groupTree.add(cnstantTimer);
+        ConstantTimer constantTimer = getConstantTimer();
+        if (constantTimer != null) {
+            groupTree.add(constantTimer);
         }
 
         if (CollectionUtils.isNotEmpty(hashTree)) {
@@ -116,33 +120,44 @@ public class MsLoopController extends MsTestElement {
         String variable = "\"" + this.whileController.getVariable() + "\"";
         String operator = this.whileController.getOperator();
         String value;
-        if (StringUtils.equals(operator, "<") || StringUtils.equals(operator, ">")) {
+        if (StringUtils.equals(operator, "<") || StringUtils.equals(operator, ">") && StringUtils.isNumeric(this.whileController.getValue())) {
             value = this.whileController.getValue();
         } else {
             value = "\"" + this.whileController.getValue() + "\"";
         }
 
         if (StringUtils.contains(operator, "~")) {
-            value = "\".*" + this.whileController.getValue() + ".*\"";
+            value = "\"(\\n|.)*" + this.whileController.getValue() + "(\\n|.)*\"";
         }
 
         if (StringUtils.equals(operator, "is empty")) {
-            variable = variable + "==" + "\"\\" + this.whileController.getVariable() + "\"" + "|| empty(" + variable + ")";
+            variable = "(" + variable + "==" + "\"\\" + this.whileController.getVariable() + "\"" + "|| empty(" + variable + "))";
             operator = "";
             value = "";
         }
 
         if (StringUtils.equals(operator, "is not empty")) {
-            variable = variable + "!=" + "\"\\" + this.whileController.getVariable() + "\"" + "&& !empty(" + variable + ")";
+            variable = "(" + variable + "!=" + "\"\\" + this.whileController.getVariable() + "\"" + "&& !empty(" + variable + "))";
             operator = "";
             value = "";
         }
         ms_current_timer = UUID.randomUUID().toString();
-        return "${__jexl3(" + variable + operator + value + " && \"${" + ms_current_timer + "}\" !=\"stop\")}";
+        return variable + operator + value;
     }
 
-    private WhileController initWhileController() {
-        String condition = getCondition();
+    private IfController ifController(String condition) {
+        IfController ifController = new IfController();
+        ifController.setEnabled(this.isEnable());
+        ifController.setName("while ifController");
+        ifController.setProperty(TestElement.TEST_CLASS, IfController.class.getName());
+        ifController.setProperty(TestElement.GUI_CLASS, SaveService.aliasToClass("IfControllerPanel"));
+        ifController.setCondition(condition);
+        ifController.setEvaluateAll(false);
+        ifController.setUseExpression(true);
+        return ifController;
+    }
+
+    private WhileController initWhileController(String condition) {
         if (StringUtils.isEmpty(condition)) {
             return null;
         }
@@ -204,7 +219,12 @@ public class MsLoopController extends MsTestElement {
                 timeout = 1;
             }
             runTime.setRuntime(timeout);
-            HashTree hashTree = tree.add(initWhileController());
+
+            String condition = getCondition();
+            String ifCondition = "${__jexl3(" + condition + ")}";
+            String whileCondition = "${__jexl3(" + condition + " && \"${" + ms_current_timer + "}\" !=\"stop\")}";
+            HashTree ifHashTree = tree.add(ifController(ifCondition));
+            HashTree hashTree = ifHashTree.add(initWhileController(whileCondition));
             // 添加超时处理，防止死循环
             JSR223PreProcessor jsr223PreProcessor = new JSR223PreProcessor();
             jsr223PreProcessor.setName("循环超时处理");
@@ -212,6 +232,9 @@ public class MsLoopController extends MsTestElement {
             jsr223PreProcessor.setProperty(TestElement.GUI_CLASS, SaveService.aliasToClass("TestBeanGUI"));
             /*jsr223PreProcessor.setProperty("cacheKey", "true");*/
             jsr223PreProcessor.setProperty("scriptLanguage", "beanshell");
+
+            ScriptFilter.verify("beanshell", this.getName(), script());
+
             jsr223PreProcessor.setProperty("script", script());
             hashTree.add(jsr223PreProcessor);
             return hashTree;
@@ -225,7 +248,7 @@ public class MsLoopController extends MsTestElement {
         return null;
     }
 
-    private ConstantTimer getCnstantTimer() {
+    private ConstantTimer getConstantTimer() {
         ConstantTimer constantTimer = new ConstantTimer();
         constantTimer.setEnabled(this.isEnable());
         constantTimer.setProperty(TestElement.TEST_CLASS, ConstantTimer.class.getName());

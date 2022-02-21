@@ -1,52 +1,72 @@
 package io.metersphere.track.issue.client;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONException;
 import com.alibaba.fastjson.JSONObject;
 import io.metersphere.commons.exception.MSException;
 import io.metersphere.commons.utils.LogUtil;
+import io.metersphere.i18n.Translator;
 import io.metersphere.track.issue.domain.zentao.*;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestTemplate;
 
-@Component
-public class ZentaoClient extends BaseClient {
+import java.util.Map;
 
-    protected  String ENDPOINT;
+public abstract class ZentaoClient extends BaseClient {
 
-    protected  String USER_NAME;
+    protected String ENDPOINT;
 
-    protected  String PASSWD;
+    protected String USER_NAME;
+
+    protected String PASSWD;
+
+    public RequestUrl requestUrl;
+    protected String url;
+
+    public ZentaoClient(String url) {
+        ENDPOINT = url;
+    }
 
     public String login() {
-        String sessionId = getSessionId();
-        String url = getBaseUrl() + "/user-login.json?zentaosid=" + sessionId;
-        MultiValueMap<String, String> paramMap = new LinkedMultiValueMap<>();
-        paramMap.add("account", USER_NAME);
-        paramMap.add("password", PASSWD);
-        HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(paramMap, new HttpHeaders());
-        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class);
-        GetUserResponse getUserResponse = (GetUserResponse) getResultForObject(GetUserResponse.class, response);
+        GetUserResponse getUserResponse = new GetUserResponse();
+        String sessionId = "";
+        try {
+            sessionId = getSessionId();
+            String loginUrl = requestUrl.getLogin();
+            MultiValueMap<String, String> paramMap = new LinkedMultiValueMap<>();
+            paramMap.add("account", USER_NAME);
+            paramMap.add("password", PASSWD);
+            HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(paramMap, new HttpHeaders());
+            ResponseEntity<String> response = restTemplate.exchange(loginUrl + sessionId, HttpMethod.POST, requestEntity, String.class);
+            getUserResponse = (GetUserResponse) getResultForObject(GetUserResponse.class, response);
+        } catch (JSONException e) {
+            MSException.throwException(Translator.get("zentao_test_type_error"));
+        } catch (Exception e) {
+            LogUtil.error(e);
+            MSException.throwException(e.getMessage());
+        }
         GetUserResponse.User user = getUserResponse.getUser();
         if (user == null) {
             LogUtil.error(JSONObject.toJSON(getUserResponse));
             // 登录失败，获取的session无效，置空session
-            MSException.throwException("zentao login fail");
+            MSException.throwException("zentao login fail, user null");
         }
         if (!StringUtils.equals(user.getAccount(), USER_NAME)) {
             LogUtil.error("login fail，inconsistent users");
-            MSException.throwException("zentao login fail");
+            MSException.throwException("zentao login fail, inconsistent user");
         }
         return sessionId;
     }
 
     public String getSessionId() {
-        ResponseEntity<String> response = restTemplate.exchange(getBaseUrl() + "/api-getsessionid.json",
+        String getSessionUrl = requestUrl.getSessionGet();
+        ResponseEntity<String> response = restTemplate.exchange(getSessionUrl,
                 HttpMethod.GET, null, String.class);
         GetSessionResponse getSessionResponse = (GetSessionResponse) getResultForObject(GetSessionResponse.class, response);
         return JSONObject.parseObject(getSessionResponse.getData(), GetSessionResponse.Session.class).getSessionID();
@@ -55,10 +75,10 @@ public class ZentaoClient extends BaseClient {
     public AddIssueResponse.Issue addIssue(MultiValueMap<String, Object> paramMap) {
         String sessionId = login();
         HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(paramMap, new HttpHeaders());
-        RestTemplate restTemplate = new RestTemplate();
         ResponseEntity<String> response = null;
         try {
-           response = restTemplate.exchange(getBaseUrl() + "/api-getModel-bug-create.json?zentaosid=" + sessionId,
+            String bugCreate = requestUrl.getBugCreate();
+            response = restTemplate.exchange(bugCreate + sessionId,
                     HttpMethod.POST, requestEntity, String.class);
         } catch (Exception e) {
             LogUtil.error(e.getMessage(), e);
@@ -68,13 +88,69 @@ public class ZentaoClient extends BaseClient {
         return JSONObject.parseObject(addIssueResponse.getData(), AddIssueResponse.Issue.class);
     }
 
-    public GetIssueResponse.Issue getBugById(String id) {
+    public void updateIssue(String id, MultiValueMap<String, Object> paramMap) {
         String sessionId = login();
-        String url = getBaseUrl() + "/api-getModel-bug-getById-bugID={1}?zentaosid={2}";
-        ResponseEntity<String> response = restTemplate.exchange(url,
+        HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(paramMap, new HttpHeaders());
+        try {
+            restTemplate.exchange(requestUrl.getBugUpdate(),
+                    HttpMethod.POST, requestEntity, String.class, id, sessionId);
+        } catch (Exception e) {
+            LogUtil.error(e.getMessage(), e);
+            MSException.throwException(e.getMessage());
+        }
+    }
+
+    public void deleteIssue(String id) {
+        String sessionId = login();
+        try {
+            restTemplate.exchange(requestUrl.getBugDelete(),
+                    HttpMethod.GET, new HttpEntity<>(new HttpHeaders()), String.class, id, sessionId);
+        } catch (Exception e) {
+            LogUtil.error(e.getMessage(), e);
+            MSException.throwException(e.getMessage());
+        }
+    }
+
+    public JSONObject getBugById(String id) {
+        String sessionId = login();
+        String bugGet = requestUrl.getBugGet();
+        ResponseEntity<String> response = restTemplate.exchange(bugGet,
                 HttpMethod.GET, null, String.class, id, sessionId);
         GetIssueResponse getIssueResponse = (GetIssueResponse) getResultForObject(GetIssueResponse.class, response);
-        return JSONObject.parseObject(getIssueResponse.getData(), GetIssueResponse.Issue.class);
+        if(StringUtils.equalsIgnoreCase(getIssueResponse.getStatus(),"fail")){
+            GetIssueResponse.Issue issue = new GetIssueResponse.Issue();
+            issue.setId(id);
+            issue.setSteps(" ");
+            issue.setTitle(" ");
+            issue.setStatus("closed");
+            issue.setDeleted("1");
+            issue.setOpenedBy(" ");
+            getIssueResponse.setData(JSON.toJSON(issue).toString());
+        }
+        return JSONObject.parseObject(getIssueResponse.getData());
+    }
+
+    public GetCreateMetaDataResponse.MetaData getCreateMetaData(String productID) {
+        String sessionId = login();
+        ResponseEntity<String> response = restTemplate.exchange(requestUrl.getCreateMetaData(),
+                HttpMethod.GET, null, String.class, productID, sessionId);
+        GetCreateMetaDataResponse getCreateMetaDataResponse = (GetCreateMetaDataResponse) getResultForObject(GetCreateMetaDataResponse.class, response);
+        return JSONObject.parseObject(getCreateMetaDataResponse.getData(), GetCreateMetaDataResponse.MetaData.class);
+    }
+
+    public JSONObject getCustomFields(String productID) {
+        return getCreateMetaData(productID).getCustomFields();
+    }
+
+    public Map<String, String> getBuilds(String productID) {
+        return getCreateMetaData(productID).getBuilds();
+    }
+
+    public JSONArray getBugsByProjectId(String projectId, int pageNum, int pageSize) {
+        String sessionId = login();
+        ResponseEntity<String> response = restTemplate.exchange(requestUrl.getBugList(),
+                HttpMethod.GET, null, String.class, projectId, 9999999, pageSize, pageNum, sessionId);
+        return JSONObject.parseObject(response.getBody()).getJSONObject("data").getJSONArray("bugs");
     }
 
     protected String getBaseUrl() {
@@ -91,5 +167,18 @@ public class ZentaoClient extends BaseClient {
         USER_NAME = config.getAccount();
         PASSWD = config.getPassword();
         ENDPOINT = config.getUrl();
+    }
+
+
+    public String getReplaceImgUrl(String replaceImgUrl) {
+        String baseUrl = getBaseUrl();
+        String[] split = baseUrl.split("/");
+        String suffix = split[split.length - 1];
+        if (!StringUtils.equalsAny(suffix, "zentao", "zentaopms", "zentaopro", "zentaobiz")) {
+            suffix = "";
+        } else {
+            suffix = "/" + suffix;
+        }
+        return String.format(replaceImgUrl, suffix);
     }
 }

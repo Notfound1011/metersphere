@@ -34,7 +34,7 @@ public class UserExcelDataUs extends UserExcelData {
     @Length(max = 255)
     @ExcelProperty("Password")
     @ColumnWidth(30)
-    @Pattern(regexp = "^(?![0-9]+$)(?![^0-9]+$)(?![a-zA-Z]+$)(?![^a-zA-Z]+$)(?![a-zA-Z0-9]+$)[a-zA-Z0-9\\S]{8,30}$", message = "{user_import_format_wrong}")
+    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[\\s\\S]{8,30}$", message = "{user_import_format_wrong}")
     private String password;
 
     @ExcelProperty("Phone")
@@ -47,26 +47,6 @@ public class UserExcelDataUs extends UserExcelData {
     @ColumnWidth(30)
     @ExcelProperty("User is administrator(Yes/No)")
     private String userIsAdmin;
-
-    @NotBlank(message = "{cannot_be_null}")
-    @ColumnWidth(30)
-    @ExcelProperty("User is organization manager(Yes/No)")
-    private String userIsOrgAdmin;
-
-    @Length(max = 100)
-    @ColumnWidth(30)
-    @ExcelProperty("Manager in witch organization")
-    private String orgAdminOrganization;
-
-    @NotBlank(message = "{cannot_be_null}")
-    @ColumnWidth(30)
-    @ExcelProperty("User is organization member(Yes/No)")
-    private String userIsOrgMember;
-
-    @Length(max = 100)
-    @ColumnWidth(30)
-    @ExcelProperty("Member in witch organization")
-    private String orgMemberOrganization;
 
     @NotBlank(message = "{cannot_be_null}")
     @ColumnWidth(30)

@@ -6,6 +6,7 @@
       </span>
     </template>
     <ms-table
+      :enable-selection="false"
       :condition="condition"
       :data="tableData"
       @refresh="search"
@@ -145,7 +146,7 @@ export default {
 
     updateTask(taskRow){
 
-      this.result = this.$post('/api/schedule/updateEnableByPrimyKey', taskRow, response => {
+      this.result = this.$post('/api/schedule/updateEnableByPrimyKey/disable', taskRow, response => {
         this.search();
       });
     },
@@ -155,7 +156,7 @@ export default {
       }else if (param.taskGroup === 'API_SCENARIO_TEST') {
         this.$emit('redirectPage', 'scenario', 'scenario', 'edit:' + param.scenarioId);
       } else if (param.taskGroup === 'SWAGGER_IMPORT') {
-        this.$emit('redirectPage', 'api', 'api', 'edit:' + param.scenarioId);
+        this.$emit('redirectPage', 'api', 'api', {param});
       }
     }
   },
@@ -167,7 +168,7 @@ export default {
     this.search();
   },
   handleStatus(scope) {
-    console.log(scope.row.userId)
+    // console.log(scope.row.userId)
   }
   }
 </script>

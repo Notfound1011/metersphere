@@ -1,6 +1,6 @@
 <template>
   <el-main>
-    <div  class="api-schedule-form">
+    <div class="api-schedule-form">
       <el-form :model="formData" :rules="rules" v-loading="result.loading" label-width="80px" ref="form">
         <el-row>
           <el-col :span="12">
@@ -21,14 +21,37 @@
                            :defaultKey="formData.moduleId"
                            @getValue="setModule"
                            :obj="moduleObj" clearable checkStrictly ref="selectTree"/>
-<!--              <ms-select-tree :disabled="readOnly" :data="treeNodes" :defaultKey="form.module" :obj="moduleObj"-->
-<!--                              @getValue="setModule" clearable checkStrictly size="small"/>-->
+              <!--              <ms-select-tree :disabled="readOnly" :data="treeNodes" :defaultKey="form.module" :obj="moduleObj"-->
+              <!--                              @getValue="setModule" clearable checkStrictly size="small"/>-->
             </el-form-item>
             <el-form-item :label-width="labelWith" :label="$t('commons.import_mode')" prop="modeId">
-              <el-select size="small" v-model="formData.modeId" clearable >
+              <el-select size="small" v-model="formData.modeId" clearable>
                 <el-option v-for="item in modeOptions" :key="item.id" :label="item.name" :value="item.id"/>
               </el-select>
             </el-form-item>
+          </el-col>
+
+          <el-col :span="12" style="margin-left: 50px">
+            <el-switch v-model="authEnable" :active-text="$t('api_test.api_import.add_request_params')"></el-switch>
+          </el-col>
+
+          <el-col :span="19" v-show="authEnable" style="margin-top: 10px; margin-left: 50px" class="request-tabs">
+            <!-- 请求头 -->
+            <div>
+              <span>{{$t('api_test.request.headers')}}{{$t('api_test.api_import.optional')}}：</span>
+            </div>
+            <ms-api-key-value :label="$t('api_test.definition.request.auth_config')"
+                              :show-desc="true" :isShowEnable="isShowEnable" :suggestions="headerSuggestions" :items="headers"/>
+            <!--query 参数-->
+            <div style="margin-top: 10px">
+              <span>{{$t('api_test.definition.request.query_param')}}{{$t('api_test.api_import.optional')}}：</span>
+            </div>
+            <ms-api-variable :with-mor-setting="true" :is-read-only="isReadOnly" :isShowEnable="isShowEnable" :parameters="queryArguments"/>
+            <!--认证配置-->
+            <div style="margin-top: 10px">
+              <span>{{$t('api_test.definition.request.auth_config')}}{{$t('api_test.api_import.optional')}}：</span>
+            </div>
+            <ms-api-auth-config :is-read-only="isReadOnly" :request="authConfig" :encryptShow="false"/>
           </el-col>
         </el-row>
 
@@ -43,17 +66,32 @@
       </el-form>
 
       <div style="margin-top: 20px;" class="clearfix">
-        <el-button v-if="!formData.id" type="primary" style="float: right" size="mini" @click="saveCron">{{$t('commons.add')}}</el-button>
-        <div v-else>
-          <el-button type="primary" style="float: right;margin-left: 10px" size="mini" @click="clear">{{$t('commons.clear')}}</el-button>
-          <el-button type="primary" style="float: right" size="mini" @click="saveCron">{{$t('commons.update')}}</el-button>
-        </div>
+        <el-row>
+          <el-col :span="4">
+            <el-button type="primary" style="float: right" size="mini" @click="openSchedule">
+              {{ $t('schedule.task_notification') }}
+            </el-button>
+          </el-col>
+          <el-col :span="20">
+            <el-button v-if="!formData.id" type="primary" style="float: right" size="mini" @click="saveCron">
+              {{ $t('commons.add') }}
+            </el-button>
+            <div v-else>
+              <el-button type="primary" style="float: right;margin-left: 10px" size="mini" @click="clear">
+                {{ $t('commons.clear') }}
+              </el-button>
+              <el-button type="primary" style="float: right" size="mini" @click="saveCron">{{ $t('commons.update') }}
+              </el-button>
+            </div>
+          </el-col>
+        </el-row>
       </div>
     </div>
 
     <div class="task-list">
       <swagger-task-list
         @clear="clear"
+        :param="param"
         @rowClick="handleRowClick"
         ref="taskList"/>
     </div>
@@ -61,6 +99,17 @@
     <el-dialog width="60%" :title="$t('schedule.generate_expression')" :visible.sync="showCron" :modal="false">
       <crontab @hide="showCron=false" @fill="crontabFill" :expression="formData.value" ref="crontab"/>
     </el-dialog>
+    <el-dialog
+      :title="$t('schedule.task_notification')"
+      :visible.sync="dialogVisible"
+      width="60%"
+    >
+      <swagger-task-notification :api-test-id="formData.id" :scheduleReceiverOptions="scheduleReceiverOptions"
+                                 ref="schedule-task-notification">
+
+      </swagger-task-notification>
+    </el-dialog>
+
 
   </el-main>
 </template>
@@ -71,21 +120,34 @@ import SwaggerTaskList from "@/business/components/api/definition/components/imp
 import CrontabResult from "@/business/components/common/cron/CrontabResult";
 import Crontab from "@/business/components/common/cron/Crontab";
 import {cronValidate} from "@/common/js/cron";
-import {getCurrentProjectID, getCurrentUser} from "@/common/js/utils";
+import {getCurrentProjectID, getCurrentUser, getCurrentWorkspaceId} from "@/common/js/utils";
 import SelectTree from "@/business/components/common/select-tree/SelectTree";
+import SwaggerTaskNotification from "@/business/components/api/definition/components/import/SwaggerTaskNotification";
+import MsApiKeyValue from "../ApiKeyValue";
+import MsApiVariable from "../ApiVariable";
+import MsApiAuthConfig from "../auth/ApiAuthConfig";
+import {REQUEST_HEADERS} from "@/common/js/constants";
+import {KeyValue} from "../../model/ApiTestModel";
+import {ELEMENT_TYPE, TYPE_TO_C} from "@/business/components/api/automation/scenario/Setting";
+
 export default {
   name: "ApiSchedule",
-  components: {SelectTree, MsFormDivider,SwaggerTaskList, CrontabResult, Crontab},
+  components: {
+    SwaggerTaskNotification, SelectTree, MsFormDivider, SwaggerTaskList, CrontabResult, Crontab, MsApiKeyValue, MsApiVariable, MsApiAuthConfig
+  },
   props: {
     customValidate: {
       type: Function,
-      default: () => {return {pass: true};}
+      default: () => {
+        return {pass: true};
+      }
     },
     isReadOnly: {
       type: Boolean,
       default: false
     },
     moduleOptions: Array,
+    param: Object
   },
 
   watch: {
@@ -112,6 +174,8 @@ export default {
       schedule: {
         value: "",
       },
+      scheduleReceiverOptions: [],
+      dialogVisible: false,
       showCron: false,
       activeName: 'first',
       swaggerUrl: String,
@@ -145,10 +209,33 @@ export default {
         id: 'id',
         label: 'name',
       },
-    }
+      isShowEnable: true,
+      authEnable: false,
+      headerSuggestions: REQUEST_HEADERS,
+      headers: [],
+      queryArguments: [],
+      authConfig: {
+        hashTree: []
+      }
+    };
   },
 
   methods: {
+    openSchedule() {
+      if (this.formData.id !== null && this.formData.id !== undefined) {
+        this.dialogVisible = true;
+        this.initUserList();
+      } else {
+        this.$warning("请先选择您要添加通知的定时任务");
+      }
+
+    },
+
+    initUserList() {
+      this.result = this.$get('user/ws/member/list/' + getCurrentWorkspaceId(), response => {
+        this.scheduleReceiverOptions = response.data;
+      });
+    },
     currentUser: () => {
       return getCurrentUser();
     },
@@ -159,6 +246,7 @@ export default {
       if (!this.formData.rule) {
         this.$refs.crontabResult.resultList = [];
       }
+      this.clearAuthInfo();
       this.$nextTick(() => {
         this.$refs.selectTree.init();
       });
@@ -170,7 +258,12 @@ export default {
       this.$refs['form'].validate();
     },
     showCronDialog() {
-      this.showCron = true;
+      let tmp = this.schedule.value;
+      this.schedule.value = '';
+      this.$nextTick(() => {
+        this.schedule.value = tmp;
+        this.showCron = true;
+      });
     },
     saveCron() {
       this.$refs['form'].validate((valid) => {
@@ -184,7 +277,16 @@ export default {
     },
     saveSchedule() {
       this.formData.projectId = getCurrentProjectID();
+      this.formData.workspaceId = getCurrentWorkspaceId();
       this.formData.value = this.formData.rule;
+      // 设置请求头或 query 参数
+      this.formData.headers = this.headers;
+      this.formData.arguments = this.queryArguments;
+      // 设置 BaseAuth 参数
+      if(this.authConfig.authManager != undefined){
+        this.authConfig.authManager.clazzName = TYPE_TO_C.get("AuthManager");
+        this.formData.authManager = this.authConfig.authManager;
+      }
       let url = '';
       if (this.formData.id) {
         url = '/api/definition/schedule/update';
@@ -219,10 +321,32 @@ export default {
       this.formData.modulePath = data.path;
     },
     handleRowClick(row) {
+      // 如果认证信息不为空，进行转化
+      if(row.config != null || row.config != undefined){
+        this.authEnable = true;
+        let config = JSON.parse(row.config);
+        this.headers = config.headers;
+        this.queryArguments = config.arguments;
+        if(config.authManager != null || config.authManager != undefined){
+          this.authConfig = config;
+        }else {
+          this.authConfig = {hashTree: [], authManager: {}};
+        }
+      }else {
+        this.clearAuthInfo();
+      }
       Object.assign(this.formData, row);
       this.$nextTick(() => {
         this.$refs.selectTree.init();
       });
+    },
+    clearAuthInfo(){
+      this.headers = [];
+      this.queryArguments = [];
+      this.headers.push(new KeyValue({enable: true}));
+      this.queryArguments.push(new KeyValue({enable: true}));
+      this.authConfig = {hashTree: [], authManager: {}};
+      this.authEnable = false;
     }
 
   },
@@ -234,7 +358,7 @@ export default {
       return this.selectedPlatformValue === 'Swagger2';
     },
   }
-}
+};
 </script>
 
 <style scoped>
@@ -243,7 +367,7 @@ export default {
   display: inline-block;
 }
 
-.api-schedule-form,.task-list {
+.api-schedule-form, .task-list {
   border: #DCDFE6 solid 1px;
   padding: 10px;
 }

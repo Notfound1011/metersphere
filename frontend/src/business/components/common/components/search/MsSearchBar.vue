@@ -38,9 +38,12 @@
 </template>
 
 <script>
+
+import moduleTrashButton from "@/business/components/api/definition/components/module/ModuleTrashButton";
 import {hasPermissions} from "@/common/js/utils";
 
 export default {
+  components:{moduleTrashButton},
   name: "MsSearchBar",
   props: {
     condition: {

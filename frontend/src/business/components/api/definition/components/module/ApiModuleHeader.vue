@@ -20,7 +20,7 @@
       </el-col>
     </el-row>
 
-    <module-trash-button v-if="!isReadOnly" :condition="condition" :exe="enableTrash"/>
+    <module-trash-button v-if="!isReadOnly" :condition="condition" :total="total" :exe="enableTrash"/>
 
     <ms-add-basis-api
       :current-protocol="condition.protocol"
@@ -46,7 +46,6 @@ export default {
   components: {MsSearchBar, TemplateComponent, ModuleTrashButton, ApiImport, MsAddBasisApi},
   data() {
     return {
-      options: OPTIONS,
       operators: [
         {
           label: this.$t('api_test.definition.request.title'),
@@ -65,7 +64,7 @@ export default {
           callback: () => {
             this.$emit('schedule');
           },
-          permissions: ['PROJECT_API_DEFINITION:READ+IMPORT_API']
+          permissions: ['PROJECT_API_DEFINITION:READ+TIMING_SYNC']
         },
         {
           label: this.$t('api_test.api_import.label'),
@@ -111,6 +110,7 @@ export default {
     },
     showOperator: Boolean,
     moduleOptions: Array,
+    total: Number,
     currentModule: {
       type: Object,
       default() {
@@ -123,6 +123,12 @@ export default {
         return false;
       }
     },
+    options: {
+      type: Array,
+      default() {
+        return OPTIONS;
+      }
+    }
   },
   computed: {
     projectId() {

@@ -4,9 +4,12 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import io.metersphere.base.domain.LoadTest;
 import io.metersphere.base.domain.TestPlanLoadCase;
+import io.metersphere.base.domain.TestPlanLoadCaseWithBLOBs;
 import io.metersphere.commons.constants.OperLogConstants;
+import io.metersphere.commons.constants.TriggerMode;
 import io.metersphere.commons.utils.PageUtils;
 import io.metersphere.commons.utils.Pager;
+import io.metersphere.controller.request.ResetOrderRequest;
 import io.metersphere.log.annotation.MsAuditLog;
 import io.metersphere.performance.request.RunTestPlanRequest;
 import io.metersphere.track.dto.TestPlanLoadCaseDTO;
@@ -29,8 +32,7 @@ public class TestPlanLoadCaseController {
 
     @PostMapping("/relevance/list/{goPage}/{pageSize}")
     public Pager<List<LoadTest>> relevanceList(@PathVariable int goPage, @PathVariable int pageSize, @RequestBody LoadCaseRequest request) {
-        Page<Object> page = PageHelper.startPage(goPage, pageSize, true);
-        return PageUtils.setPageInfo(page, testPlanLoadCaseService.relevanceList(request));
+        return testPlanLoadCaseService.relevanceList(request, goPage, pageSize);
     }
 
     @PostMapping("/relevance")
@@ -65,6 +67,11 @@ public class TestPlanLoadCaseController {
     @PostMapping("/run/batch")
     @MsAuditLog(module = "track_test_plan", type = OperLogConstants.EXECUTE, content = "#msClass.getRunLogDetails(#request.requests)", msClass = TestPlanLoadCaseService.class)
     public void runBatch(@RequestBody RunBatchTestPlanRequest request) {
+        if (request.getRequests() != null) {
+            for (RunTestPlanRequest req : request.getRequests()) {
+                req.setTriggerMode(TriggerMode.BATCH.name());
+            }
+        }
         testPlanLoadCaseService.runBatch(request);
     }
 
@@ -80,14 +87,44 @@ public class TestPlanLoadCaseController {
     }
 
     @PostMapping("/update")
-    @MsAuditLog(module = "track_test_plan", type = OperLogConstants.UPDATE,  content = "#msClass.getLogDetails(#testPlanLoadCase.id)", msClass = TestPlanLoadCaseService.class)
-    public void update(@RequestBody TestPlanLoadCase testPlanLoadCase) {
+    @MsAuditLog(module = "track_test_plan", type = OperLogConstants.UPDATE, content = "#msClass.getLogDetails(#testPlanLoadCase.id)", msClass = TestPlanLoadCaseService.class)
+    public void update(@RequestBody TestPlanLoadCaseWithBLOBs testPlanLoadCase) {
         testPlanLoadCaseService.update(testPlanLoadCase);
     }
 
     @PostMapping("/update/api")
-    @MsAuditLog(module = "track_test_plan", type = OperLogConstants.UPDATE,  content = "#msClass.getLogDetails(#testPlanLoadCase.id)", msClass = TestPlanLoadCaseService.class)
+    @MsAuditLog(module = "track_test_plan", type = OperLogConstants.UPDATE, content = "#msClass.getLogDetails(#testPlanLoadCase.id)", msClass = TestPlanLoadCaseService.class)
     public void updateByApi(@RequestBody TestPlanLoadCase testPlanLoadCase) {
         testPlanLoadCaseService.updateByApi(testPlanLoadCase);
+    }
+
+    @GetMapping("/list/failure/{planId}")
+    public List<TestPlanLoadCaseDTO> getFailureCases(@PathVariable String planId) {
+        return testPlanLoadCaseService.getFailureCases(planId);
+    }
+
+    @GetMapping("/list/all/{planId}")
+    public List<TestPlanLoadCaseDTO> getAllCases(@PathVariable String planId) {
+        return testPlanLoadCaseService.getAllCases(planId);
+    }
+
+    @GetMapping("/get-load-config/{loadCaseId}")
+    public String getPlanLoadCaseConfig(@PathVariable String loadCaseId) {
+        return testPlanLoadCaseService.getPlanLoadCaseConfig(loadCaseId);
+    }
+
+    @GetMapping("/get-advanced-config/{loadCaseId}")
+    public String getAdvancedConfiguration(@PathVariable String loadCaseId) {
+        return testPlanLoadCaseService.getAdvancedConfiguration(loadCaseId);
+    }
+
+    @GetMapping("/get/{loadCaseId}")
+    public TestPlanLoadCase getTestPlanLoadCase(@PathVariable String loadCaseId) {
+        return testPlanLoadCaseService.getTestPlanLoadCase(loadCaseId);
+    }
+
+    @PostMapping("/edit/order")
+    public void orderCase(@RequestBody ResetOrderRequest request) {
+        testPlanLoadCaseService.updateOrder(request);
     }
 }

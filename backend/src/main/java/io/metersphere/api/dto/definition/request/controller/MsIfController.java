@@ -1,8 +1,9 @@
 package io.metersphere.api.dto.definition.request.controller;
 
 import com.alibaba.fastjson.annotation.JSONType;
-import io.metersphere.api.dto.definition.request.MsTestElement;
 import io.metersphere.api.dto.definition.request.ParameterConfig;
+import io.metersphere.plugin.core.MsParameter;
+import io.metersphere.plugin.core.MsTestElement;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.apache.commons.collections.CollectionUtils;
@@ -21,13 +22,17 @@ import java.util.regex.Pattern;
 @JSONType(typeName = "IfController")
 public class MsIfController extends MsTestElement {
     private String type = "IfController";
+    private String clazzName = "io.metersphere.api.dto.definition.request.controller.MsIfController";
+
     private String id;
     private String variable;
     private String operator;
     private String value;
+    private String remark;
 
     @Override
-    public void toHashTree(HashTree tree, List<MsTestElement> hashTree, ParameterConfig config) {
+    public void toHashTree(HashTree tree, List<MsTestElement> hashTree, MsParameter msParameter) {
+        ParameterConfig config = (ParameterConfig) msParameter;
         // 非导出操作，且不是启用状态则跳过执行
         if (!config.isOperating() && !this.isEnable()) {
             return;
@@ -76,25 +81,29 @@ public class MsIfController extends MsTestElement {
     }
 
     public String getContentValue() {
-        String content = this.variable;
-        Pattern regex = Pattern.compile("\\$\\{([^}]*)\\}");
-        Matcher matcher = regex.matcher(content);
-        StringBuilder stringBuilder = new StringBuilder();
-        while (matcher.find()) {
-            stringBuilder.append(matcher.group(1) + ",");
+        try {
+            String content = this.variable;
+            Pattern regex = Pattern.compile("\\$\\{([^}]*)\\}");
+            Matcher matcher = regex.matcher(content);
+            StringBuilder stringBuilder = new StringBuilder();
+            while (matcher.find()) {
+                stringBuilder.append(matcher.group(1) + ",");
+            }
+            if (stringBuilder.length() > 0) {
+                stringBuilder.deleteCharAt(stringBuilder.length() - 1);
+            }
+            if (StringUtils.isEmpty(stringBuilder.toString())) {
+                return this.variable;
+            }
+            return stringBuilder.toString();
+        } catch (Exception e) {
+            return null;
         }
-        if (stringBuilder.length() > 0) {
-            stringBuilder.deleteCharAt(stringBuilder.length() - 1);
-        }
-        if (StringUtils.isEmpty(stringBuilder.toString())) {
-            return this.variable;
-        }
-        return stringBuilder.toString();
     }
 
     public String getCondition() {
         String key = getContentValue();
-        String variable = key.equals(this.variable) ? "\"" + this.variable + "\"" : "vars.get('" + key + "')";
+        String variable = (StringUtils.isEmpty(key) || key.equals(this.variable)) ? "\"" + this.variable + "\"" : "vars.get('" + key + "')";
         String operator = this.operator;
         String value;
         if (StringUtils.equals(operator, "<") || StringUtils.equals(operator, ">")) {
@@ -103,7 +112,7 @@ public class MsIfController extends MsTestElement {
             value = "\"" + this.value + "\"";
         }
         if (StringUtils.contains(operator, "~")) {
-            value = "\".*" + this.value + ".*\"";
+            value = "\"(\\n|.)*" + this.value + "(\\n|.)*\"";
         }
 
         if (StringUtils.equals(operator, "is empty")) {

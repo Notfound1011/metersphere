@@ -594,76 +594,6 @@ public class TestPlanExample {
             return (Criteria) this;
         }
 
-        public Criteria andPrincipalIsNull() {
-            addCriterion("principal is null");
-            return (Criteria) this;
-        }
-
-        public Criteria andPrincipalIsNotNull() {
-            addCriterion("principal is not null");
-            return (Criteria) this;
-        }
-
-        public Criteria andPrincipalEqualTo(String value) {
-            addCriterion("principal =", value, "principal");
-            return (Criteria) this;
-        }
-
-        public Criteria andPrincipalNotEqualTo(String value) {
-            addCriterion("principal <>", value, "principal");
-            return (Criteria) this;
-        }
-
-        public Criteria andPrincipalGreaterThan(String value) {
-            addCriterion("principal >", value, "principal");
-            return (Criteria) this;
-        }
-
-        public Criteria andPrincipalGreaterThanOrEqualTo(String value) {
-            addCriterion("principal >=", value, "principal");
-            return (Criteria) this;
-        }
-
-        public Criteria andPrincipalLessThan(String value) {
-            addCriterion("principal <", value, "principal");
-            return (Criteria) this;
-        }
-
-        public Criteria andPrincipalLessThanOrEqualTo(String value) {
-            addCriterion("principal <=", value, "principal");
-            return (Criteria) this;
-        }
-
-        public Criteria andPrincipalLike(String value) {
-            addCriterion("principal like", value, "principal");
-            return (Criteria) this;
-        }
-
-        public Criteria andPrincipalNotLike(String value) {
-            addCriterion("principal not like", value, "principal");
-            return (Criteria) this;
-        }
-
-        public Criteria andPrincipalIn(List<String> values) {
-            addCriterion("principal in", values, "principal");
-            return (Criteria) this;
-        }
-
-        public Criteria andPrincipalNotIn(List<String> values) {
-            addCriterion("principal not in", values, "principal");
-            return (Criteria) this;
-        }
-
-        public Criteria andPrincipalBetween(String value1, String value2) {
-            addCriterion("principal between", value1, value2, "principal");
-            return (Criteria) this;
-        }
-
-        public Criteria andPrincipalNotBetween(String value1, String value2) {
-            addCriterion("principal not between", value1, value2, "principal");
-            return (Criteria) this;
-        }
-
         public Criteria andTestCaseMatchRuleIsNull() {
             addCriterion("test_case_match_rule is null");
             return (Criteria) this;
@@ -1421,6 +1351,66 @@ public class TestPlanExample {
 
         public Criteria andAutomaticStatusUpdateNotBetween(Boolean value1, Boolean value2) {
             addCriterion("automatic_status_update not between", value1, value2, "automaticStatusUpdate");
+            return (Criteria) this;
+        }
+
+        public Criteria andRepeatCaseIsNull() {
+            addCriterion("repeat_case is null");
+            return (Criteria) this;
+        }
+
+        public Criteria andRepeatCaseIsNotNull() {
+            addCriterion("repeat_case is not null");
+            return (Criteria) this;
+        }
+
+        public Criteria andRepeatCaseEqualTo(Boolean value) {
+            addCriterion("repeat_case =", value, "repeatCase");
+            return (Criteria) this;
+        }
+
+        public Criteria andRepeatCaseNotEqualTo(Boolean value) {
+            addCriterion("repeat_case <>", value, "repeatCase");
+            return (Criteria) this;
+        }
+
+        public Criteria andRepeatCaseGreaterThan(Boolean value) {
+            addCriterion("repeat_case >", value, "repeatCase");
+            return (Criteria) this;
+        }
+
+        public Criteria andRepeatCaseGreaterThanOrEqualTo(Boolean value) {
+            addCriterion("repeat_case >=", value, "repeatCase");
+            return (Criteria) this;
+        }
+
+        public Criteria andRepeatCaseLessThan(Boolean value) {
+            addCriterion("repeat_case <", value, "repeatCase");
+            return (Criteria) this;
+        }
+
+        public Criteria andRepeatCaseLessThanOrEqualTo(Boolean value) {
+            addCriterion("repeat_case <=", value, "repeatCase");
+            return (Criteria) this;
+        }
+
+        public Criteria andRepeatCaseIn(List<Boolean> values) {
+            addCriterion("repeat_case in", values, "repeatCase");
+            return (Criteria) this;
+        }
+
+        public Criteria andRepeatCaseNotIn(List<Boolean> values) {
+            addCriterion("repeat_case not in", values, "repeatCase");
+            return (Criteria) this;
+        }
+
+        public Criteria andRepeatCaseBetween(Boolean value1, Boolean value2) {
+            addCriterion("repeat_case between", value1, value2, "repeatCase");
+            return (Criteria) this;
+        }
+
+        public Criteria andRepeatCaseNotBetween(Boolean value1, Boolean value2) {
+            addCriterion("repeat_case not between", value1, value2, "repeatCase");
             return (Criteria) this;
         }
     }
