@@ -41,6 +41,8 @@ public class TestPlan implements Serializable {
 
     private Integer executionTimes;
 
+    private Integer rejectedTimes;
+
     private Boolean automaticStatusUpdate;
 
     private Boolean repeatCase;

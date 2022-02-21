@@ -16,6 +16,7 @@ export default {
     please_select_import_module: '請選擇導入模塊',
     pass_rate: '通過率',
     execution_times: '執行次數',
+    rejected_times: '提測打回次數',
     cover: '覆蓋',
     module_title: '默認模塊',
     save_data_when_page_change: '翻頁保存勾選項',
@@ -52,6 +53,7 @@ export default {
     save_as: '另存為',
     update: '更新',
     save_success: '保存成功',
+    module_set_failed: '模塊保存失敗，請設定標籤後再次保存',
     send_success: '發送成功',
     delete_success: '刪除成功',
     copy_success: '復製成功',
@@ -317,6 +319,15 @@ export default {
     module: {
       select_module: "選擇模塊",
       default_module: "默認模塊",
+    },
+    quality_market: {
+      title: "質量大盤",
+      testcase_statistics: {
+        title: "功能用例統計"
+      },
+      testcase_pass_rate:{
+        title: "用例通過率"
+      }
     },
     report_statistics: {
       reserved: "預留模塊敬請期待",
@@ -2031,6 +2042,7 @@ export default {
       plan_status_running: "進行中",
       plan_status_finished: "已結束",
       plan_status_completed: "已完成",
+      plan_status_rejected: "提測打回",
       plan_status_trash: "廢棄",
       planned_start_time: "計劃開始",
       planned_end_time: "計劃結束",

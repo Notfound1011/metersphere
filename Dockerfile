@@ -7,7 +7,7 @@ RUN mkdir -p dependency && (cd dependency; jar -xf ../*.jar)
 
 FROM metersphere/fabric8-java-alpine-openjdk8-jre
 
-LABEL maintainer="FIT2CLOUD <support@fit2cloud.com>"
+LABEL maintainer="yuyu.shi@cmexpro.com"
 
 ARG MS_VERSION=v1.16.6
 ARG DEPENDENCY=/workspace/app/dependency

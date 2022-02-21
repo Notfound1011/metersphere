@@ -17,8 +17,9 @@
       @save="save"
       ref="minder"
     />
-    <IssueRelateList :case-id="getCurCaseId()"  @refresh="refreshRelateIssue" ref="issueRelate"/>
-    <test-plan-issue-edit :is-minder="true" :plan-id="null" :case-id="getCurCaseId()" @refresh="refreshIssue"  ref="issueEdit"/>
+    <IssueRelateList :case-id="getCurCaseId()" @refresh="refreshRelateIssue" ref="issueRelate"/>
+    <test-plan-issue-edit :is-minder="true" :plan-id="null" :case-id="getCurCaseId()" @refresh="refreshIssue"
+                          ref="issueEdit"/>
   </div>
 
 </template>
@@ -51,10 +52,10 @@ import TestPlanIssueEdit from "@/business/components/track/case/components/TestP
 const {getIssuesListById} = require("@/network/Issue");
 const {getCurrentWorkspaceId} = require("@/common/js/utils");
 export default {
-name: "TestCaseMinder",
+  name: "TestCaseMinder",
   components: {TestPlanIssueEdit, IssueRelateList, MsModuleMinder},
   data() {
-    return{
+    return {
       testCase: [],
       dataMap: new Map(),
       tags: [this.$t('api_test.definition.request.case'), this.$t('test_track.case.prerequisite'), this.$t('commons.remark'), this.$t('test_track.module.module')],
@@ -94,7 +95,7 @@ name: "TestCaseMinder",
       // 如果不是默认的排序条件不能调换位置
       return !this.condition.orders || this.condition.orders.length < 1;
     },
-    workspaceId(){
+    workspaceId() {
       return getCurrentWorkspaceId();
     }
 
@@ -119,7 +120,7 @@ name: "TestCaseMinder",
     handleAfterMount() {
       listenNodeSelected(() => {
         // 展开模块下的用例
-        loadSelectNodes(this.getParam(),  getTestCasesForMinder, null, getMinderExtraNode);
+        loadSelectNodes(this.getParam(), getTestCasesForMinder, null, getMinderExtraNode);
       });
 
       listenDblclick(() => {
@@ -132,7 +133,7 @@ name: "TestCaseMinder",
             isNotDisableNode = true;
           }
           if (node.data.type === 'issue') {
-            getIssuesListById(node.data.id, this.projectId,this.workspaceId,(data) => {
+            getIssuesListById(node.data.id, this.projectId, this.workspaceId, (data) => {
               data.customFields = JSON.parse(data.customFields);
               this.$refs.issueEdit.open(data);
             });
@@ -149,7 +150,7 @@ name: "TestCaseMinder",
           handleExpandToLevel(level, even.minder.getRoot(), this.getParam(), getTestCasesForMinder);
         }
 
-        if (handleMinderIssueDelete(even.commandName))  return; // 删除缺陷不算有编辑脑图信息
+        if (handleMinderIssueDelete(even.commandName)) return; // 删除缺陷不算有编辑脑图信息
 
         if (['priority', 'resource', 'removenode', 'appendchildnode', 'appendparentnode', 'appendsiblingnode'].indexOf(even.commandName) > -1) {
           // 这些情况则脑图有改变
@@ -191,7 +192,7 @@ name: "TestCaseMinder",
         data: this.saveCases,
         ids: this.deleteNodes.map(item => item.id),
         testCaseNodes: this.saveModules,
-        extraNodeRequest:  {
+        extraNodeRequest: {
           groupId: this.projectId,
           type: "TEST_CASE",
           data: this.saveExtraNode,
@@ -292,7 +293,9 @@ name: "TestCaseMinder",
       this.saveModules.push(module);
     },
     buildExtraNode(data, parent, root) {
-      if (data.type !== 'node' && data.type !== 'tmp' && parent && isModuleNodeData(parent.data) && data.changed === true) {
+      if (typeof (parent.data) == "undefined") {
+        this.$error(this.$t('commons.module_set_failed'));
+      } else if (data.type !== 'node' && data.type !== 'tmp' && parent && isModuleNodeData(parent.data) && data.changed === true) {
         // 保存额外信息，只保存模块下的一级子节点
         let nodes = this.saveExtraNode[parent.id];
         if (!nodes) {
@@ -329,7 +332,7 @@ name: "TestCaseMinder",
         nodeId: nodeId,
         nodePath: getNodePath(nodeId, this.moduleOptions),
         type: data.type ? data.type : 'functional',
-        method: data.method ? data.method: 'manual',
+        method: data.method ? data.method : 'manual',
         maintainer: data.maintainer,
         priority: 'P' + (data.priority ? data.priority - 1 : 0),
         prerequisite: "",

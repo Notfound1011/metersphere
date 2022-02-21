@@ -16,6 +16,7 @@ export default {
     please_select_import_module: 'Please select import module',
     pass_rate: 'Pass Rate',
     execution_times: 'Execution Times',
+    rejected_times: 'Rejected Times',
     cover: 'Cover',
     module_title: 'Default module',
     save_data_when_page_change: 'Save when page change',
@@ -53,6 +54,7 @@ export default {
     save_as: 'Save as',
     update: 'Update',
     save_success: 'Saved successfully',
+    module_set_failed: 'Module saving failed, please set the label and save again',
     send_success: 'Send successfully',
     delete_success: 'Deleted successfully',
     modify_success: 'Modify Success',
@@ -316,6 +318,15 @@ export default {
     module: {
       select_module: "Select module",
       default_module: "Default module",
+    },
+    quality_market: {
+      title: "Quality market",
+      testcase_statistics: {
+        title: "Function testcase statistics"
+      },
+      testcase_pass_rate:{
+        title: "Testcase passing rate"
+      }
     },
     report_statistics: {
       reserved: "Reserved",
@@ -2032,6 +2043,7 @@ export default {
       plan_status_running: "Starting",
       plan_status_finished: "Finished",
       plan_status_completed: "Completed",
+      plan_status_rejected: "Rejected",
       plan_status_trash: "Trashed",
       planned_start_time: "Start Time",
       planned_end_time: "End Time",

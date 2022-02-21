@@ -1,16 +1,12 @@
 <template>
   <ms-container>
-
     <ms-main-container>
       <test-plan-summary-list
         @openTestPlanEditDialog="openTestPlanEditDialog"
         @testPlanEdit="openTestPlanEditDialog"
         ref="testPlanSummaryList"/>
-
     </ms-main-container>
-
     <test-plan-edit ref="testPlanEditDialog" @refresh="refreshTestPlanList"/>
-
   </ms-container>
 </template>
 

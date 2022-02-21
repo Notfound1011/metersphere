@@ -403,7 +403,7 @@ public class ApiModuleService extends NodeTreeService<ApiModuleDTO> {
                                        List<ApiModule> updateNodes, String rootPath, String pId, int level) {
         rootPath = rootPath + rootNode.getName();
 
-        if (level > 8) {
+        if (level > TestCaseConstants.MAX_NODE_DEPTH) {
             MSException.throwException(Translator.get("node_deep_limit"));
         }
         if ("root".equals(rootNode.getId())) {

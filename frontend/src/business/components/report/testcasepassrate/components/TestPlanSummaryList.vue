@@ -1,7 +1,7 @@
 <template>
   <el-card class="table-card" v-loading="cardResult.loading">
     <template v-slot:header>
-<!--      <h2 style="font-weight:bold">用例通过率统计</h2>-->
+      <!--      <h2 style="font-weight:bold">用例通过率统计</h2>-->
       <div class="Echarts" id="casePassRate" style="width:90%;height:500%;">
       </div>
       <ms-table-header :create-permission="['']" :condition.sync="condition"
@@ -36,6 +36,21 @@
           :label="$t('commons.create_user')"
           show-overflow-tooltip
           :key="index">
+        </el-table-column>
+        <el-table-column
+          v-if="item.id == 'status'"
+          prop="status"
+          column-key="status"
+          :filters="statusFilters"
+          :label="$t('test_track.plan.plan_status')"
+          show-overflow-tooltip
+          :min-width="100"
+          :key="index">
+          <template v-slot:default="scope">
+            <span class="el-dropdown-link">
+              <plan-status-table-item :value="scope.row.status"/>
+            </span>
+          </template>
         </el-table-column>
         <el-table-column
           v-if="item.id == 'stage'"
@@ -91,6 +106,15 @@
           :key="index">
         </el-table-column>
         <el-table-column
+          v-if="item.id == 'rejectedTimes'"
+          prop="rejectedTimes"
+          :label="$t('commons.rejected_times')"
+          sortable
+          show-overflow-tooltip
+          :min-width="130"
+          :key="index">
+        </el-table-column>
+        <el-table-column
           v-if="item.id == 'plannedStartTime'"
           sortable
           prop="plannedStartTime"
@@ -142,9 +166,6 @@
       <el-table-column
         min-width="200"
         :label="$t('commons.operating')">
-        <template slot="header">
-          <header-label-operate @exec="customHeader"/>
-        </template>
         <template v-slot:default="scope">
           <div>
             <ms-table-operator :edit-permission="['PROJECT_TRACK_PLAN:READ+EDIT']"
@@ -199,7 +220,7 @@ import MsTableHeader from "../../../common/components/MsTableHeader";
 import MsDialogFooter from "../../../common/components/MsDialogFooter";
 import MsTableOperatorButton from "../../../common/components/MsTableOperatorButton";
 import MsTableOperator from "../../../common/components/MsTableOperator";
-import PlanStatusTableItem from "@/business/components/track/common/tableItems/plan/PlanStageTableItem";
+import PlanStatusTableItem from "@/business/components/track/common/tableItems/plan/PlanStatusTableItem";
 import PlanStageTableItem from "@/business/components/track/common/tableItems/plan/PlanStageTableItem";
 import MsDeleteConfirm from "../../../common/components/MsDeleteConfirm";
 import {TEST_PLAN_CONFIGS} from "../../../common/components/search/search-components";
@@ -261,7 +282,6 @@ export default {
       },
       currentPage: 1,
       pageSize: 10,
-      hasEditPermission: false,
       total: 0,
       tableData: [],
       screenHeight: 'calc(100vh - 200px)',
@@ -269,7 +289,8 @@ export default {
         {text: this.$t('test_track.plan.plan_status_prepare'), value: 'Prepare'},
         {text: this.$t('test_track.plan.plan_status_running'), value: 'Underway'},
         {text: this.$t('test_track.plan.plan_status_finished'), value: 'Finished'},
-        {text: this.$t('test_track.plan.plan_status_completed'), value: 'Completed'}
+        {text: this.$t('test_track.plan.plan_status_completed'), value: 'Completed'},
+        {text: this.$t('test_track.plan.plan_status_rejected'), value: 'Rejected'}
       ],
       stageFilters: [
         {text: this.$t('test_track.plan.smoke_test'), value: 'smoke'},
@@ -292,7 +313,6 @@ export default {
     if (!this.projectId) {
       this.projectId = getCurrentProjectID();
     }
-    this.hasEditPermission = hasPermission('PROJECT_TRACK_PLAN:READ+EDIT');
     this.condition.orders = getLastTableSortField(this.tableHeaderKey);
     getPlanStageOption((data) => {
       this.stageOption = data;

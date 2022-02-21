@@ -324,6 +324,16 @@ public class TestPlanService {
             testPlan.setActualStartTime(System.currentTimeMillis());
         }
 
+        // 如果当前状态是提测打回，增加提测打回的次数
+        if (StringUtils.equals(testPlan.getStatus(), TestPlanStatus.Rejected.name())) {
+            if (res.getRejectedTimes() != null){
+                testPlan.setRejectedTimes(res.getRejectedTimes() + 1);
+            }else {
+                testPlan.setRejectedTimes(1);
+            }
+            testPlanMapper.updateByPrimaryKeySelective(testPlan);
+        }
+
         int i;
         if (testPlan.getName() == null) {//  若是点击该测试计划，则仅更新了updateTime，其它字段全为null，使用updateByPrimaryKeySelective
             i = testPlanMapper.updateByPrimaryKeySelective(testPlan);
@@ -477,7 +487,7 @@ public class TestPlanService {
         } else if (prepareNum == 0 && passNum + failNum == statusList.size()) {  //  已结束
             testPlanWithBLOBs.setStatus(TestPlanStatus.Finished.name());
             editTestPlan(testPlanWithBLOBs);
-        } else if (prepareNum != 0) {    //  进行中
+        } else if (prepareNum != 0 && !testPlanWithBLOBs.getStatus().equals(TestPlanStatus.Rejected.name())) {    //  进行中
             testPlanWithBLOBs.setStatus(TestPlanStatus.Underway.name());
             editTestPlan(testPlanWithBLOBs);
         }

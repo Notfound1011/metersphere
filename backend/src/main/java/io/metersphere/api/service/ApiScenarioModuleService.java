@@ -368,7 +368,7 @@ public class ApiScenarioModuleService extends NodeTreeService<ApiScenarioModuleD
 
         rootPath = rootPath + rootNode.getName();
 
-        if (level > 8) {
+        if (level > TestCaseConstants.MAX_NODE_DEPTH) {
             MSException.throwException(Translator.get("node_deep_limit"));
         }
         if ("root".equals(rootNode.getId())) {

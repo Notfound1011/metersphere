@@ -4,7 +4,7 @@
       <el-col :span="14">
         <el-menu class="header-menu" :unique-opened="true" mode="horizontal" router :default-active='$route.path'>
 
-          <el-menu-item :index="'/reports/testcaseStat'" style="margin-left: 2%">
+          <el-menu-item :index="'/reports/testCaseStat'" style="margin-left: 2%">
             {{ $t('commons.quality_market.testcase_statistics.title') }}
           </el-menu-item>
           <el-menu-item :index="'/reports/testPlanSummary'">
