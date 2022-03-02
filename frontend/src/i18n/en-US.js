@@ -326,6 +326,9 @@ export default {
       },
       testcase_pass_rate:{
         title: "Testcase passing rate"
+      },
+      bug_statistics:{
+        title: "Testcase passing rate"
       }
     },
     report_statistics: {

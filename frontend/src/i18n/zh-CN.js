@@ -328,6 +328,9 @@ export default {
       },
       testcase_pass_rate:{
         title: "用例通过率"
+      },
+      bug_statistics:{
+        title: "bug统计"
       }
     },
     report_statistics: {

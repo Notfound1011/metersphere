@@ -48,6 +48,10 @@ export const GROUP_SYSTEM = 'SYSTEM';
 export const GROUP_WORKSPACE = 'WORKSPACE';
 export const GROUP_PROJECT = 'PROJECT';
 
+export const JENKINS_AUTH = 'Basic dGVzdDoxMjM0NTY=';
+export const JIRA_ADDRESS = 'http://jira.cmexpro.com';
+export const JIRA_AUTH = 'Basic eXV5dS5zaGk6U2hpeXVAMTIz';
+
 export const SCHEDULE_TYPE = {
   API_TEST: 'API_TEST',
   PERFORMANCE_TEST: 'PERFORMANCE_TEST'
