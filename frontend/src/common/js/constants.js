@@ -50,7 +50,7 @@ export const GROUP_PROJECT = 'PROJECT';
 
 export const JENKINS_AUTH = 'Basic dGVzdDoxMjM0NTY=';
 export const JIRA_ADDRESS = 'http://jira.cmexpro.com';
-export const JIRA_AUTH = 'Basic eXV5dS5zaGk6U2hpeXVAMTIz';
+export const JIRA_AUTH = 'Basic eXV5dS5zaGk6U2hpeXVAMTIzNA==';
 
 export const SCHEDULE_TYPE = {
   API_TEST: 'API_TEST',
