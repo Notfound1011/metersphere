@@ -16,5 +16,10 @@ export default {
       name: 'testPlanSummary',
       component: () => import('@/business/components/report/testcasepassrate/TestPlanSummary'),
     },
+    {
+      path: 'bugStat',
+      name: 'bugStat',
+      component: () => import('@/business/components/report/bugstat/BugStat'),
+    },
   ]
 }

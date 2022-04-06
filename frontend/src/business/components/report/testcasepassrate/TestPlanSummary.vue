@@ -53,8 +53,8 @@
         this.$refs.testPlanEditDialog.openTestPlanEditDialog(data);
       },
       refreshTestPlanList() {
-        this.$refs.testPlanList.condition = {};
-        this.$refs.testPlanList.initTableData();
+        this.$refs.testPlanSummaryList.condition = {};
+        this.$refs.testPlanSummaryList.initTableData();
       }
     }
   }

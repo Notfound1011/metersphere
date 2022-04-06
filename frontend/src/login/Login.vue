@@ -59,7 +59,7 @@
 
 <script>
 import {publicKeyEncrypt, saveLocalStorage} from '@/common/js/utils';
-import {CURRENT_LANGUAGE, DEFAULT_LANGUAGE, PRIMARY_COLOR} from "@/common/js/constants";
+import {CURRENT_LANGUAGE, DEFAULT_LANGUAGE, JENKINS_AUTH, PRIMARY_COLOR} from "@/common/js/constants";
 
 const requireComponent = require.context('@/business/components/xpack/', true, /\.vue$/);
 const display = requireComponent.keys().length > 0 ? requireComponent("./display/Display.vue") : {};
@@ -131,7 +131,7 @@ export default {
     this.$axios.get("/jenkins/crumbIssuer/api/xml",
       {
         params: {'xpath': 'concat(//crumbRequestField,":",//crumb)'},
-        headers: {'Authorization': 'Basic dGVzdDoxMjM0NTY='}
+        headers: {'Authorization': JENKINS_AUTH}
       }).then(res => {
       if (res.status === 200) {
         let json = {}

@@ -36,7 +36,7 @@
 import MsMainContainer from "@/business/components/common/components/MsMainContainer";
 import MsContainer from "@/business/components/common/components/MsContainer";
 import MsAsideContainer from "@/business/components/common/components/MsAsideContainer";
-import {noRepeat} from "../../../../common/js/utils";
+import {JENKINS_AUTH} from "@/common/js/constants";
 
 export default {
   components: {MsMainContainer, MsContainer, MsAsideContainer},
@@ -66,7 +66,7 @@ export default {
       this.$axios.get("/jenkins/crumbIssuer/api/xml",
         {
           params: {'xpath': 'concat(//crumbRequestField,":",//crumb)'},
-          headers: {'Authorization': 'Basic dGVzdDoxMjM0NTY='}
+          headers: {'Authorization': JENKINS_AUTH}
         }).then(res => {
         if (res.status === 200) {
           this.json.Jenkins_Crumb = res.data.split(":")[1];

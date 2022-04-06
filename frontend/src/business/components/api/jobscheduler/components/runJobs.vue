@@ -237,6 +237,7 @@
 import MsMainContainer from "@/business/components/common/components/MsMainContainer";
 import MsContainer from "@/business/components/common/components/MsContainer";
 import {formatTimeStamp, formatTime, isObjectValueEqual} from "@/common/js/utils";
+import {JENKINS_AUTH} from "@/common/js/constants";
 
 export default {
   name: "runJobs",
@@ -371,7 +372,7 @@ export default {
       this.$axios.post("/jenkins/api/json?tree=jobs[name,url,description,builds[number,result,duration,timestamp,url]{0,1}]", null,
         {
           headers: {
-            'Authorization': 'Basic dGVzdDoxMjM0NTY=',
+            'Authorization': JENKINS_AUTH,
             'Jenkins-Crumb': this.Jenkins_Crumb
           }
         }).then((res) => {
@@ -411,7 +412,7 @@ export default {
           this.$axios.get("/jenkins/crumbIssuer/api/xml",
             {
               params: {'xpath': 'concat(//crumbRequestField,":",//crumb)'},
-              headers: {'Authorization': 'Basic dGVzdDoxMjM0NTY='}
+              headers: {'Authorization': JENKINS_AUTH}
             }).then(res => {
             if (res.status === 200) {
               this.json.Jenkins_Crumb = res.data.split(":")[1];
@@ -439,7 +440,7 @@ export default {
           method: 'post',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': 'Basic dGVzdDoxMjM0NTY=',
+            'Authorization': JENKINS_AUTH,
             'Jenkins-Crumb': this.Jenkins_Crumb
           },
           transformRequest: [function (data) {
@@ -475,7 +476,7 @@ export default {
         // 不带参数的build
         let url = "/jenkins/job/" + name + "/build"
         this.$axios.post(url, null,
-          {headers: {'Authorization': 'Basic dGVzdDoxMjM0NTY=', 'Jenkins-Crumb': this.Jenkins_Crumb}}).then((res) => {
+          {headers: {'Authorization': JENKINS_AUTH, 'Jenkins-Crumb': this.Jenkins_Crumb}}).then((res) => {
           if (res.status === 201) {
             this.tableData = res.data.jobs
             this.$notify.success({

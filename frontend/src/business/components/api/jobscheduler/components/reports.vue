@@ -73,6 +73,7 @@
 import MsMainContainer from "@/business/components/common/components/MsMainContainer";
 import MsContainer from "@/business/components/common/components/MsContainer";
 import {formatTimeStamp, formatTime} from "@/common/js/utils";
+import {JENKINS_AUTH} from "@/common/js/constants";
 
 export default {
   name: "reports",
@@ -146,7 +147,7 @@ export default {
       }
       let url = "/jenkins/job/" + jobName + "/api/json?tree=builds[number,result,duration,timestamp,url]{0,50}"
       this.$axios.post(url, null,
-        {headers: {'Authorization': 'Basic dGVzdDoxMjM0NTY=', 'Jenkins-Crumb': this.Jenkins_Crumb}}).then((res) => {
+        {headers: {'Authorization': JENKINS_AUTH, 'Jenkins-Crumb': this.Jenkins_Crumb}}).then((res) => {
         if (res.status === 200) {
           this.tableData = res.data.builds
           this.total = this.tableData.length
@@ -171,7 +172,7 @@ export default {
     getHistoryTrend(jobName) {
       let url = "/jenkins/job/" + jobName + "/allure/widgets/history-trend.json"
       this.$axios.post(url, null,
-        {headers: {'Authorization': 'Basic dGVzdDoxMjM0NTY=', 'Jenkins-Crumb': this.Jenkins_Crumb}}).then((res) => {
+        {headers: {'Authorization': JENKINS_AUTH, 'Jenkins-Crumb': this.Jenkins_Crumb}}).then((res) => {
         if (res.status === 200) {
           let historyTrendList = res.data
           let tableData = JSON.parse(JSON.stringify(this.tableData))

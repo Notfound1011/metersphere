@@ -30,6 +30,13 @@ module.exports = {
           '^/api/tc/jenkins': '/',
         }
       },
+      '/api/tc/jira': {
+        target: "http://jira.cmexpro.com",
+        changeOrigin: true,
+        pathRewrite: {
+          '^/api/tc/jira': '/',
+        }
+      },
       '/api/tc': {
         target: 'http://3.1.250.199:8081',
         // target: 'http://localhost:8081',

@@ -1,12 +1,13 @@
 <template>
   <el-card class="table-card" v-loading="cardResult.loading">
     <template v-slot:header>
-      <!--      <h2 style="font-weight:bold">用例通过率统计</h2>-->
-      <div class="Echarts" id="casePassRate" style="width:90%;height:500%;">
-      </div>
-      <ms-table-header :create-permission="['']" :condition.sync="condition"
-                       @search="initTableData"/>
+      <el-card>
+        <div class="Echarts" id="casePassRate" style="width:90%;height:500%;">
+        </div>
+      </el-card>
     </template>
+    <ms-table-header :create-permission="['']" :condition.sync="condition"
+                     @search="initTableData"/>
     <el-table
       border
       class="adjust-table"

@@ -1,7 +1,7 @@
 <template>
   <div class="ms-div">
     <template>
-<!--      <h2 style="margin-left: 40px;font-weight:bold">功能用例统计</h2>-->
+      <!--      <h2 style="margin-left: 40px;font-weight:bold">功能用例统计</h2>-->
       <el-select v-model="value" filterable placeholder="切换成员" clearable @change="getInfoAll()"
                  style='margin-left: 40px;margin-bottom: 10px;margin-top: 20px'>
         <el-option
@@ -24,31 +24,28 @@
       <el-button type="primary" @click="getInfoAll()" style="margin-left: 20px">查 询</el-button>
     </template>
     <el-row :gutter="20">
-      <!--      <el-col :span="15">-->
-      <!--        <div id="recentPie" style="width: 500px;height:400px;margin-left: 50px"></div>-->
-      <!--      </el-col>-->
       <el-col :span="6" style="margin-left: 30px">
-        <el-row :span="4">
-          <el-card :body-style="{ padding: '0px' }" style="background: rgba(55, 96, 186, 1);margin: 10px">
-            <div style="padding:15px; color: #FFFFFF;float: left">
-              <div style="float: top" v-if="value ===''">
-                用例总数<br>
-                <span style="font-size:30px">{{ allCaseCountNumber }}</span>
-              </div>
-              <div style="float: top" v-if="value !=='' && value !== '1'">个人用例总数<br>
-                <span style="font-size:30px">{{ value }}: {{ allCaseCountNumberByUser }}</span>
-              </div>
-              <div style="float: top" v-if="value === '1'">个人用例总数<br>
-                <span style="font-size:30px">QA: {{ allCaseCountNumberByUser }}</span>
-              </div>
+        <el-card :body-style="{ padding: '0px' }" style="background: rgba(55, 96, 186, 1);margin: 10px">
+          <div style="padding:15px; color: #FFFFFF;float: left">
+            <div style="float: top" v-if="value ===''">
+              用例总数<br>
+              <span style="font-size:30px">{{ allCaseCountNumber }}</span>
             </div>
-          </el-card>
-        </el-row>
+            <div style="float: top" v-if="value !=='' && value !== '1'">个人用例总数<br>
+              <span style="font-size:30px">{{ value }}: {{ allCaseCountNumberByUser }}</span>
+            </div>
+            <div style="float: top" v-if="value === '1'">个人用例总数<br>
+              <span style="font-size:30px">QA: {{ allCaseCountNumberByUser }}</span>
+            </div>
+          </div>
+        </el-card>
       </el-col>
     </el-row>
     <template>
-      <div class="Echarts" id="main" style="width:90%;height:500%;">
-      </div>
+      <el-card>
+        <div class="Echarts" id="main" style="width:90%;height:500%;">
+        </div>
+      </el-card>
     </template>
   </div>
 </template>
@@ -282,6 +279,7 @@ export default {
 .ms-div {
   margin-bottom: 20px;
 }
+
 .Echarts {
   margin-top: 20px;
 }

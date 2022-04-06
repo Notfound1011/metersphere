@@ -10,6 +10,9 @@
           <el-menu-item :index="'/reports/testPlanSummary'">
             {{ $t('commons.quality_market.testcase_pass_rate.title') }}
           </el-menu-item>
+          <el-menu-item :index="'/reports/bugStat'">
+            {{ $t('commons.quality_market.bug_statistics.title') }}
+          </el-menu-item>
         </el-menu>
       </el-col>
     </el-row>

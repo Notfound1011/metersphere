@@ -61,6 +61,7 @@ import MsChart from "@/business/components/common/chart/MsChart";
 import MsMainContainer from "@/business/components/common/components/MsMainContainer";
 import MsContainer from "@/business/components/common/components/MsContainer";
 import {formatTimeStamp} from "@/common/js/utils";
+import {JENKINS_AUTH} from "@/common/js/constants";
 
 export default {
   name: "analysis",
@@ -109,7 +110,7 @@ export default {
     getLastBuildInfo(jobName) {
       let url = "/jenkins/job/" + jobName + "/lastBuild/api/json"
       this.$axios.post(url, null,
-        {headers: {'Authorization': 'Basic dGVzdDoxMjM0NTY=', 'Jenkins-Crumb': this.Jenkins_Crumb}}).then(res => {
+        {headers: {'Authorization': JENKINS_AUTH, 'Jenkins-Crumb': this.Jenkins_Crumb}}).then(res => {
         if (res.status === 200) {
           this.lastBuildInfo = res.data
           this.lastBuildInfo.datetime = formatTimeStamp(this.lastBuildInfo.timestamp)
@@ -139,7 +140,7 @@ export default {
     getJobInfoList(jobName) {
       let url = "/jenkins/job/" + jobName + "/api/json"
       this.$axios.post(url, null,
-        {headers: {'Authorization': 'Basic dGVzdDoxMjM0NTY=', 'Jenkins-Crumb': this.Jenkins_Crumb}}).then(res => {
+        {headers: {'Authorization': JENKINS_AUTH, 'Jenkins-Crumb': this.Jenkins_Crumb}}).then(res => {
         if (res.status === 200) {
           this.JobInfoList = res.data
           this.scheduling_times = this.JobInfoList.builds.length
@@ -167,7 +168,7 @@ export default {
     myEcharts(jobName) {
       let url = "/jenkins/job/" + jobName + "/allure/widgets/history-trend.json"
       this.$axios.post(url, null,
-        {headers: {'Authorization': 'Basic dGVzdDoxMjM0NTY=', 'Jenkins-Crumb': this.Jenkins_Crumb}}).then((res) => {
+        {headers: {'Authorization': JENKINS_AUTH, 'Jenkins-Crumb': this.Jenkins_Crumb}}).then((res) => {
         if (res.status === 200) {
           this.historyTrendList = res.data
         }
