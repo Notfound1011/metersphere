@@ -6,13 +6,8 @@
           title="公告：新功能上线啦😁"
           type="info"
           show-icon
-          description="新增质量大盘；接口自动化功能上线，入口为【接口测试-接口自动化】,或者点击【下方快捷导航】;同步v1.16.6功能">
+          description="质量大盘:用例数统计、用例/测试计划通过率统计，bug统计，接口自动化质量；接口自动化功能上线，入口为【接口测试】TAB">
         </el-alert>
-        <el-button type="primary" class="btn">
-          <i class="el-icon-s-platform" style="font-size: 15px; color: black"></i>
-          <el-link type="primary" class="member-size" @click="jumpPage()">快捷导航：接口自动化
-          </el-link>
-        </el-button>
       </div>
       <el-row :gutter="10">
         <el-col :span="6">
@@ -190,8 +185,6 @@ export default {
     },
     jumpPage() {
       const loading = fullScreenLoading(this);
-      window.sessionStorage.setItem(PROJECT_ID, "ffa8b8c4-eb9b-4ae7-84b2-8fae4eb5556b");
-      window.sessionStorage.setItem(WORKSPACE_ID, "f999049e-815b-4bf8-9c3d-f2615c94b9b8");
       stopFullScreenLoading(loading, 1000);
       this.$router.push('/api/testCaseRecord');
       this.reloadTopMenus()   //引用app.vue中的重新加载菜单栏的方法

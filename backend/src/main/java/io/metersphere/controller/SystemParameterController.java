@@ -5,9 +5,11 @@ import io.metersphere.base.domain.SystemParameter;
 import io.metersphere.base.domain.UserHeader;
 import io.metersphere.commons.constants.OperLogConstants;
 import io.metersphere.commons.constants.ParamConstants;
+import io.metersphere.commons.utils.EncryptUtils;
 import io.metersphere.controller.request.HeaderRequest;
 import io.metersphere.dto.BaseSystemConfigDTO;
 import io.metersphere.dto.SystemStatisticData;
+import io.metersphere.dto.ThirdPartyAuthDTO;
 import io.metersphere.ldap.domain.LdapInfo;
 import io.metersphere.log.annotation.MsAuditLog;
 import io.metersphere.notice.domain.MailInfo;
@@ -57,7 +59,7 @@ public class SystemParameterController {
         return SystemParameterService.getValue("ui.theme");
     }
 
-    @GetMapping("timeout")
+    @GetMapping("/timeout")
     public long getTimeout() {
         return env.getProperty("session.timeout", Long.class, 43200L); // 默认43200s, 12个小时
     }
@@ -92,6 +94,16 @@ public class SystemParameterController {
     @MsAuditLog(module = "system_parameter_setting", type = OperLogConstants.UPDATE, beforeEvent = "#msClass.getLogDetails()", content = "#msClass.getLogDetails()", msClass = SystemParameterService.class)
     public void saveLdap(@RequestBody List<SystemParameter> systemParameter) {
         SystemParameterService.saveLdap(systemParameter);
+    }
+
+    @GetMapping("/thirdPartyAuth/info")
+    public ThirdPartyAuthDTO getThirdPartyAuth() {
+        return SystemParameterService.getThirdPartyAuth();
+    }
+
+    @PostMapping("/save/thirdPartyAuth")
+    public void saveThirdPartyAuth(@RequestBody List<SystemParameter> systemParameter) {
+        SystemParameterService.saveThirdPartyAuth(systemParameter);
     }
 
     @GetMapping("/ldap/info")
@@ -132,6 +144,4 @@ public class SystemParameterController {
         SystemParameterService.editInfo(systemParameter);
         return systemParameter;
     }
-
-
 }

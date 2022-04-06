@@ -16,7 +16,6 @@ export default {
     please_select_import_module: '请选择导入模块',
     pass_rate: '通过率',
     execution_times: '执行次数',
-    rejected_times: '提测打回次数',
     cover: '覆盖',
     module_title: '默认模块',
     save_data_when_page_change: '翻页保存勾选项',
@@ -326,11 +325,14 @@ export default {
       testcase_statistics: {
         title: "功能用例统计"
       },
-      testcase_pass_rate:{
+      testcase_pass_rate: {
         title: "用例通过率"
       },
-      bug_statistics:{
+      bug_statistics: {
         title: "bug统计"
+      },
+      api_autotest: {
+        title: "接口自动化质量"
       }
     },
     report_statistics: {
@@ -2046,7 +2048,6 @@ export default {
       plan_status_running: "进行中",
       plan_status_finished: "已结束",
       plan_status_completed: "已完成",
-      plan_status_rejected: "提测打回",
       plan_status_trash: "废弃",
       planned_start_time: "计划开始",
       planned_end_time: "计划结束",
@@ -2338,6 +2339,7 @@ export default {
   system_parameter_setting: {
     mailbox_service_settings: '邮件设置',
     ldap_setting: 'LDAP设置',
+    third_party_auth_setting: '第三方鉴权设置',
     test_connection: '测试连接',
     SMTP_host: 'SMTP主机',
     SMTP_port: 'SMTP端口',
@@ -2389,6 +2391,23 @@ export default {
     filter_cannot_be_empty: 'LDAP 用户过滤器不能为空',
     mapping_cannot_be_empty: 'LDAP 用户属性映射不能为空',
     password_cannot_be_empty: 'LDAP 密码不能为空',
+  },
+  third_party_auth: {
+    jira_address: 'JIRA地址',
+    jira_username: 'jira用户名',
+    jira_password: 'jira密码',
+    jenkins_username: 'jenkins用户名',
+    jenkins_password: 'jenkins密码',
+    input_jira_address: '请输入JIRA地址',
+    input_jira_username: '请输入jira用户名',
+    input_jira_password: '请输入jira密码',
+    input_jenkins_username: '请输入jenkins用户名',
+    input_jenkins_password: '请输入jenkins密码',
+    input_jira_address_placeholder: '请输入JIRA地址',
+    input_jira_username_placeholder: '请输入jira用户名',
+    input_jira_password_placeholder: '请输入jira密码',
+    input_jenkins_username_placeholder: '请输入jenkins用户名',
+    input_jenkins_password_placeholder: '请输入jenkins密码',
   },
   schedule: {
     input_email: "请输入邮箱账号",

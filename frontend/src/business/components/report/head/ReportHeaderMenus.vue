@@ -13,6 +13,9 @@
           <el-menu-item :index="'/reports/bugStat'">
             {{ $t('commons.quality_market.bug_statistics.title') }}
           </el-menu-item>
+          <el-menu-item :index="'/reports/apiQuantity'">
+            {{ $t('commons.quality_market.api_autotest.title') }}
+          </el-menu-item>
         </el-menu>
       </el-col>
     </el-row>

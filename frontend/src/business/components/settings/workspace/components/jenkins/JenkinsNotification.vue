@@ -153,7 +153,7 @@ export default {
         '<html lang="en">\n' +
         '<head>\n' +
         '    <meta charset="UTF-8">\n' +
-        '    <title>Phemex</title>\n' +
+        '    <title>TestCenter</title>\n' +
         '</head>\n' +
         '<body>\n' +
         '<div>\n' +

@@ -52,6 +52,8 @@ export const JENKINS_AUTH = 'Basic dGVzdDoxMjM0NTY=';
 export const JIRA_ADDRESS = 'http://jira.cmexpro.com';
 export const JIRA_AUTH = 'Basic eXV5dS5zaGk6U2hpeXVAMTIzNA==';
 
+export const THIRD_PARTY_INFO = 'ThirdPartyInfo';
+
 export const SCHEDULE_TYPE = {
   API_TEST: 'API_TEST',
   PERFORMANCE_TEST: 'PERFORMANCE_TEST'

@@ -111,12 +111,12 @@
                         style="width: 130%;">
               </el-input>
             </el-form-item>
-            <el-form-item label="现货成交价值" prop="total_spot_price" class="form-item">
+            <el-form-item label="spot价值(倍数)" prop="total_spot_price_multiple" class="form-item">
               <el-tooltip class="tooltip" effect="dark"
-                          content="设置spot每单的价值; 计价单位USDT" placement="right">
+                          content="设置倍数；价值基数为对应币对的最小quote价格" placement="right">
                 <i class="el-icon-question"/>
               </el-tooltip>
-              <el-input placeholder="USDT" v-model="parameters.total_spot_price" class="el-input_inner"></el-input>
+              <el-input placeholder="USDT" v-model="parameters.total_spot_price_multiple" class="el-input_inner"></el-input>
             </el-form-item>
             <el-form-item label="合约成交数量" prop="total_contract_number" class="form-item">
               <el-input placeholder="" v-model="parameters.total_contract_number" class="el-input_inner"></el-input>
@@ -236,8 +236,7 @@
 <script>
 import MsMainContainer from "@/business/components/common/components/MsMainContainer";
 import MsContainer from "@/business/components/common/components/MsContainer";
-import {formatTimeStamp, formatTime, isObjectValueEqual} from "@/common/js/utils";
-import {JENKINS_AUTH} from "@/common/js/constants";
+import {formatTimeStamp, formatTime, isObjectValueEqual, jenkinsAuth} from "@/common/js/utils";
 
 export default {
   name: "runJobs",
@@ -273,7 +272,7 @@ export default {
         spot_symbol_list: 'sBTCUSDT,sETHUSDT',
         contract_symbol_list: 'BTCUSD,uBTCUSD,cETHUSD',
         case_type: ['rest_api', 'pub_api'],
-        total_spot_price: '15',
+        total_spot_price_multiple: '1.5',
         total_contract_number: '5',
         case_id_List: '',
         robot_pending_order: true,
@@ -325,6 +324,7 @@ export default {
           {validator: validateStrInput, message: '请检查数据格式', trigger: ['change', 'blur']},
         ],
       },
+      jenkins_auth: jenkinsAuth()
     }
   },
   activated() {
@@ -372,7 +372,7 @@ export default {
       this.$axios.post("/jenkins/api/json?tree=jobs[name,url,description,builds[number,result,duration,timestamp,url]{0,1}]", null,
         {
           headers: {
-            'Authorization': JENKINS_AUTH,
+            'Authorization': this.jenkins_auth,
             'Jenkins-Crumb': this.Jenkins_Crumb
           }
         }).then((res) => {
@@ -412,7 +412,7 @@ export default {
           this.$axios.get("/jenkins/crumbIssuer/api/xml",
             {
               params: {'xpath': 'concat(//crumbRequestField,":",//crumb)'},
-              headers: {'Authorization': JENKINS_AUTH}
+              headers: {'Authorization': this.jenkins_auth}
             }).then(res => {
             if (res.status === 200) {
               this.json.Jenkins_Crumb = res.data.split(":")[1];
@@ -440,7 +440,7 @@ export default {
           method: 'post',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': JENKINS_AUTH,
+            'Authorization': this.jenkins_auth,
             'Jenkins-Crumb': this.Jenkins_Crumb
           },
           transformRequest: [function (data) {
@@ -476,7 +476,7 @@ export default {
         // 不带参数的build
         let url = "/jenkins/job/" + name + "/build"
         this.$axios.post(url, null,
-          {headers: {'Authorization': JENKINS_AUTH, 'Jenkins-Crumb': this.Jenkins_Crumb}}).then((res) => {
+          {headers: {'Authorization': this.jenkins_auth, 'Jenkins-Crumb': this.Jenkins_Crumb}}).then((res) => {
           if (res.status === 201) {
             this.tableData = res.data.jobs
             this.$notify.success({

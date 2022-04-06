@@ -1,6 +1,6 @@
 import {
   COUNT_NUMBER,
-  COUNT_NUMBER_SHALLOW,
+  COUNT_NUMBER_SHALLOW, THIRD_PARTY_INFO,
   LicenseKey,
   ORGANIZATION_ID,
   ORIGIN_COLOR,
@@ -14,7 +14,7 @@ import {
   ROLE_TEST_USER,
   ROLE_TEST_VIEWER,
   TokenKey,
-  WORKSPACE_ID
+  WORKSPACE_ID, JENKINS_AUTH, JIRA_AUTH, JIRA_ADDRESS
 } from "./constants";
 import axios from "axios";
 import {jsPDF} from "jspdf";
@@ -101,6 +101,30 @@ export function hasPermission(permission) {
 export function hasLicense() {
   let v = localStorage.getItem(LicenseKey);
   return v && v === 'valid';
+}
+
+export function jenkinsAuth() {
+  try {
+    return JSON.parse(localStorage.getItem(THIRD_PARTY_INFO)).jenkins_auth
+  }catch (e){
+    return JENKINS_AUTH;
+  }
+}
+
+export function jiraAuth() {
+  try {
+    return JSON.parse(localStorage.getItem(THIRD_PARTY_INFO)).jira_auth
+  }catch (e){
+    return JIRA_AUTH;
+  }
+}
+
+export function jiraAddress() {
+  try {
+    return JSON.parse(localStorage.getItem(THIRD_PARTY_INFO)).jira_address
+  }catch (e){
+    return JIRA_ADDRESS;
+  }
 }
 
 export function hasPermissions(...permissions) {
@@ -636,12 +660,12 @@ export function groupByWeek(date, value) {
     const yearWeek = `${moment(item).year()}-${moment(item).week()}周`;
     weekArr.push(yearWeek);
   });
-  group(weekArr, 0 , 0);
+  group(weekArr, 0, 0);
 
   /*根据分好组的下标信息开始截取原始数组*/
   indexArr.forEach((item) => {
-    newDate1.push(weekArr.slice(item[0],item[item.length-1]+1));
-    newValue1.push(value.slice(item[0],item[item.length-1]+1));
+    newDate1.push(weekArr.slice(item[0], item[item.length - 1] + 1));
+    newValue1.push(value.slice(item[0], item[item.length - 1] + 1));
   });
   /*把每个分组的第一项拿出用于图表横坐标的值*/
   newDate1.forEach((item) => {
@@ -660,11 +684,11 @@ export function groupByWeek(date, value) {
   function group(arr, index, index1) {
     if (index < arr.length) {
       indexArr[index1] = [index];
-      for(let i=index+1; i<arr.length; i++){
-        if (arr[i] == arr[index]){
+      for (let i = index + 1; i < arr.length; i++) {
+        if (arr[i] == arr[index]) {
           indexArr[index1].push(i);
         } else {
-          group(arr, i, index1+1);
+          group(arr, i, index1 + 1);
           break;
         }
       }
@@ -685,15 +709,15 @@ export function groupByMonth(date, value) {
     item.split('-');
     monthArr.push(item.split('-')[1]);
   });
-  group(monthArr, 0 , 0);
+  group(monthArr, 0, 0);
   /*根据分好组的下标信息开始截取原始数组*/
   indexArr.forEach((item) => {
-    newDate1.push(date.slice(item[0],item[item.length-1]+1));
-    newValue1.push(value.slice(item[0],item[item.length-1]+1));
+    newDate1.push(date.slice(item[0], item[item.length - 1] + 1));
+    newValue1.push(value.slice(item[0], item[item.length - 1] + 1));
   });
   /*把每个分组的第一项拿出用于图表横坐标的值*/
   newDate1.forEach((item) => {
-    newDate.push(item[0].split('-')[0]+"年"+item[0].split('-')[1]+"月");
+    newDate.push(item[0].split('-')[0] + "年" + item[0].split('-')[1] + "月");
   });
   /*计算纵坐标的和值*/
   newValue1.forEach((item) => {
@@ -703,15 +727,16 @@ export function groupByMonth(date, value) {
     newDate: newDate,
     newValue: newValue
   };
+
   //数组相同项合一组记录下标
   function group(arr, index, index1) {
     if (index < arr.length) {
       indexArr[index1] = [index];
-      for(let i=index+1; i<arr.length; i++){
-        if (arr[i] == arr[index]){
+      for (let i = index + 1; i < arr.length; i++) {
+        if (arr[i] == arr[index]) {
           indexArr[index1].push(i);
         } else {
-          group(arr, i, index1+1);
+          group(arr, i, index1 + 1);
           break;
         }
       }
@@ -732,15 +757,15 @@ export function groupByYear(date, value) {
     item.split('-');
     yearArr.push(item.split('-')[0]);
   });
-  group(yearArr, 0 , 0);
+  group(yearArr, 0, 0);
   /*根据分好组的下标信息开始截取原始数组*/
   indexArr.forEach((item) => {
-    newDate1.push(date.slice(item[0],item[item.length-1]+1));
-    newValue1.push(value.slice(item[0],item[item.length-1]+1));
+    newDate1.push(date.slice(item[0], item[item.length - 1] + 1));
+    newValue1.push(value.slice(item[0], item[item.length - 1] + 1));
   });
   /*把每个分组的第一项拿出用于图表横坐标的值*/
   newDate1.forEach((item) => {
-    newDate.push(item[0].split('-')[0]+"年");
+    newDate.push(item[0].split('-')[0] + "年");
   });
   /*计算纵坐标的和值*/
   newValue1.forEach((item) => {
@@ -750,15 +775,16 @@ export function groupByYear(date, value) {
     newDate: newDate,
     newValue: newValue
   };
+
   //数组相同项合一组记录下标
   function group(arr, index, index1) {
     if (index < arr.length) {
       indexArr[index1] = [index];
-      for(let i=index+1; i<arr.length; i++){
-        if (arr[i] == arr[index]){
+      for (let i = index + 1; i < arr.length; i++) {
+        if (arr[i] == arr[index]) {
           indexArr[index1].push(i);
         } else {
-          group(arr, i, index1+1);
+          group(arr, i, index1 + 1);
           break;
         }
       }

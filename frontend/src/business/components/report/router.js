@@ -21,5 +21,10 @@ export default {
       name: 'bugStat',
       component: () => import('@/business/components/report/bugstat/BugStat'),
     },
+    {
+      path: 'apiQuantity',
+      name: 'apiQuantity',
+      component: () => import('@/business/components/report/apiautotest/ApiAutoTestQuantity'),
+    }
   ]
 }

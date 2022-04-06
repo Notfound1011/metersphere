@@ -37,7 +37,6 @@ export const Test_Plan_List = [
   {id: 'actualEndTime', label: i18n.t('test_track.plan.actual_end_time')},
   {id: 'tags', label: i18n.t('commons.tag')},
   {id: 'executionTimes', label: i18n.t('commons.execution_times')},
-  {id: 'rejectedTimes', label: i18n.t('commons.rejected_times')},
   {id: 'passRate', label: i18n.t('commons.pass_rate')},
   {id: 'createUser', label: i18n.t('commons.create_user')},
   {id: 'testPlanTestCaseCount', label: i18n.t('test_track.plan.test_plan_test_case_count')},

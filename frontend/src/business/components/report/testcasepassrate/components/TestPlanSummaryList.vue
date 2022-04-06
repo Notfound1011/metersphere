@@ -1,13 +1,12 @@
 <template>
-  <el-card class="table-card" v-loading="cardResult.loading">
+  <el-card v-loading="cardResult.loading">
     <template v-slot:header>
-      <el-card>
+
         <div class="Echarts" id="casePassRate" style="width:90%;height:500%;">
         </div>
-      </el-card>
     </template>
     <ms-table-header :create-permission="['']" :condition.sync="condition"
-                     @search="initTableData"/>
+                     @search="initTableData" style="margin-top: 20px"/>
     <el-table
       border
       class="adjust-table"
@@ -104,15 +103,6 @@
           prop="passRate"
           :label="$t('commons.pass_rate')"
           show-overflow-tooltip
-          :key="index">
-        </el-table-column>
-        <el-table-column
-          v-if="item.id == 'rejectedTimes'"
-          prop="rejectedTimes"
-          :label="$t('commons.rejected_times')"
-          sortable
-          show-overflow-tooltip
-          :min-width="130"
           :key="index">
         </el-table-column>
         <el-table-column
@@ -285,13 +275,12 @@ export default {
       pageSize: 10,
       total: 0,
       tableData: [],
-      screenHeight: 'calc(100vh - 200px)',
+      screenHeight: 'calc(100vh - 100px)',
       statusFilters: [
         {text: this.$t('test_track.plan.plan_status_prepare'), value: 'Prepare'},
         {text: this.$t('test_track.plan.plan_status_running'), value: 'Underway'},
         {text: this.$t('test_track.plan.plan_status_finished'), value: 'Finished'},
-        {text: this.$t('test_track.plan.plan_status_completed'), value: 'Completed'},
-        {text: this.$t('test_track.plan.plan_status_rejected'), value: 'Rejected'}
+        {text: this.$t('test_track.plan.plan_status_completed'), value: 'Completed'}
       ],
       stageFilters: [
         {text: this.$t('test_track.plan.smoke_test'), value: 'smoke'},

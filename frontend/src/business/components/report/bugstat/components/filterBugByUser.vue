@@ -1,14 +1,14 @@
 <template>
   <div>
     <div slot="header">
-      <span class="title" style="color: rgba(55, 96, 186, 1); margin: 10px">
-        用户创建bug统计
+      <span class="cardTitle" style="color: rgba(55, 96, 186, 1); margin: 10px">
+        开发bug统计
       </span>
     </div>
     <!-- table主体内容 -->
-    <el-table :data="tableDataNew" style="width: 100% ;margin: 10px" border height="400">
-      <el-table-column type="index" width="100"></el-table-column>
-      <el-table-column prop="creator" label="创建者" width="200"></el-table-column>
+    <el-table :data="tableDataNew" style="width: 100% ;margin: 10px" border height="440">
+      <el-table-column type="index" label="序号" width="100"></el-table-column>
+      <el-table-column prop="creator" label="developer" width="200" sortable></el-table-column>
       <el-table-column prop="total" label="总计" width="100" align="center" sortable>
         <template slot-scope="scope">
           <el-link :href='scope.row.url' target="_blank">
@@ -23,7 +23,7 @@
 </template>
 
 <script>
-import {JIRA_ADDRESS, JIRA_AUTH} from "@/common/js/constants";
+import {jiraAuth, jiraAddress} from "@/common/js/utils";
 
 export default {
   name: "filterBugByUser",
@@ -34,13 +34,15 @@ export default {
     return {
       tableData: [],
       tableDataNew: [],
-      total: 0
+      total: 0,
+      jira_auth: jiraAuth(),
+      jira_address: jiraAddress()
     }
   },
   methods: {
     filterBugByUser() {
-      let url = "jira/rest/gadget/1.0/twodimensionalfilterstats/generate?filterId=filter-10869&xstattype=issuetype&ystattype=creator&sortDirection=asc&sortBy=natural&numberToShow=1000"
-      this.$axios.get(url, {headers: {'Authorization': JIRA_AUTH}}).then((res) => {
+      let url = "jira/rest/gadget/1.0/twodimensionalfilterstats/generate?filterId=filter-10869&xstattype=issuetype&ystattype=customfield_10300&sortDirection=desc&sortBy=total&numberToShow=1000"
+      this.$axios.get(url, {headers: {'Authorization': this.jira_auth}}).then((res) => {
           if (res.status === 200) {
             this.tableData = res.data.rows
             this.total = res.data.totalRows
@@ -54,7 +56,6 @@ export default {
                 this.tableDataNew.push(valueObj)
               }
             )
-            console.log(this.tableDataNew);
           }
         }
       )
@@ -64,5 +65,10 @@ export default {
 </script>
 
 <style scoped>
-
+.cardTitle {
+  color: rgba(55, 96, 186, 1);
+  margin: 10px 0;
+  font-size: 20px;
+  font-weight: bold;
+}
 </style>

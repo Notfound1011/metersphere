@@ -59,7 +59,7 @@
 
 <script>
 import {publicKeyEncrypt, saveLocalStorage} from '@/common/js/utils';
-import {CURRENT_LANGUAGE, DEFAULT_LANGUAGE, JENKINS_AUTH, PRIMARY_COLOR} from "@/common/js/constants";
+import {CURRENT_LANGUAGE, DEFAULT_LANGUAGE, PRIMARY_COLOR} from "@/common/js/constants";
 
 const requireComponent = require.context('@/business/components/xpack/', true, /\.vue$/);
 const display = requireComponent.keys().length > 0 ? requireComponent("./display/Display.vue") : {};
@@ -128,17 +128,26 @@ export default {
         this.form.authenticate = 'LDAP';
       }
     });
-    this.$axios.get("/jenkins/crumbIssuer/api/xml",
-      {
-        params: {'xpath': 'concat(//crumbRequestField,":",//crumb)'},
-        headers: {'Authorization': JENKINS_AUTH}
-      }).then(res => {
-      if (res.status === 200) {
-        let json = {}
-        json.Jenkins_Crumb = res.data.split(":")[1];
-        localStorage.setItem("JenkinsInfo", JSON.stringify(json));
-      }
-    });
+
+    this.$get("/system/thirdPartyAuth/info", response => {
+      let thirdPartyJson = {};
+      thirdPartyJson.jira_auth = response.data.jira_auth
+      thirdPartyJson.jira_address = response.data.jira_address
+      thirdPartyJson.jenkins_auth = response.data.jenkins_auth
+      localStorage.setItem("ThirdPartyInfo", JSON.stringify(thirdPartyJson));
+      this.$axios.get("/jenkins/crumbIssuer/api/xml",
+        {
+          params: {'xpath': 'concat(//crumbRequestField,":",//crumb)'},
+          headers: {'Authorization': thirdPartyJson.jenkins_auth}
+        }).then(res => {
+        if (res.status === 200) {
+          let json = {};
+          json.Jenkins_Crumb = res.data.split(":")[1];
+          localStorage.setItem("JenkinsInfo", JSON.stringify(json));
+        }
+      });
+    })
+
   },
   created: function () {
     // 主页添加键盘事件,注意,不能直接在焦点事件上添加回车
@@ -218,9 +227,9 @@ export default {
     getDefaultRules() { // 设置完语言要重新赋值
       return {
         username: [
-            {required: true, message: this.$t('commons.input_login_username'), trigger: 'blur'},
-          ],
-            password: [
+          {required: true, message: this.$t('commons.input_login_username'), trigger: 'blur'},
+        ],
+        password: [
           {required: true, message: this.$t('commons.input_password'), trigger: 'blur'},
           {min: 6, max: 30, message: this.$t('commons.input_limit', [6, 30]), trigger: 'blur'}
         ]

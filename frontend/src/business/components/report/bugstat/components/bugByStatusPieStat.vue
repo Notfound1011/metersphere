@@ -1,38 +1,36 @@
 <template>
-  <div id="pieBugStatistics" style="width: 600px;height:450px;margin: 20px"></div>
+  <div id="main" style="width: 600px;height:450px;margin: 20px"></div>
 </template>
 
 <script>
-import {JIRA_ADDRESS, JIRA_AUTH} from "@/common/js/constants";
+import {jiraAuth, jiraAddress} from "@/common/js/utils";
 
 export default {
-  name: "pieBugStatistics",
+  name: "bugByStatusPieStat",
   data() {
     return {
       pieData: {},
+      jira_auth: jiraAuth(),
+      jira_address: jiraAddress()
     }
   },
   created() {
-    this.pieBugStatistics()
+    this.bugByStatus()
   },
   methods: {
-    pieBugStatistics() {
-      let url = "jira/rest/gadget/1.0/statistics?filterId=10869&statType=statuses&_=1646032901468"
-      this.$axios.get(url, {headers: {'Authorization': JIRA_AUTH}}).then((res) => {
+    bugByStatus() {
+      let url = "jira/rest/gadget/1.0/statistics?filterId=10869&statType=statuses"
+      this.$axios.get(url, {headers: {'Authorization': this.jira_auth}}).then((res) => {
           if (res.status === 200) {
             this.pieData = res.data
-            var keyObj = {}
-            var valueObj = {}
-            var urlObj = {}
-            this.pieData.results.forEach((value, i) => { //数组循环
-                keyObj["key" + i] = value["key"];
-                valueObj["value" + i] = value["value"];
-                urlObj["url" + i] = JIRA_ADDRESS + value["url"];
+            var result = []
+            this.pieData.results.forEach((value) => { //数组循环
+                result.push({value: value["value"], name: value["key"], url: this.jira_address + value["url"]})
               }
             )
           }
 
-          const pieChartDom = document.getElementById('pieBugStatistics');
+          const pieChartDom = document.getElementById('main');
           const myRecentPieChart = this.$echarts.init(pieChartDom);
 
           myRecentPieChart.setOption(
@@ -53,10 +51,10 @@ export default {
               },
               color: ['#8eb021', '#3b7fc4', '#d04437', '#f6c342', '#654982', '#f691b2', '#999999'],
               title: {
-                text: 'BUG总数 ' + this.pieData.issueCount,
-                subtext: 'bug数据统计饼图',
+                text: 'bug状态统计',
+                subtext: 'BUG总数 ' + this.pieData.issueCount,
                 left: 'center',
-                link: JIRA_ADDRESS + this.pieData.filterUrl,
+                link: this.jira_address + this.pieData.filterUrl,
                 target: 'blank',
                 textStyle: {
                   fontSize: 25,
@@ -97,15 +95,7 @@ export default {
                       }
                     }
                   },
-                  data: [
-                    {value: valueObj.value0, name: keyObj.key0, url: urlObj.url0},
-                    {value: valueObj.value1, name: keyObj.key1, url: urlObj.url1},
-                    {value: valueObj.value2, name: keyObj.key2, url: urlObj.url2},
-                    {value: valueObj.value3, name: keyObj.key3, url: urlObj.url3},
-                    {value: valueObj.value4, name: keyObj.key4, url: urlObj.url4},
-                    {value: valueObj.value5, name: keyObj.key5, url: urlObj.url5},
-                    {value: valueObj.value6, name: keyObj.key6, url: urlObj.url6},
-                  ]
+                  data: result
                 }
               ]
             }

@@ -1,60 +1,62 @@
 <template>
-  <div class="ms-div">
-    <template>
-      <h2 style="margin-left: 10px;font-weight:bold">报表统计</h2>
-      <el-select v-model="value" filterable placeholder="切换job"
-                 style='margin-left: 40px;margin-bottom: 20px'>
-        <el-option
-          v-for="item in options"
-          :key="item.value"
-          :label="item.label"
-          :value="item.value">
-        </el-option>
-      </el-select>
-      <el-button type="primary" @click="getInfoAll(value)" style="margin-left: 20px">查 询</el-button>
-    </template>
-    <el-row :gutter="20">
-      <el-col :span="10">
-        <div id="recentPie" style="width: 500px;height:400px;margin-left: 50px"></div>
-      </el-col>
-      <el-col :span="8" style="margin-left: 80px">
-        <el-row :span="7">
-          <el-card :body-style="{ padding: '0px' }" style="background: #008B8B;margin: 10px">
-            <div style="padding:15px; color: #FFFFFF;float: left">
-              <div style="float: top">
-                最近一次构建
-              </div>
-              <el-divider></el-divider>
-              <div style="margin-left:20px" class="bottom clearfix">
-                <span>构建名称：{{ lastBuildInfo.fullDisplayName }}</span><br>
-                <time class="time">上次执行时间：{{ lastBuildInfo.datetime }}</time>
-                <br>
-                <span>执行结果：{{ lastBuildInfo.result }}</span>
-              </div>
-            </div>
-          </el-card>
+  <ms-container>
+    <ms-main-container v-loading="result.loading">
+      <el-card>
+        <h2 style="margin-left: 10px;font-weight:bold">{{ $t('commons.quality_market.api_autotest.title') }}</h2>
+        <el-select v-model="value" filterable placeholder="切换job"
+                   style='margin-left: 40px;margin-bottom: 20px'>
+          <el-option
+            v-for="item in options"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value">
+          </el-option>
+        </el-select>
+        <el-button type="primary" @click="getInfoAll(value)" style="margin-left: 20px">查 询</el-button>
+        <el-row :gutter="20">
+          <el-col :span="10">
+            <div id="recentPie" style="width: 500px;height:400px;margin-left: 50px"></div>
+          </el-col>
+          <el-col :span="8" style="margin-left: 80px">
+            <el-row :span="7">
+              <el-card :body-style="{ padding: '0px' }" style="background: #008B8B;margin: 10px">
+                <div style="padding:15px; color: #FFFFFF;float: left">
+                  <div style="float: top">
+                    最近一次构建
+                  </div>
+                  <el-divider></el-divider>
+                  <div style="margin-left:20px" class="bottom clearfix">
+                    <span>构建名称：{{ lastBuildInfo.fullDisplayName }}</span><br>
+                    <time class="time">上次执行时间：{{ lastBuildInfo.datetime }}</time>
+                    <br>
+                    <span>执行结果：{{ lastBuildInfo.result }}</span>
+                  </div>
+                </div>
+              </el-card>
+            </el-row>
+            <el-row :span="7">
+              <el-card :body-style="{ padding: '0px' }" style="background: #ff9000;margin: 10px">
+                <div style="padding:15px; color: #FFFFFF">
+                  <div style="float: top">Job调度次数<br>
+                    <span style="font-size:30px">{{ scheduling_times }}</span>
+                  </div>
+                  <el-divider></el-divider>
+                  <div style="margin-left:20px">
+                    <span>Job触发的调度次数</span>
+                  </div>
+                </div>
+              </el-card>
+            </el-row>
+          </el-col>
         </el-row>
-        <el-row :span="7">
-          <el-card :body-style="{ padding: '0px' }" style="background: #ff9000;margin: 10px">
-            <div style="padding:15px; color: #FFFFFF">
-              <div style="float: top">Job调度次数<br>
-                <span style="font-size:30px">{{ scheduling_times }}</span>
-              </div>
-              <el-divider></el-divider>
-              <div style="margin-left:20px">
-                <span>Job触发的调度次数</span>
-              </div>
-            </div>
-          </el-card>
-        </el-row>
-      </el-col>
-    </el-row>
-    <template>
-      <div class="Echarts">
-        <div id="main" style="width: 80%;height:500%"></div>
-      </div>
-    </template>
-  </div>
+      </el-card>
+      <el-card>
+        <div class="Echarts">
+          <div id="main" style="width: 80%;height:500%"></div>
+        </div>
+      </el-card>
+    </ms-main-container>
+  </ms-container>
 </template>
 
 <script>
@@ -68,11 +70,13 @@ export default {
   components: {MsChart, MsMainContainer, MsContainer},
   data() {
     return {
+      result: {},
+      json: {},
       lastBuildInfo: {
         fullDisplayName: ''
       },
       JobInfoList: {},
-      allureOverallReport: '',
+      allureOverallReport:'',
       Jenkins_Crumb: '',
       scheduling_times: '',
       options: [
@@ -90,18 +94,26 @@ export default {
       jenkins_auth: jenkinsAuth()
     }
   },
-  // created() {
-  //   const JenkinsInfo = JSON.parse(localStorage.getItem("JenkinsInfo"));
-  //   this.Jenkins_Crumb = JenkinsInfo.Jenkins_Crumb;
-  // },
   activated() {
-    console.log("jenkinsAuth",jenkinsAuth())
+    this.setJenkinsInfo()
     const JenkinsInfo = JSON.parse(localStorage.getItem("JenkinsInfo"));
     this.Jenkins_Crumb = JenkinsInfo.Jenkins_Crumb;
     this.getInfoAll(this.value);
   },
 
   methods: {
+    setJenkinsInfo() {
+      this.$axios.get("/jenkins/crumbIssuer/api/xml",
+        {
+          params: {'xpath': 'concat(//crumbRequestField,":",//crumb)'},
+          headers: {'Authorization': this.jenkins_auth}
+        }).then(res => {
+        if (res.status === 200) {
+          this.json.Jenkins_Crumb = res.data.split(":")[1];
+          localStorage.setItem("JenkinsInfo", JSON.stringify(this.json));
+        }
+      })
+    },
     getInfoAll(jobName) {
       if (this.value === '') {
         jobName = this.defaultValue
@@ -147,7 +159,7 @@ export default {
         if (res.status === 200) {
           this.JobInfoList = res.data
           this.scheduling_times = this.JobInfoList.builds.length
-          this.allureOverallReport = this.JobInfoList.url + 'allure'
+          this.allureOverallReport =this.JobInfoList.url + 'allure'
         } else {
           this.$notify.warning({
             title: "获取Jenkins的任务信息列表",

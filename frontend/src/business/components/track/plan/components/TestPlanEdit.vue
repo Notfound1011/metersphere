@@ -19,7 +19,8 @@
               :label="$t('test_track.plan.plan_name')"
               :label-width="formLabelWidth"
               prop="name">
-              <el-input v-model="form.name" :placeholder="$t('test_track.plan.input_plan_name')" :size="itemSize"></el-input>
+              <el-input v-model="form.name" :placeholder="$t('test_track.plan.input_plan_name')"
+                        :size="itemSize"></el-input>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -47,7 +48,8 @@
 
           <el-col :span="12">
             <el-form-item :label="$t('test_track.plan.plan_stage')" :label-width="formLabelWidth" prop="stage">
-              <el-select v-model="form.stage" clearable :placeholder="$t('test_track.plan.input_plan_stage')" style="width: 100%;" :size="itemSize">
+              <el-select v-model="form.stage" clearable :placeholder="$t('test_track.plan.input_plan_stage')"
+                         style="width: 100%;" :size="itemSize">
                 <el-option v-for="item in stageOption" :key="item.value" :label="$t(item.text)" :value="item.value"/>
               </el-select>
             </el-form-item>
@@ -106,7 +108,7 @@
                         type="textarea"
                         :autosize="{ minRows: 2, maxRows: 4}"
                         :rows="2"
-                        :placeholder="$t('commons.input_content')"></el-input>
+                        :placeholder="'请填写需求的wiki或jira链接，若没有则填无'"></el-input>
             </el-form-item>
           </el-col>
         </el-row>
@@ -184,7 +186,10 @@ export default {
         ],
         principals: [{required: true, message: this.$t('test_track.plan.input_plan_principal'), trigger: 'change'}],
         stage: [{required: true, message: this.$t('test_track.plan.input_plan_stage'), trigger: 'change'}],
-        description: [{max: 200, message: this.$t('test_track.length_less_than') + '200', trigger: 'blur'}]
+        description: [
+          {required: true, message: '请填写描述', trigger: 'blur'},
+          {max: 200, message: this.$t('test_track.length_less_than') + '200', trigger: 'blur'}
+        ]
       },
       formLabelWidth: "100px",
       operationType: '',
@@ -284,7 +289,7 @@ export default {
       return true;
     },
     setPrincipalOptions() {
-      this.$post('/user/project/member/tester/list', {projectId: getCurrentProjectID()},response => {
+      this.$post('/user/project/member/tester/list', {projectId: getCurrentProjectID()}, response => {
         this.principalOptions = response.data;
       });
     },
