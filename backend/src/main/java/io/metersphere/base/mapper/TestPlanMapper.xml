@@ -20,7 +20,6 @@
     <result column="creator" jdbcType="VARCHAR" property="creator" />
     <result column="project_id" jdbcType="VARCHAR" property="projectId" />
     <result column="execution_times" jdbcType="INTEGER" property="executionTimes" />
-    <result column="rejected_times" jdbcType="INTEGER" property="rejectedTimes" />
     <result column="automatic_status_update" jdbcType="BIT" property="automaticStatusUpdate" />
     <result column="repeat_case" jdbcType="BIT" property="repeatCase" />
   </resultMap>
@@ -90,7 +89,7 @@
   <sql id="Base_Column_List">
     id, workspace_id, report_id, `name`, description, `status`, stage, test_case_match_rule, 
     executor_match_rule, create_time, update_time, planned_start_time, planned_end_time, 
-    actual_start_time, actual_end_time, creator, project_id, execution_times, rejected_times, automatic_status_update,
+    actual_start_time, actual_end_time, creator, project_id, execution_times, automatic_status_update,
     repeat_case
   </sql>
   <sql id="Blob_Column_List">
@@ -498,9 +497,6 @@
       </if>
       <if test="executionTimes != null">
         execution_times = #{executionTimes,jdbcType=INTEGER},
-      </if>
-      <if test="rejectedTimes != null">
-        rejected_times = #{rejectedTimes,jdbcType=INTEGER},
       </if>
       <if test="automaticStatusUpdate != null">
         automatic_status_update = #{automaticStatusUpdate,jdbcType=BIT},

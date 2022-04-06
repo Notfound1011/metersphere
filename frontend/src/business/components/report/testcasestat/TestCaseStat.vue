@@ -1,53 +1,56 @@
 <template>
-  <div class="ms-div">
-    <template>
-      <!--      <h2 style="margin-left: 40px;font-weight:bold">功能用例统计</h2>-->
-      <el-select v-model="value" filterable placeholder="切换成员" clearable @change="getInfoAll()"
-                 style='margin-left: 40px;margin-bottom: 10px;margin-top: 20px'>
-        <el-option
-          v-for="item in users"
-          :key="item.id"
-          :label="item.name"
-          :value="item.id">
-        </el-option>
-      </el-select>
-      <el-date-picker
-        style='margin-left: 20px'
-        @change="getInfoAll()"
-        v-model="time"
-        value-format="timestamp"
-        type="daterange"
-        start-placeholder="开始日期"
-        end-placeholder="结束日期"
-        :default-time="['00:00:00', '23:59:59']">
-      </el-date-picker>
-      <el-button type="primary" @click="getInfoAll()" style="margin-left: 20px">查 询</el-button>
-    </template>
-    <el-row :gutter="20">
-      <el-col :span="6" style="margin-left: 30px">
-        <el-card :body-style="{ padding: '0px' }" style="background: rgba(55, 96, 186, 1);margin: 10px">
-          <div style="padding:15px; color: #FFFFFF;float: left">
-            <div style="float: top" v-if="value ===''">
-              用例总数<br>
-              <span style="font-size:30px">{{ allCaseCountNumber }}</span>
-            </div>
-            <div style="float: top" v-if="value !=='' && value !== '1'">个人用例总数<br>
-              <span style="font-size:30px">{{ value }}: {{ allCaseCountNumberByUser }}</span>
-            </div>
-            <div style="float: top" v-if="value === '1'">个人用例总数<br>
-              <span style="font-size:30px">QA: {{ allCaseCountNumberByUser }}</span>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-    <template>
+  <ms-container>
+    <ms-main-container v-loading="result.loading">
       <el-card>
-        <div class="Echarts" id="main" style="width:90%;height:500%;">
-        </div>
+        <template>
+          <!--      <h2 style="margin-left: 40px;font-weight:bold">功能用例统计</h2>-->
+          <el-select v-model="value" filterable placeholder="切换成员" clearable @change="getInfoAll()"
+                     style='margin-left: 40px;margin-bottom: 10px;margin-top: 20px'>
+            <el-option
+              v-for="item in users"
+              :key="item.id"
+              :label="item.name"
+              :value="item.id">
+            </el-option>
+          </el-select>
+          <el-date-picker
+            style='margin-left: 20px'
+            @change="getInfoAll()"
+            v-model="time"
+            value-format="timestamp"
+            type="daterange"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            :default-time="['00:00:00', '23:59:59']">
+          </el-date-picker>
+          <el-button type="primary" @click="getInfoAll()" style="margin-left: 20px">查 询</el-button>
+        </template>
+        <el-row :gutter="20">
+          <el-col :span="6" style="margin-left: 30px">
+            <el-card :body-style="{ padding: '0px' }" style="background: rgba(55, 96, 186, 1);margin: 10px">
+              <div style="padding:15px; color: #FFFFFF;float: left">
+                <div style="float: top" v-if="value ===''">
+                  用例总数<br>
+                  <span style="font-size:30px">{{ allCaseCountNumber }}</span>
+                </div>
+                <div style="float: top" v-if="value !=='' && value !== '1'">个人用例总数<br>
+                  <span style="font-size:30px">{{ value }}: {{ allCaseCountNumberByUser }}</span>
+                </div>
+                <div style="float: top" v-if="value === '1'">个人用例总数<br>
+                  <span style="font-size:30px">QA: {{ allCaseCountNumberByUser }}</span>
+                </div>
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+
+        <template>
+          <div class="Echarts" id="main" style="width:90%;height:500%;">
+          </div>
+        </template>
       </el-card>
-    </template>
-  </div>
+    </ms-main-container>
+  </ms-container>
 </template>
 
 <script>
@@ -61,6 +64,7 @@ export default {
   components: {MsChart, MsMainContainer, MsContainer},
   data() {
     return {
+      result: {},
       users: [],
       value: '',
       time: '',

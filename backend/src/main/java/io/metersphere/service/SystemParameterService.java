@@ -15,6 +15,7 @@ import io.metersphere.commons.utils.EncryptUtils;
 import io.metersphere.commons.utils.LogUtil;
 import io.metersphere.controller.request.HeaderRequest;
 import io.metersphere.dto.BaseSystemConfigDTO;
+import io.metersphere.dto.ThirdPartyAuthDTO;
 import io.metersphere.i18n.Translator;
 import io.metersphere.ldap.domain.LdapInfo;
 import io.metersphere.log.utils.ReflexObjectUtil;
@@ -179,6 +180,58 @@ public class SystemParameterService {
             }
         }
         return mailInfo;
+    }
+
+    public void saveThirdPartyAuth(List<SystemParameter> parameters) {
+        SystemParameterExample example = new SystemParameterExample();
+        parameters.forEach(param -> {
+            if (param.getParamKey().equals(ParamConstants.THIRD_PARTY_AUTH.JIRA_PASSWORD.getValue())) {
+                String string = EncryptUtils.aesEncrypt(param.getParamValue()).toString();
+                param.setParamValue(string);
+            }
+            if (param.getParamKey().equals(ParamConstants.THIRD_PARTY_AUTH.JENKINS_PASSWORD.getValue())) {
+                String string = EncryptUtils.aesEncrypt(param.getParamValue()).toString();
+                param.setParamValue(string);
+            }
+            example.createCriteria().andParamKeyEqualTo(param.getParamKey());
+            if (systemParameterMapper.countByExample(example) > 0) {
+                systemParameterMapper.updateByPrimaryKey(param);
+            } else {
+                systemParameterMapper.insert(param);
+            }
+            example.clear();
+        });
+    }
+
+    public ThirdPartyAuthDTO getThirdPartyAuth() {
+        ThirdPartyAuthDTO thirdPartyAuthDTO = new ThirdPartyAuthDTO();
+        List<SystemParameter> paramList = this.getParamList(ParamConstants.Classify.THIRD_PARTY_AUTH.getValue());
+        if (!CollectionUtils.isEmpty(paramList)) {
+            for (SystemParameter param : paramList) {
+                if (StringUtils.equals(param.getParamKey(), ParamConstants.THIRD_PARTY_AUTH.JIRA_ADDRESS.getValue())) {
+                    thirdPartyAuthDTO.setJira_address(param.getParamValue());
+                }
+                if (StringUtils.equals(param.getParamKey(), ParamConstants.THIRD_PARTY_AUTH.JIRA_USERNAME.getValue())) {
+                    thirdPartyAuthDTO.setJira_username(param.getParamValue());
+                }
+                if (StringUtils.equals(param.getParamKey(), ParamConstants.THIRD_PARTY_AUTH.JIRA_PASSWORD.getValue())) {
+                    String password = EncryptUtils.aesDecrypt(param.getParamValue()).toString();
+                    thirdPartyAuthDTO.setJira_password(password);
+                }
+                if (StringUtils.equals(param.getParamKey(), ParamConstants.THIRD_PARTY_AUTH.JENKINS_USERNAME.getValue())) {
+                    thirdPartyAuthDTO.setJenkins_username(param.getParamValue());
+                }
+                if (StringUtils.equals(param.getParamKey(), ParamConstants.THIRD_PARTY_AUTH.JENKINS_PASSWORD.getValue())) {
+                    String password = EncryptUtils.aesDecrypt(param.getParamValue()).toString();
+                    thirdPartyAuthDTO.setJenkins_password(password);
+                }
+            }
+            String jira_auth = "Basic " + EncryptUtils.base64Encoding(thirdPartyAuthDTO.getJira_username() + ":" + thirdPartyAuthDTO.getJira_password());
+            String jenkins_auth = "Basic " + EncryptUtils.base64Encoding(thirdPartyAuthDTO.getJenkins_username() + ":" + thirdPartyAuthDTO.getJenkins_password());
+            thirdPartyAuthDTO.setJira_auth(jira_auth);
+            thirdPartyAuthDTO.setJenkins_auth(jenkins_auth);
+        }
+        return thirdPartyAuthDTO;
     }
 
     public void saveLdap(List<SystemParameter> parameters) {

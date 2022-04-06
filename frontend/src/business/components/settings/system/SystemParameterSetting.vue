@@ -11,6 +11,9 @@
       <el-tab-pane :label="$t('system_parameter_setting.ldap_setting')" name="ldap">
         <ldap-setting/>
       </el-tab-pane>
+      <el-tab-pane :label="$t('system_parameter_setting.third_party_auth_setting')" name="thirdPartyAuth">
+        <third-party-auth-setting/>
+      </el-tab-pane>
       <el-tab-pane v-if="hasLicense()" :label="$t('display.title')" name="display">
         <ms-display/>
       </el-tab-pane>
@@ -29,6 +32,7 @@ import EmailSetting from "./EmailSetting";
 import LdapSetting from "./LdapSetting";
 import BaseSetting from "./BaseSetting";
 import {hasLicense} from '@/common/js/utils';
+import ThirdPartyAuthSetting from "@/business/components/settings/system/ThirdPartyAuthSetting";
 
 const requireComponent = require.context('@/business/components/xpack/', true, /\.vue$/);
 const display = requireComponent.keys().length > 0 ? requireComponent("./display/Display.vue") : {};
@@ -38,6 +42,7 @@ const module = requireComponent.keys().length > 0 ? requireComponent("./module/M
 export default {
   name: "SystemParameterSetting",
   components: {
+    ThirdPartyAuthSetting,
     BaseSetting,
     EmailSetting,
     LdapSetting,

@@ -3,13 +3,15 @@
 </template>
 
 <script>
-import {JIRA_ADDRESS, JIRA_AUTH} from "@/common/js/constants";
+import {jiraAddress, jiraAuth} from "@/common/js/utils";
 
 export default {
   name: "recentCreatedBugStatistics",
   data() {
     return {
-      recentlyCreatedData: ''
+      recentlyCreatedData: '',
+      jira_auth: jiraAuth(),
+      jira_address: jiraAddress()
     }
   },
   created() {
@@ -17,8 +19,11 @@ export default {
   },
   methods: {
     recentlyCreated() {
-      let url = "jira/rest/gadget/1.0/recentlyCreated/generate?projectOrFilterId=filter-10869&periodName=monthly&daysprevious=365&width=580&height=448&returnData=true&inline=true"
-      this.$axios.get(url, {headers: {'Authorization': JIRA_AUTH}}).then((res) => {
+      const currentYear = new Date().getFullYear().toString();
+      const hasTimestamp = new Date() - new Date(currentYear);
+      const hasDays = Math.ceil(hasTimestamp / 86400000);
+      let url = "jira/rest/gadget/1.0/recentlyCreated/generate?projectOrFilterId=filter-10869&periodName=monthly&daysprevious=" + hasDays + "&width=580&height=448&returnData=true&inline=true"
+      this.$axios.get(url, {headers: {'Authorization': this.jira_auth}}).then((res) => {
           if (res.status === 200) {
             this.recentlyCreatedData = res.data
           }
@@ -27,16 +32,16 @@ export default {
           var xAxisData = []
           var resolvedData = []
           var unresolvedData = []
-          for (let i = this.recentlyCreatedData.data.length - 1; i >= 0; i--) {
+          for (let i = 0; i <= this.recentlyCreatedData.data.length - 1; i++) {
             xAxisData.push(this.recentlyCreatedData.data[i].key);
             resolvedData.push(this.recentlyCreatedData.data[i].resolvedValue);
             unresolvedData.push(this.recentlyCreatedData.data[i].unresolvedValue);
           }
           recentCreatedBugBarChart.setOption({
             title: {
-              text: '近一年创建的bug',
-              subtext: 'bug创建趋势图',
-              link: JIRA_ADDRESS + this.recentlyCreatedData.filterUrl,
+              text: 'bug创建趋势图',
+              subtext: '本年度bug',
+              link: this.jira_address + this.recentlyCreatedData.filterUrl,
               textStyle: {
                 fontSize: 25,
                 color: "rgba(55, 96, 186, 1)"

@@ -16,7 +16,6 @@ export default {
     please_select_import_module: 'Please select import module',
     pass_rate: 'Pass Rate',
     execution_times: 'Execution Times',
-    rejected_times: 'Rejected Times',
     cover: 'Cover',
     module_title: 'Default module',
     save_data_when_page_change: 'Save when page change',
@@ -329,6 +328,9 @@ export default {
       },
       bug_statistics:{
         title: "Testcase passing rate"
+      },
+      api_autotest:{
+        title: "Api AutoTest Quantity"
       }
     },
     report_statistics: {
@@ -2046,7 +2048,6 @@ export default {
       plan_status_running: "Starting",
       plan_status_finished: "Finished",
       plan_status_completed: "Completed",
-      plan_status_rejected: "Rejected",
       plan_status_trash: "Trashed",
       planned_start_time: "Start Time",
       planned_end_time: "End Time",
@@ -2333,6 +2334,7 @@ export default {
   system_parameter_setting: {
     mailbox_service_settings: 'Mailbox Settings',
     ldap_setting: 'LDAP Setting',
+    third_party_auth_setting: 'Third Party Auth Setting',
     test_connection: 'Test connection',
     SMTP_host: 'SMTP host',
     SMTP_port: 'SMTP port',
@@ -2385,6 +2387,13 @@ export default {
     filter_cannot_be_empty: 'LDAP user filter cannot be empty',
     password_cannot_be_empty: 'LDAP password cannot be empty',
     mapping_cannot_be_empty: 'LDAP mapping cannot be empty',
+  },
+  third_party_auth: {
+    jira_address: 'JIRA address',
+    jira_username: 'JIRA username',
+    jira_password: 'JIRA password',
+    jenkins_username: 'Jenkins username',
+    jenkins_password: 'Jenkins password'
   },
   schedule: {
     input_email: "Please input email account",

@@ -16,7 +16,6 @@ export default {
     please_select_import_module: '請選擇導入模塊',
     pass_rate: '通過率',
     execution_times: '執行次數',
-    rejected_times: '提測打回次數',
     cover: '覆蓋',
     module_title: '默認模塊',
     save_data_when_page_change: '翻頁保存勾選項',
@@ -327,6 +326,12 @@ export default {
       },
       testcase_pass_rate:{
         title: "用例通過率"
+      },
+      bug_statistics:{
+        title: "bug统计"
+      },
+      api_autotest:{
+        title: "接口自動化質量"
       }
     },
     report_statistics: {
@@ -2042,7 +2047,6 @@ export default {
       plan_status_running: "進行中",
       plan_status_finished: "已結束",
       plan_status_completed: "已完成",
-      plan_status_rejected: "提測打回",
       plan_status_trash: "廢棄",
       planned_start_time: "計劃開始",
       planned_end_time: "計劃結束",
@@ -2334,6 +2338,7 @@ export default {
   system_parameter_setting: {
     mailbox_service_settings: '郵件設置',
     ldap_setting: 'LDAP設置',
+    third_party_auth_setting: '第三方鑑權設置',
     test_connection: '測試連接',
     SMTP_host: 'SMTP主機',
     SMTP_port: 'SMTP端口',
@@ -2385,6 +2390,13 @@ export default {
     filter_cannot_be_empty: 'LDAP 用戶過濾器不能為空',
     mapping_cannot_be_empty: 'LDAP 用戶屬性映射不能為空',
     password_cannot_be_empty: 'LDAP 密碼不能為空',
+  },
+  third_party_auth: {
+    jira_address: 'JIRA地址',
+    jira_username: 'jira用戶名',
+    jira_password: 'jira密碼',
+    jenkins_username: 'jenkins用戶名',
+    jenkins_password: 'jenkins密碼'
   },
   schedule: {
     input_email: "請輸入郵箱賬號",

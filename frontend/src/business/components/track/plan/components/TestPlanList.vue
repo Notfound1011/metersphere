@@ -69,10 +69,6 @@
                                   :command="{item: scope.row, status: 'Completed'}">
                   {{ $t('test_track.plan.plan_status_completed') }}
                 </el-dropdown-item>
-                <el-dropdown-item :disabled="!hasEditPermission"
-                                  :command="{item: scope.row, status: 'Rejected'}">
-                  {{ $t('test_track.plan.plan_status_rejected') }}
-                </el-dropdown-item>
               </el-dropdown-menu>
             </el-dropdown>
           </span>
@@ -128,14 +124,6 @@
           v-if="item.id == 'executionTimes'"
           prop="executionTimes"
           :label="$t('commons.execution_times')"
-          show-overflow-tooltip
-          :min-width="100"
-          :key="index">
-        </el-table-column>
-        <el-table-column
-          v-if="item.id == 'rejectedTimes'"
-          prop="rejectedTimes"
-          :label="$t('commons.rejected_times')"
           show-overflow-tooltip
           :min-width="100"
           :key="index">
@@ -368,8 +356,7 @@ export default {
         {text: this.$t('test_track.plan.plan_status_prepare'), value: 'Prepare'},
         {text: this.$t('test_track.plan.plan_status_running'), value: 'Underway'},
         {text: this.$t('test_track.plan.plan_status_finished'), value: 'Finished'},
-        {text: this.$t('test_track.plan.plan_status_completed'), value: 'Completed'},
-        {text: this.$t('test_track.plan.plan_status_rejected'), value: 'Rejected'}
+        {text: this.$t('test_track.plan.plan_status_completed'), value: 'Completed'}
       ],
       stageFilters: [
         {text: this.$t('test_track.plan.smoke_test'), value: 'smoke'},
