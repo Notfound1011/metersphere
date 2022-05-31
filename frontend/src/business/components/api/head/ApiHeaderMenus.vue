@@ -17,6 +17,10 @@
             {{ $t("i18n.jobScheduler") }}
           </el-menu-item>
 
+          <el-menu-item :index="'/api/dataFactory'">
+            {{ "数据工厂" }}
+          </el-menu-item>
+
           <el-menu-item :index="'/api/definition'" v-permission="['PROJECT_API_DEFINITION:READ']">
             {{ $t("i18n.definition") }}
           </el-menu-item>

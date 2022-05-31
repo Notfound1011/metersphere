@@ -116,7 +116,8 @@
                           content="设置倍数；价值基数为对应币对的最小quote价格" placement="right">
                 <i class="el-icon-question"/>
               </el-tooltip>
-              <el-input placeholder="USDT" v-model="parameters.total_spot_price_multiple" class="el-input_inner"></el-input>
+              <el-input placeholder="USDT" v-model="parameters.total_spot_price_multiple"
+                        class="el-input_inner"></el-input>
             </el-form-item>
             <el-form-item label="合约成交数量" prop="total_contract_number" class="form-item">
               <el-input placeholder="" v-model="parameters.total_contract_number" class="el-input_inner"></el-input>
@@ -399,11 +400,8 @@ export default {
             }, 1000 * 10)
           }
         }
-      }).catch((error) => {
-        this.$notify.error({
-          title: "获取Jenkins任务信息列表失败",
-          message: error,
-        });
+      }).catch((e) => {
+        console.log(e);
       })
     },
     refreshJenkinsCrumb() {
@@ -466,11 +464,8 @@ export default {
           this.timer = setInterval(() => {
             setTimeout(this.getJobList, 0)
           }, 1000 * 10)
-        }).catch((error) => {
-          this.$notify.error({
-            title: "job执行失败",
-            message: error,
-          });
+        }).catch((e) => {
+          console.log(e);
         })
       } else {
         // 不带参数的build

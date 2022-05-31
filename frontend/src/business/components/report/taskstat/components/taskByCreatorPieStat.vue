@@ -1,55 +1,37 @@
 <template>
-  <div>
-    <div class="header">
-      <el-row :gutter="20">
-        <el-col :span="10">
-          <el-card shadow="hover" class="card">
-            <span class="data">{{ this.bugTotal }} <br>
-            </span>
-            <span class="description">测试环境bug数
-            </span>
-          </el-card>
-        </el-col>
-      </el-row>
-    </div>
-    <div :id="id" style="width: 600px;height:450px;margin: 20px"></div>
-  </div>
+  <div :id=id style="width: 600px;height:450px;margin: 20px"></div>
 </template>
 
 <script>
 import {jiraAuth, jiraAddress, groupArray} from "@/common/js/utils";
 
 export default {
-  name: "bugByProjectPieStat",
-  props: ['id', 'qaCreatedBugJQL', 'bugTotal'],
+  name: "taskByCreatorPieStat",
+  props: ['id', 'backToDevJQL'],
   data() {
     return {
-      pieData: {
-        issueCount: 0
-      },
       jira_auth: jiraAuth(),
       jira_address: jiraAddress(),
       myRecentPieChart: null
     }
   },
   methods: {
-    bugByProject(data) {
-      let that = this
-      if (that.myRecentPieChart != null && that.myRecentPieChart != "" && that.myRecentPieChart != undefined) {
-        that.myRecentPieChart.dispose();
+    handleResponse(data) {
+      let totalCount = data.length
+      const pieData = [];
+      if (this.myRecentPieChart != null && this.myRecentPieChart != "" && this.myRecentPieChart != undefined) {
+        this.myRecentPieChart.dispose();
       }
-      that.myRecentPieChart = that.$echarts.init(document.getElementById(that.id));
-
-      const result = [];
-      groupArray(data, 'project').forEach((value) => { //数组循环
-          result.push({
+      this.myRecentPieChart = this.$echarts.init(document.getElementById(this.id));
+      groupArray(data, 'creator').forEach((value) => { //数组循环
+          pieData.push({
             value: value["count"],
             name: value["location"],
-            url: that.jira_address + "/issues/?jql=" + that.qaCreatedBugJQL + " AND project = \"" + value["location"].replace("&", '%26') + "\""
+            url: this.jira_address + "/issues/?jql=" + this.backToDevJQL + " AND creator = " + value["location"]
           })
         }
       )
-      that.myRecentPieChart.setOption(
+      this.myRecentPieChart.setOption(
         {
           tooltip: {
             trigger: 'item',
@@ -57,7 +39,7 @@ export default {
           },
           toolbox: {
             show: true,
-            right: '70',
+            right: '60',
             feature: {
               mark: {show: true},
               dataView: {show: true, readOnly: false},
@@ -65,13 +47,12 @@ export default {
               saveAsImage: {show: true}
             }
           },
-          // color: ['#8eb021', '#3b7fc4', '#d04437', '#f6c342', '#654982', '#f691b2', '#999999', '#815b3a', '#f79232', '#59afe1', '#f15c75'],
           color: ['#91cc75', '#5470c6', '#ee6666', '#fac858', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'],
           title: {
-            text: 'Bug by project',
-            // subtext: 'BUG总数 ' + this.pieData.issueCount,
+            text: 'BackToDev by creator',
+            subtext: '提测打回任务(创建者维度) 总数:' + totalCount,
             left: 'center',
-            link: that.jira_address + "/issues/?jql=" + this.qaCreatedBugJQL,
+            link: this.jira_address + "/issues/?jql=" + this.backToDevJQL,
             target: 'blank',
             textStyle: {
               fontSize: 25,
@@ -84,7 +65,7 @@ export default {
           },
           series: [
             {
-              name: 'bug 数据统计',
+              name: 'backToDev by creator',
               type: 'pie',
               radius: ['30%', '70%'],
               label: {
@@ -112,12 +93,12 @@ export default {
                   }
                 }
               },
-              data: result
+              data: pieData
             }
           ]
         }
       )
-      that.myRecentPieChart.on("click", function (e) {
+      this.myRecentPieChart.on("click", function (e) {
         window.open(e.data.url)
       });
     },
@@ -126,23 +107,5 @@ export default {
 </script>
 
 <style scoped>
-.header {
-  margin: 20px;
-}
 
-.data {
-  color: rgb(255, 153, 0);
-  font-size: 20px;
-  font-weight: bold;
-}
-
-.description {
-  color: rgb(128, 127, 127);
-  font-size: 16px;
-}
-
-.card {
-  display: flex;
-  justify-content: center;
-}
 </style>

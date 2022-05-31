@@ -162,11 +162,8 @@ export default {
           })
           this.getHistoryTrend(jobName)
         }
-      }).catch((error) => {
-        this.$notify.error({
-          title: "获取Jenkins任务信息列表失败",
-          message: error,
-        });
+      }).catch((e) => {
+        console.log(e);
       })
     },
     getHistoryTrend(jobName) {
@@ -194,11 +191,8 @@ export default {
           // this.$set(this.tableDataNew, 'tableDataNew', this.tableData) //this.$set() 响应式新增与修改数据
           this.tableDataNew = JSON.parse(JSON.stringify(tableData));
         }
-      }).catch((error) => {
-        this.$notify.error({
-          title: "获取Jenkins的报表数据失败",
-          message: error,
-        });
+      }).catch((e) => {
+        console.log(e);
       })
     },
   }

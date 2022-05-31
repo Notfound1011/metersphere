@@ -327,7 +327,10 @@ export default {
         title: "Testcase passing rate"
       },
       bug_statistics:{
-        title: "Testcase passing rate"
+        title: "Bug statistics"
+      },
+      task_statistics:{
+        title: "Task statistics"
       },
       api_autotest:{
         title: "Api AutoTest Quantity"

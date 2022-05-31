@@ -1,124 +1,129 @@
 <template>
-  <div id="recentCreatedBugStatistics" style="width: 650px;height:450px;margin: 20px"></div>
+  <div :id="id" style="width: 600px;height:480px;margin: 20px"></div>
 </template>
 
 <script>
-import {jiraAddress, jiraAuth} from "@/common/js/utils";
+import {groupArray, groupByMonth, jiraAddress, jiraAuth} from "@/common/js/utils";
+import * as echarts from "echarts";
 
 export default {
   name: "recentCreatedBugStatistics",
+  props: ['id', 'qaCreatedBugJQL'],
   data() {
     return {
       recentlyCreatedData: '',
       jira_auth: jiraAuth(),
-      jira_address: jiraAddress()
+      jira_address: jiraAddress(),
+      props: ['id', 'qaCreatedBugJQL'],
+      recentCreatedBugBarChart: null
     }
-  },
-  created() {
-    this.recentlyCreated()
   },
   methods: {
-    recentlyCreated() {
-      const currentYear = new Date().getFullYear().toString();
-      const hasTimestamp = new Date() - new Date(currentYear);
-      const hasDays = Math.ceil(hasTimestamp / 86400000);
-      let url = "jira/rest/gadget/1.0/recentlyCreated/generate?projectOrFilterId=filter-10869&periodName=monthly&daysprevious=" + hasDays + "&width=580&height=448&returnData=true&inline=true"
-      this.$axios.get(url, {headers: {'Authorization': this.jira_auth}}).then((res) => {
-          if (res.status === 200) {
-            this.recentlyCreatedData = res.data
-          }
-          const recentCreatedBugChartDom = document.getElementById('recentCreatedBugStatistics');
-          const recentCreatedBugBarChart = this.$echarts.init(recentCreatedBugChartDom);
-          var xAxisData = []
-          var resolvedData = []
-          var unresolvedData = []
-          for (let i = 0; i <= this.recentlyCreatedData.data.length - 1; i++) {
-            xAxisData.push(this.recentlyCreatedData.data[i].key);
-            resolvedData.push(this.recentlyCreatedData.data[i].resolvedValue);
-            unresolvedData.push(this.recentlyCreatedData.data[i].unresolvedValue);
-          }
-          recentCreatedBugBarChart.setOption({
-            title: {
-              text: 'bug创建趋势图',
-              subtext: '本年度bug',
-              link: this.jira_address + this.recentlyCreatedData.filterUrl,
-              textStyle: {
-                fontSize: 25,
-                color: "rgba(55, 96, 186, 1)"
-              }
-            },
-            legend: {
-              data: ['resolved', 'unresolved'],
-              left: '35%'
-            },
-            toolbox: {
-              show: true,
-              right: '20',
-              feature: {
-                dataZoom: {
-                  yAxisIndex: 'none'
-                },
-                dataView: {readOnly: false},
-                magicType: {type: ['line', 'bar']},
-                restore: {},
-                saveAsImage: {}
-              }
-            },
-            tooltip: {},
-            xAxis: {
-              data: xAxisData,
-              name: '月份',
-              axisLabel: {interval: 0, rotate: 30},
-              nameTextStyle: {
-                padding: 20,
-              }
-            },
-            yAxis: [
-              {
-                name: '数量',
-              }
-            ],
-            grid: {
-              top: '20%',
-              bottom: 100
-            },
-            series: [
-              {
-                name: 'resolved',
-                type: 'bar',
-                stack: 'Ad',
-                itemStyle: {
-                  color: 'rgba(33, 199, 0, 0.9)',
-                },
-                emphasis: {
-                  itemStyle: {
-                    shadowBlur: 10,
-                    shadowColor: 'rgba(255, 99, 71, 1)'
-                  }
-                },
-                data: resolvedData
-              },
-              {
-                name: 'unresolved',
-                type: 'bar',
-                stack: 'Ad',
-                itemStyle: {
-                  color: 'rgba(255, 99, 71, 0.9)',
-                },
-                emphasis: {
-                  itemStyle: {
-                    shadowBlur: 10,
-                    shadowColor: 'rgba(255, 99, 71, 1)'
-                  }
-                },
-                data: unresolvedData
-              }
-            ]
-          })
-        }
-      )
-    }
+    recentlyCreated(data) {
+      if (this.recentCreatedBugBarChart != null && this.recentCreatedBugBarChart != "" && this.recentCreatedBugBarChart != undefined) {
+        this.recentCreatedBugBarChart.dispose();
+      }
+      this.recentCreatedBugBarChart = this.$echarts.init(document.getElementById(this.id));
 
+      var xAxisData = []
+      var totalData = []
+      let datas = groupArray(data, 'created')
+      let map = new Map()
+      for (let i = 0; i < datas.length; i++) {
+        try {
+          const s = JSON.stringify(datas[i].location.split('-')[0] + '-' + datas[i].location.split('-')[1]);
+          if (!map.has(s)) {
+            map.set(s, {
+              location: datas[i].location.split('-')[0] + '-' + datas[i].location.split('-')[1],
+              count: 1,
+            });
+          } else {
+            map.get(s).count++;
+          }
+        } catch (e) {
+          console.log(e);
+        }
+      }
+      let data_new = Array.from(map.values())
+      for (let i = data_new.length - 1; i >= 0; i--) {
+        xAxisData.push(data_new[i].location);
+        totalData.push(data_new[i].count);
+      }
+      let option = {
+        title: {
+          text: '测试环境bug趋势',
+          // subtext: '本年度bug',
+          link: this.jira_address + "/issues/?jql=" + this.qaCreatedBugJQL,
+          textStyle: {
+            fontSize: 25,
+            color: "rgba(55, 96, 186, 1)"
+          }
+        },
+        toolbox: {
+          show: true,
+          right: '20',
+          feature: {
+            dataZoom: {
+              yAxisIndex: 'none'
+            },
+            dataView: {readOnly: false},
+            magicType: {type: ['line', 'bar']},
+            restore: {},
+            saveAsImage: {}
+          }
+        },
+        tooltip: {},
+        xAxis: {
+          data: xAxisData,
+          name: '月份',
+          nameGap: 40,
+          nameLocation: 'center',
+          axisLabel: {interval: 0, rotate: 30},
+          nameTextStyle: {
+            padding: 20,
+          }
+        },
+        yAxis: [
+          {
+            name: '数量',
+          }
+        ],
+        grid: {
+          top: '20%',
+          bottom: 100
+        },
+        series: [
+          {
+            name: 'task',
+            type: 'bar',
+            itemStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                {offset: 0, color: '#83bff6'},
+                {offset: 0.5, color: '#188df0'},
+                {offset: 1, color: '#188df0'}
+              ])
+            },
+            emphasis: {
+              itemStyle: {
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                  {offset: 0, color: '#2378f7'},
+                  {offset: 0.7, color: '#2378f7'},
+                  {offset: 1, color: '#83bff6'}
+                ])
+              }
+            },
+            data: totalData
+          }
+        ]
+      }
+      this.recentCreatedBugBarChart.setOption(option, true)
+      // //echarts series.bar的点击事件，触发跳转新页面
+      // this.recentCreatedBugBarChart.on('click', 'series.bar', obj => {
+      //   let url = this.jira_address + "/issues/?jql=" + this.qaCreatedBugJQL + " AND created"
+      //   url = url + " > " + obj.name
+      //   window.open(url, '_blank');
+      // });
+    }
   }
 }
 </script>

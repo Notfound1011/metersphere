@@ -1,5 +1,3 @@
-
-
 export default {
   path: "/api",
   name: "api",
@@ -40,6 +38,23 @@ export default {
           path: 'runJobs',
           component: () => import('@/business/components/api/jobscheduler/components/runJobs')
         }]
+    },
+    {
+      path: 'dataFactory',
+      name: 'dataFactory',
+      component: () => import('@/business/components/api/dataFactory/dataFactory'),
+      children: [
+        {
+          path: '',
+          name: "dataHome",
+          component: () => import('@/business/components/api/dataFactory/dataHome'),
+          meta: {}
+        },
+        {
+          path: 'account',
+          component: () => import('@/business/components/api/dataFactory/components/account')
+        }
+      ]
     },
     {
       path: "report/list/:testId",

@@ -206,7 +206,7 @@ export default {
       if (error.response.data.message === 'No valid crumb was included in the request' && error.response.status === 403) {
         MessageBox.alert(i18n.t('commons.jenkins_tips'), i18n.t('commons.prompt'), {
           callback: () => {
-            window.location.href = "/#/api/jobScheduler";
+            // window.location.href = "/#/api/jobScheduler";
             window.location.reload()
           }
         });

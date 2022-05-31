@@ -37,6 +37,12 @@ module.exports = {
           '^/api/tc/jira': '/',
         }
       },
+      '/api/tc/dataFactory': {
+        target: 'http://3.1.250.199:8084',
+        // target: 'http://localhost:8084',
+        changeOrigin: true,
+        pathRewrite: {'^/api/tc/dataFactory': '/'},
+      },
       '/api/tc': {
         target: 'http://3.1.250.199:8081',
         // target: 'http://localhost:8081',

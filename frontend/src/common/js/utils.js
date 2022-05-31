@@ -1,25 +1,21 @@
 import {
   COUNT_NUMBER,
-  COUNT_NUMBER_SHALLOW, THIRD_PARTY_INFO,
+  COUNT_NUMBER_SHALLOW,
+  JENKINS_AUTH,
+  JIRA_ADDRESS,
+  JIRA_AUTH,
   LicenseKey,
-  ORGANIZATION_ID,
   ORIGIN_COLOR,
   ORIGIN_COLOR_SHALLOW,
   PRIMARY_COLOR,
   PROJECT_ID,
   PROJECT_NAME,
-  ROLE_ADMIN,
-  ROLE_ORG_ADMIN,
-  ROLE_TEST_MANAGER,
-  ROLE_TEST_USER,
-  ROLE_TEST_VIEWER,
+  THIRD_PARTY_INFO,
   TokenKey,
-  WORKSPACE_ID, JENKINS_AUTH, JIRA_AUTH, JIRA_ADDRESS
+  WORKSPACE_ID
 } from "./constants";
-import axios from "axios";
 import {jsPDF} from "jspdf";
 import JSEncrypt from 'jsencrypt';
-import {CUSTOM_FIELD_TYPE_OPTION} from "@/common/js/table-constants";
 import i18n from "@/i18n/i18n";
 
 export function hasRole(role) {
@@ -106,7 +102,7 @@ export function hasLicense() {
 export function jenkinsAuth() {
   try {
     return JSON.parse(localStorage.getItem(THIRD_PARTY_INFO)).jenkins_auth
-  }catch (e){
+  } catch (e) {
     return JENKINS_AUTH;
   }
 }
@@ -114,7 +110,7 @@ export function jenkinsAuth() {
 export function jiraAuth() {
   try {
     return JSON.parse(localStorage.getItem(THIRD_PARTY_INFO)).jira_auth
-  }catch (e){
+  } catch (e) {
     return JIRA_AUTH;
   }
 }
@@ -122,7 +118,7 @@ export function jiraAuth() {
 export function jiraAddress() {
   try {
     return JSON.parse(localStorage.getItem(THIRD_PARTY_INFO)).jira_address
-  }catch (e){
+  } catch (e) {
     return JIRA_ADDRESS;
   }
 }
@@ -546,7 +542,7 @@ export function getTranslateOptions(data) {
   return options;
 }
 
-export function removeEmptyField(data, defaultStr = null) {
+export function removeEmptyFieldDeep(data, defaultStr = null) {
   // 普通数据类型
   if (typeof data != 'object' || data == null) {
     if ((data === '')) {
@@ -562,6 +558,24 @@ export function removeEmptyField(data, defaultStr = null) {
     }
     if (typeof data[v] == 'object') {
       removeEmptyField(data[v])
+    }
+  }
+}
+
+
+export function removeEmptyField(data, defaultStr = null) {
+  // 普通数据类型
+  if (typeof data != 'object' || data == null) {
+    if ((data === '')) {
+      return defaultStr;
+    } else {
+      return data;
+    }
+  }
+  // 引用数据类型
+  for (const v in data) {
+    if (data[v] === '') {
+      data[v] = null;
     }
   }
 }
@@ -792,3 +806,75 @@ export function groupByYear(date, value) {
   }
 }
 
+export function removeEscape(str) {  //去除转义
+  var arrEntities = {'lt': '<', 'gt': '>', 'nbsp': ' ', 'amp': '&', 'quot': '"'};
+  return str.replace(/&(lt|gt|nbsp|amp|quot);/ig, function (all, t) {
+    return arrEntities[t];
+  });
+}
+
+export function ChangeDecimalToPercentage(data) {
+  let data1 = (data * 100).toFixed(2) + "%"
+  return data1
+}
+
+
+export function groupArray(arr, name) {
+  //创建映射
+  let map = new Map()
+  for (let i = 0; i < arr.length; i++) {
+    if (name === "created") {
+      try {
+        const s = JSON.stringify(arr[i].fields[name]);
+        if (!map.has(s)) {
+          map.set(s, {
+            location: arr[i].fields[name],
+            count: 1,
+          });
+        } else {
+          map.get(s).count++;
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    } else {
+      try {
+        const s = JSON.stringify(arr[i].fields[name].name);
+        if (!map.has(s)) {
+          map.set(s, {
+            location: arr[i].fields[name].name,
+            count: 1,
+          });
+        } else {
+          map.get(s).count++;
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    }
+  }
+  const new_array = Array.from(map.values()).sort((a, b) => b.count - a.count)
+  return new_array;
+}
+
+
+export function list2Map(list, key) {
+  let map = {};
+  if (list && Array.isArray(list) && list.length > 0) {
+    list.forEach((item) => {
+      item[key] ? (map[item[key]] = item) : "";
+    });
+  }
+  return map;
+}
+
+//map 转 arr 方法
+export function map2List(map) {
+  let list = [];
+  if (map && typeof map === "object") {
+    for (let key in map) {
+      list.push(map[key]);
+    }
+  }
+  return list;
+}

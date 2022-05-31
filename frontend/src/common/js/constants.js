@@ -50,9 +50,17 @@ export const GROUP_PROJECT = 'PROJECT';
 
 export const JENKINS_AUTH = 'Basic dGVzdDoxMjM0NTY=';
 export const JIRA_ADDRESS = 'http://jira.cmexpro.com';
-export const JIRA_AUTH = 'Basic eXV5dS5zaGk6U2hpeXVAMTIzNA==';
+export const JIRA_AUTH = 'Basic anVuc2h1YWkueWFuZzpwaGVtZXhAMkE=';
 
 export const THIRD_PARTY_INFO = 'ThirdPartyInfo';
+
+//定义QA的五个组和组内成员
+export const GROUP_DATA = ["QA1组(孙戈)", "QA2组(周敏)", "QA3组(李磊)", "QA4组(lip)", "机动组"]
+export const GROUP_SUNGE = ["ge.sun", "jiaqiang.cai", "justin", "dongying.hong", "lucky.wu"]
+export const GROUP_ZHOUMIN = ["min.zhou", "ming.yang", "shengtao.liu", "shuaijie.wei", "pauri", "eric.he"]
+export const GROUP_LILEI = ["stoner.li"]
+export const GROUP_LIP = ["lip"]
+export const GROUP_FLEXIBLE = ["yuyu.shi", "xinjie.liu"]
 
 export const SCHEDULE_TYPE = {
   API_TEST: 'API_TEST',
@@ -197,10 +205,10 @@ export const CONFIG_TYPE = {
   ABNORMAL: "ABNORMAL"
 }
 
-export const WORKSTATION={
-  UPCOMING:"upcoming",
-  FOCUS:"focus",
-  NODE:"node"
+export const WORKSTATION = {
+  UPCOMING: "upcoming",
+  FOCUS: "focus",
+  NODE: "node"
 }
 
 export const ENV_TYPE = {

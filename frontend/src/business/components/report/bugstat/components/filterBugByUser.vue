@@ -1,62 +1,89 @@
 <template>
   <div>
-    <div slot="header">
-      <span class="cardTitle" style="color: rgba(55, 96, 186, 1); margin: 10px">
-        开发bug统计
-      </span>
+    <div slot="header" style="margin: 10px">
+      <el-link :underline="false" :href=this.url target="_blank">
+        <span class="cardTitle" style="color: rgba(55, 96, 186, 1); margin: 10px">
+          开发bug统计
+        </span>
+      </el-link>
     </div>
-    <!-- table主体内容 -->
-    <el-table :data="tableDataNew" style="width: 100% ;margin: 10px" border height="440">
-      <el-table-column type="index" label="序号" width="100"></el-table-column>
-      <el-table-column prop="creator" label="developer" width="200" sortable></el-table-column>
-      <el-table-column prop="total" label="总计" width="100" align="center" sortable>
-        <template slot-scope="scope">
-          <el-link :href='scope.row.url' target="_blank">
-            <div v-if="scope.row.url !== '' && scope.row.url != null" style="font-size: 15px; color: blue">
-              {{ scope.row.total }}
-            </div>
-          </el-link>
-        </template>
-      </el-table-column>
-    </el-table>
+    <div class="header">
+      <el-row :gutter="20">
+        <el-col :span="12">
+          <el-card>
+            <!-- table主体内容 -->
+            <el-table :data="tableDataNew" style="width: 100% ;margin: 10px" border height="440">
+              <el-table-column type="index" label="序号" width="60"></el-table-column>
+              <el-table-column prop="developer" label="developer" width="160" sortable></el-table-column>
+              <el-table-column prop="total" label="总计" width="80" align="center" sortable>
+                <template slot-scope="scope">
+                  <el-link :href='scope.row.url' target="_blank">
+                    <div v-if="scope.row.url !== '' && scope.row.url != null" style="font-size: 15px; color: blue">
+                      {{ scope.row.total }}
+                    </div>
+                  </el-link>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-card>
+        </el-col>
+        <el-col :span="12">
+          <el-card>
+            <el-table :data="tableDataNew1" style="width: 100% ;margin: 10px" border height="440">
+              <el-table-column type="index" label="序号" width="60"></el-table-column>
+              <el-table-column prop="project" label="project" width="160" sortable></el-table-column>
+              <el-table-column prop="total" label="总计" width="80" align="center" sortable>
+                <template slot-scope="scope">
+                  <el-link :href='scope.row.url' target="_blank">
+                    <div v-if="scope.row.url !== '' && scope.row.url != null" style="font-size: 15px; color: blue">
+                      {{ scope.row.total }}
+                    </div>
+                  </el-link>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-card>
+        </el-col>
+      </el-row>
+    </div>
   </div>
 </template>
 
 <script>
-import {jiraAuth, jiraAddress} from "@/common/js/utils";
+import {jiraAuth, jiraAddress, groupArray} from "@/common/js/utils";
 
 export default {
   name: "filterBugByUser",
-  created() {
-    this.filterBugByUser()
-  },
+  props: ['qaCreatedBugJQL'],
   data() {
     return {
-      tableData: [],
       tableDataNew: [],
       total: 0,
+      tableDataNew1: [],
       jira_auth: jiraAuth(),
-      jira_address: jiraAddress()
+      jira_address: jiraAddress(),
+      url: jiraAddress() + "/issues/?jql=" + this.qaCreatedBugJQL
     }
   },
   methods: {
-    filterBugByUser() {
-      let url = "jira/rest/gadget/1.0/twodimensionalfilterstats/generate?filterId=filter-10869&xstattype=issuetype&ystattype=customfield_10300&sortDirection=desc&sortBy=total&numberToShow=1000"
-      this.$axios.get(url, {headers: {'Authorization': this.jira_auth}}).then((res) => {
-          if (res.status === 200) {
-            this.tableData = res.data.rows
-            this.total = res.data.totalRows
-            // console.log(this.tableData, this.total = res.data.totalRows)
-
-            this.tableData.forEach((value) => { //数组循环
-                var valueObj = {}
-                valueObj["creator"] = value["cells"][0]["markup"];
-                valueObj["url"] = value["cells"][1]["markup"].split(/>|<|'/)[2];
-                valueObj["total"] = value["cells"][1]["markup"].split(/>|<|'/)[4];
-                this.tableDataNew.push(valueObj)
-              }
-            )
-          }
+    filterBugByUser(data) {
+      this.total = data.length
+      groupArray(data, 'customfield_10300').forEach((value) => { //数组循环
+          const valueObj = {};
+          valueObj["developer"] = value["location"];
+          valueObj["url"] = this.jira_address + "/issues/?jql=" + this.qaCreatedBugJQL + " AND developer = \"" + value["location"] + "\"";
+          valueObj["total"] = value["count"];
+          this.tableDataNew.push(valueObj)
+        }
+      )
+    },
+    filterBugByProject(data) {
+      groupArray(data, 'project').forEach((value) => { //数组循环
+          const valueObj = {};
+          valueObj["project"] = value["location"];
+          valueObj["url"] = this.jira_address + "/issues/?jql=" + this.qaCreatedBugJQL + " AND project = \"" + value["location"].replace("&", '%26') + "\"";
+          valueObj["total"] = value["count"];
+          this.tableDataNew1.push(valueObj)
         }
       )
     }

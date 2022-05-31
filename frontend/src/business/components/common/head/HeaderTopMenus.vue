@@ -24,8 +24,8 @@
                   v-permission="['PROJECT_PERFORMANCE_TEST:READ','PROJECT_PERFORMANCE_REPORT:READ']">
       {{ $t('commons.performance') }}
     </el-menu-item>
-    <el-menu-item index="/reports" v-if="check('reports')" onselectstart="return false">
-<!--                  v-permission="['PROJECT_REPORT_ANALYSIS:READ']"-->
+    <el-menu-item index="/reports" v-if="check('reports')" onselectstart="return false"
+                  v-permission="['PROJECT_REPORT_ANALYSIS:READ']">
       {{ $t('commons.quality_market.title') }}
     </el-menu-item>
 

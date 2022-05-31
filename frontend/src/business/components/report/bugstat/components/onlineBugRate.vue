@@ -4,15 +4,26 @@
       <el-row :gutter="20">
         <el-col :span="10">
           <el-card shadow="hover" class="card">
-            <span class="data">{{ this.bugTotal }} <br>
+            <span class="data1">{{ this.percentage }} <br>
             </span>
-            <span class="description">测试环境bug数
+            <span class="description">线上bug率
+            </span>
+          </el-card>
+        </el-col>
+        <el-col :span="10">
+          <el-card shadow="hover" class="card">
+            <span class="data2">
+              {{ this.onlineBugTotal }}  <br>
+            </span>
+            <span class="description">
+              线上bug数
             </span>
           </el-card>
         </el-col>
       </el-row>
     </div>
-    <div :id="id" style="width: 600px;height:450px;margin: 20px"></div>
+    <div :id="id" style="width: 600px;height:370px;margin: 20px">
+    </div>
   </div>
 </template>
 
@@ -20,32 +31,33 @@
 import {jiraAuth, jiraAddress, groupArray} from "@/common/js/utils";
 
 export default {
-  name: "bugByProjectPieStat",
-  props: ['id', 'qaCreatedBugJQL', 'bugTotal'],
+  name: "onlineBugRate",
+  props: ['id', 'onlineBugJQL', 'percentage', 'onlineBugTotal'],
   data() {
     return {
       pieData: {
         issueCount: 0
       },
+      bugTotalSize: 0,
+      percent: 0,
       jira_auth: jiraAuth(),
       jira_address: jiraAddress(),
       myRecentPieChart: null
     }
   },
   methods: {
-    bugByProject(data) {
+    onlineBugRate(data) {
       let that = this
       if (that.myRecentPieChart != null && that.myRecentPieChart != "" && that.myRecentPieChart != undefined) {
         that.myRecentPieChart.dispose();
       }
       that.myRecentPieChart = that.$echarts.init(document.getElementById(that.id));
-
-      const result = [];
-      groupArray(data, 'project').forEach((value) => { //数组循环
+      var result = []
+      groupArray(data, 'status').forEach((value) => { //数组循环
           result.push({
             value: value["count"],
             name: value["location"],
-            url: that.jira_address + "/issues/?jql=" + that.qaCreatedBugJQL + " AND project = \"" + value["location"].replace("&", '%26') + "\""
+            url: that.jira_address + "/issues/?jql=" + this.onlineBugJQL + " AND status = \"" + value["location"] + "\""
           })
         }
       )
@@ -65,13 +77,13 @@ export default {
               saveAsImage: {show: true}
             }
           },
-          // color: ['#8eb021', '#3b7fc4', '#d04437', '#f6c342', '#654982', '#f691b2', '#999999', '#815b3a', '#f79232', '#59afe1', '#f15c75'],
+          // color: ['#8eb021', '#3b7fc4', '#d04437', '#f6c342', '#654982', '#f691b2', '#999999'],
           color: ['#91cc75', '#5470c6', '#ee6666', '#fac858', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'],
           title: {
-            text: 'Bug by project',
-            // subtext: 'BUG总数 ' + this.pieData.issueCount,
+            text: 'Bug in production',
+            // subtext: '线上BUG数 ' + this.pieData.issueCount,
             left: 'center',
-            link: that.jira_address + "/issues/?jql=" + this.qaCreatedBugJQL,
+            link: that.jira_address + "/issues/?jql=" + that.onlineBugJQL,
             target: 'blank',
             textStyle: {
               fontSize: 25,
@@ -130,7 +142,13 @@ export default {
   margin: 20px;
 }
 
-.data {
+.data1 {
+  color: rgb(255, 0, 0);
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.data2 {
   color: rgb(255, 153, 0);
   font-size: 20px;
   font-weight: bold;
@@ -139,6 +157,7 @@ export default {
 .description {
   color: rgb(128, 127, 127);
   font-size: 16px;
+  /*font-weight: bold;*/
 }
 
 .card {

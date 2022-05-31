@@ -9,7 +9,7 @@ FROM metersphere/fabric8-java-alpine-openjdk8-jre
 
 LABEL maintainer="yuyu.shi@cmexpro.com"
 
-ARG MS_VERSION=v1.16.6
+ARG MS_VERSION=v1.16.13
 ARG DEPENDENCY=/workspace/app/dependency
 
 COPY --from=build ${DEPENDENCY}/BOOT-INF/lib /app/lib

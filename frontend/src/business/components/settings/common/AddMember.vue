@@ -13,7 +13,6 @@
           :popper-append-to-body="false"
           class="member_select"
           :placeholder="$t('member.please_choose_member')">
-          <el-checkbox v-model="checked" @change='selectAll' class="el-checkbox">全选</el-checkbox>
           <el-option
             v-for="item in userList"
             :key="item.id"
@@ -66,8 +65,7 @@ export default {
       },
       userList: [],
       copyUserList: [],
-      result: {},
-      checked: false
+      result: {}
     }
   },
   props: {
@@ -85,17 +83,6 @@ export default {
     }
   },
   methods: {
-    selectAll() {
-      this.form.userIds = []
-      console.log("sssss",this.userList)
-      if (this.checked) {
-        this.userList.map((item) => {
-          this.form.userIds.push(item.id)
-        })
-      } else {
-        this.form.userIds = []
-      }
-    },
     submitForm() {
       this.$refs['form'].validate((valid) => {
         if (valid) {
@@ -120,7 +107,6 @@ export default {
     close() {
       this.dialogVisible = false;
       this.form = {};
-      this.checked = false;
     },
     userFilter(val) {
       if (val) {
@@ -140,10 +126,5 @@ export default {
 <style scoped>
 .member_select, .group_select {
   display: block;
-}
-.el-checkbox {
-  text-align: right;
-  width: 98%;
-  padding-right: 10px;
 }
 </style>

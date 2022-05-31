@@ -76,7 +76,7 @@ export default {
         fullDisplayName: ''
       },
       JobInfoList: {},
-      allureOverallReport:'',
+      allureOverallReport: '',
       Jenkins_Crumb: '',
       scheduling_times: '',
       options: [
@@ -139,17 +139,7 @@ export default {
           });
         }
       }).catch((error) => {
-        if (error.response.data.message === 'No valid crumb was included in the request') {
-          this.$notify.error({
-            title: "Jenkins-crumb已过期，请刷新页面重试",
-            message: error,
-          });
-        } else {
-          this.$notify.error({
-            title: "获取Jenkins最近一次构建信息失败",
-            message: error,
-          });
-        }
+        console.log(error);
       })
     },
     getJobInfoList(jobName) {
@@ -159,7 +149,7 @@ export default {
         if (res.status === 200) {
           this.JobInfoList = res.data
           this.scheduling_times = this.JobInfoList.builds.length
-          this.allureOverallReport =this.JobInfoList.url + 'allure'
+          this.allureOverallReport = this.JobInfoList.url + 'allure'
         } else {
           this.$notify.warning({
             title: "获取Jenkins的任务信息列表",
@@ -167,17 +157,7 @@ export default {
           });
         }
       }).catch((error) => {
-        if (error.response.data.message === 'No valid crumb was included in the request') {
-          this.$notify.error({
-            title: "Jenkins-crumb已过期，请刷新页面重试",
-            message: error,
-          });
-        } else {
-          this.$notify.error({
-            title: "获取Jenkins任务信息列表失败",
-            message: error,
-          });
-        }
+        console.log(error);
       })
     },
 
@@ -273,9 +253,7 @@ export default {
               type: 'bar',
               stack: 'Ad',
               itemStyle: {
-                normal: {
-                  color: 'rgba(33, 199, 0, 0.9)',
-                }
+                color: 'rgba(33, 199, 0, 0.9)',
               },
               emphasis: {
                 itemStyle: {
@@ -290,9 +268,7 @@ export default {
               type: 'bar',
               stack: 'Ad',
               itemStyle: {
-                normal: {
-                  color: 'rgba(255, 99, 71, 0.9)',
-                }
+                color: 'rgba(255, 99, 71, 0.9)'
               },
               emphasis: {
                 itemStyle: {
@@ -307,9 +283,7 @@ export default {
               type: 'bar',
               stack: 'Ad',
               itemStyle: {
-                normal: {
-                  color: 'rgba(157,163,223, 0.8)',
-                }
+                color: 'rgba(157,163,223, 0.8)'
               },
               emphasis: {
                 itemStyle: {
@@ -324,9 +298,7 @@ export default {
               type: 'bar',
               stack: 'Ad',
               itemStyle: {
-                normal: {
-                  color: 'rgba(106, 90, 240,0.8)',
-                }
+                color: 'rgba(106, 90, 240,0.8)'
               },
               emphasis: {
                 itemStyle: {
@@ -341,9 +313,7 @@ export default {
               type: 'bar',
               stack: 'Ad',
               itemStyle: {
-                normal: {
-                  color: 'rgba(190, 180, 190, 1)',
-                }
+                color: 'rgba(190, 180, 190, 1)'
               },
               emphasis: {
                 itemStyle: {
@@ -359,7 +329,7 @@ export default {
               yAxisIndex: 1,
               color: "rgba(0, 0, 255, 0.6)",
               lineStyle: {
-                normal: {color: "rgba(0, 0, 255, 0.6)"}
+                color: "rgba(0, 0, 255, 0.6)"
               },
               data: passRateData
             }

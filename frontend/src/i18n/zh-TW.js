@@ -330,6 +330,9 @@ export default {
       bug_statistics:{
         title: "bug统计"
       },
+      task_statistics:{
+        title: "需求任務統計"
+      },
       api_autotest:{
         title: "接口自動化質量"
       }
